@@ -74,7 +74,7 @@ def main():
 To use this tool you have to set the following environment variables before starting:
   
 {GEONODECTL_URL_ENV_VAR}: https://geonode.example.com/api/v2/ -- path to the v2 endpoint of your target geonode instance
-{GEONODECTL_BASIC_ENV_VAR}: dXNlcjpwYXNzd29yZA== -- you can generate this string like: echo -n user:password | base64
+{GEONODECTL_BASIC_ENV_VAR}: YWRtaW46YWRtaW4= -- you can generate this string like: echo -n user:password | base64
 ''',
         formatter_class=RawTextHelpFormatter
     )
