@@ -1,2 +1,8 @@
 requests
+types-requests
 tabulate
+types-tabulate
+types-urllib3
+
+mypy
+flake8

@@ -8,7 +8,7 @@ from typing import List
 from argparse import RawTextHelpFormatter
 from pathlib import Path
 
-from src.geonodeobject import GeonodeEnv
+from src.geonodeobject import GeonodeEnv, GeoNodeObject
 from src.datasets import GeonodeDatasets
 from src.resources import GeonodeResources
 from src.documents import GeonodeDocuments
@@ -23,14 +23,15 @@ GEONODECTL_BASIC_ENV_VAR: str = "GEONODECTL_BASIC"
 DEFAULT_CHARSET: str = "UTF-8"
 
 SUPPORTED_METADATA_TYPES: List[str] = [
-  "Atom",
-  "DIF",
-  "Dublin Core",
-  "FGDC",
-  "ISO",
+    "Atom",
+    "DIF",
+    "Dublin Core",
+    "FGDC",
+    "ISO",
 ]
 DEFAULT_METADATA_TYPE = "ISO"
 DEFAULT_LIST_PAGE_SIZE: int = 100
+
 
 class AliasedSubParsersAction(argparse._SubParsersAction):
 
@@ -39,8 +40,7 @@ class AliasedSubParsersAction(argparse._SubParsersAction):
       dest = name
       if aliases:
         dest += ' (%s)' % ','.join(aliases)
-      sup = super(AliasedSubParsersAction._AliasedPseudoAction, self)
-      sup.__init__(option_strings=[], dest=dest, help=help)
+      super(AliasedSubParsersAction._AliasedPseudoAction, self).__init__(option_strings=[], dest=dest, help=help)
 
   def add_parser(self, name, **kwargs):
     if 'aliases' in kwargs:
@@ -49,7 +49,8 @@ class AliasedSubParsersAction(argparse._SubParsersAction):
     else:
       aliases = []
 
-    parser = super(AliasedSubParsersAction, self).add_parser(name, **kwargs)
+    parser = super(AliasedSubParsersAction,
+                   self).add_parser(name, **kwargs)
 
     # Make the aliases work.
     for alias in aliases:
@@ -72,7 +73,7 @@ def main():
 To use this tool you have to set the following environment variables before starting:
   
 {GEONODECTL_URL_ENV_VAR}: https://geonode.example.com/api/v2/ -- path to the v2 endpoint of your target geonode instance
-{GEONODECTL_BASIC_ENV_VAR}: dXNlcjpwYXNzd29yZA== -- you can generate this string like: echo -n user:password | base64
+{GEONODECTL_BASIC_ENV_VAR}: YWRtaW46YWRtaW4= -- you can generate this string like: echo -n user:password | base64
 ''',
       formatter_class=RawTextHelpFormatter
   )
@@ -89,22 +90,29 @@ To use this tool you have to set the following environment variables before star
                       help="return output as raw response json as it comes from the rest API")
   parser.add_argument('--page-size', dest="page_size", default=DEFAULT_LIST_PAGE_SIZE,
                       help="return output as raw response json as it comes from the rest API")
-  subparsers = parser.add_subparsers(help='geonodectl commands', dest="command", required=True)
+  subparsers = parser.add_subparsers(
+      help='geonodectl commands', dest="command", required=True)
 
   #############################
   # RESOURCE ARGUMENT PARSING #
   #############################
 
-  resource = subparsers.add_parser('resources', help='resource commands', aliases=('resource',))
-  resource_subparsers = resource.add_subparsers(help='geonodectl resounrces commands', dest="subcommand", required=True)
+  resource = subparsers.add_parser(
+      'resources', help='resource commands', aliases=('resource',))
+  resource_subparsers = resource.add_subparsers(
+      help='geonodectl resounrces commands', dest="subcommand", required=True)
 
   resource_subparsers.add_parser('list', help='list resource')
 
-  resource_delete = resource_subparsers.add_parser('delete', help='delete resource')
-  resource_delete.add_argument('-pk', type=int, dest='pk', required=True, help='pk of resource to delete')
+  resource_delete = resource_subparsers.add_parser(
+      'delete', help='delete resource')
+  resource_delete.add_argument(
+      '-pk', type=int, dest='pk', required=True, help='pk of resource to delete')
 
-  resource_metadata = resource_subparsers.add_parser('metadata', help='download metadata for resource')
-  resource_metadata.add_argument('-pk', type=int, dest='pk', required=True, help='pk of resource to show metadata')
+  resource_metadata = resource_subparsers.add_parser(
+      'metadata', help='download metadata for resource')
+  resource_metadata.add_argument(
+      '-pk', type=int, dest='pk', required=True, help='pk of resource to show metadata')
   resource_metadata.add_argument('--metadata-type', type=str, dest='metadata_type',
                                  choices=SUPPORTED_METADATA_TYPES, default=DEFAULT_METADATA_TYPE, help='pk of resource to show metadata')
 
@@ -114,68 +122,91 @@ To use this tool you have to set the following environment variables before star
 
   datasets = subparsers.add_parser('dataset', description='valid subcommands:',
                                    help='dataset commands', aliases=('ds',))
-  datasets_subparsers = datasets.add_subparsers(help='geonodectl dataset commands', dest="subcommand", required=True)
+  datasets_subparsers = datasets.add_subparsers(
+      help='geonodectl dataset commands', dest="subcommand", required=True)
 
   datasets_subparsers.add_parser('list', help='list datasets')
 
-  datasets_upload = datasets_subparsers.add_parser('upload', help='upload new datasets')
-  datasets_upload.add_argument('-f', '--file', type=Path, dest='file_path', required=True, help='file to upload')
-  datasets_upload.add_argument('-t', '--title', type=str, dest='title', required=True, help='dataset title')
-  datasets_upload.add_argument('-a', '--abstract', type=str, dest='abstract', help='dataset abstract')
+  datasets_upload = datasets_subparsers.add_parser(
+      'upload', help='upload new datasets')
+  datasets_upload.add_argument(
+      '-f', '--file', type=Path, dest='file_path', required=True, help='file to upload')
+  datasets_upload.add_argument(
+      '-t', '--title', type=str, dest='title', required=True, help='dataset title')
+  datasets_upload.add_argument(
+      '-a', '--abstract', type=str, dest='abstract', help='dataset abstract')
   datasets_upload.add_argument('--time', action='store_true', dest='time',
                                default=False, help='uploads dataset as timeseries')
   datasets_upload.add_argument('--charset', type=str, dest='charset',
                                default=DEFAULT_CHARSET, help='uploads dataset as timeseries')
 
-  datasets_delete = datasets_subparsers.add_parser('delete', help='delete existing datasets')
-  datasets_delete.add_argument('-pk', type=int, dest='pk', required=True, help='pk of dataset to delete ...')
+  datasets_delete = datasets_subparsers.add_parser(
+      'delete', help='delete existing datasets')
+  datasets_delete.add_argument(
+      '-pk', type=int, dest='pk', required=True, help='pk of dataset to delete ...')
 
   #############################
   # DOCUMENT ARGUMENT PARSING #
   #############################
 
-  documents = subparsers.add_parser('documents', help='document commands', aliases=('doc', 'document'))
+  documents = subparsers.add_parser(
+      'documents', help='document commands', aliases=('doc', 'document'))
   documents_subparsers = documents.add_subparsers(
-    help='geonodectl documents commands', dest="subcommand", required=True)
+      help='geonodectl documents commands', dest="subcommand", required=True)
 
   documents_subparsers.add_parser('list', help='list documents')
-  documents_upload = documents_subparsers.add_parser('upload', help='upload new datasets')
-  documents_upload.add_argument('-f', '--file', type=Path, dest='file_path', required=True, help='file to upload')
-  documents_upload.add_argument('-t', '--title', type=str, dest='title', required=True, help='document title')
-  documents_upload.add_argument('-a', '--abstract', type=str, dest='abstract', help='docment abstract')
+  documents_upload = documents_subparsers.add_parser(
+      'upload', help='upload new datasets')
+  documents_upload.add_argument(
+      '-f', '--file', type=Path, dest='file_path', required=True, help='file to upload')
+  documents_upload.add_argument(
+      '-t', '--title', type=str, dest='title', required=True, help='document title')
+  documents_upload.add_argument(
+      '-a', '--abstract', type=str, dest='abstract', help='docment abstract')
   documents_upload.add_argument('--metadata-only', type=bool, dest='metadata_only', default=False,
                                 help='if set no landing page for the document will be generated, but file is downloadable through link')
 
-  documents_delete = documents_subparsers.add_parser('delete', help='delete existing document')
-  documents_delete.add_argument('-pk', type=int, dest='pk', required=True, help='pk of document to delete ...')
+  documents_delete = documents_subparsers.add_parser(
+      'delete', help='delete existing document')
+  documents_delete.add_argument(
+      '-pk', type=int, dest='pk', required=True, help='pk of document to delete ...')
 
   ########################
   # MAP ARGUMENT PARSING #
   ########################
 
   maps = subparsers.add_parser('maps', help='maps commands')
-  maps_subparsers = maps.add_subparsers(help='geonodectl maps commands', dest="subcommand", required=True)
+  maps_subparsers = maps.add_subparsers(
+      help='geonodectl maps commands', dest="subcommand", required=True)
   maps_subparsers.add_parser('list', help='list documents')
-  
-  maps_delete = maps_subparsers.add_parser('delete', help='delete existing map')
-  maps_delete.add_argument('-pk', type=int, dest='pk', required=True, help='pk of map to delete ...')
+
+  maps_delete = maps_subparsers.add_parser(
+      'delete', help='delete existing map')
+  maps_delete.add_argument('-pk', type=int, dest='pk',
+                           required=True, help='pk of map to delete ...')
 
   #########################
   # APPS ARGUMENT PARSING #
   #########################
-  geoapps = subparsers.add_parser('geoapps', help='geoapps commands', aliases=('apps',))
-  geoapps_subparsers = geoapps.add_subparsers(help='geonodectl geoapps commands', dest="subcommand", required=True)
+  geoapps = subparsers.add_parser(
+      'geoapps', help='geoapps commands', aliases=('apps',))
+  geoapps_subparsers = geoapps.add_subparsers(
+      help='geonodectl geoapps commands', dest="subcommand", required=True)
   geoapps_subparsers.add_parser('list', help='list geoapps')
-  
-  geoapps_delete = geoapps_subparsers.add_parser('delete', help='delete existing geoapp')
-  geoapps_delete.add_argument('-pk', type=int, dest='pk', required=True, help='pk of geoapp to delete ...')
+
+  geoapps_delete = geoapps_subparsers.add_parser(
+      'delete', help='delete existing geoapp')
+  geoapps_delete.add_argument(
+      '-pk', type=int, dest='pk', required=True, help='pk of geoapp to delete ...')
 
   ##########################
   # USERS ARGUMENT PARSING #
   ##########################
 
-  people = subparsers.add_parser('people', help='people|users commands', aliases=('users', 'user'))
-  people_subparsers = people.add_subparsers(help='geonodectl people commands', dest="subcommand", required=True)
+  people = subparsers.add_parser(
+      'people', help='people|users commands', aliases=('users', 'user'))
+  people_subparsers = people.add_subparsers(
+      help='geonodectl people commands', dest="subcommand", required=True)
   people_subparsers.add_parser('list', help='list documents')
 
   ###########################
@@ -183,7 +214,8 @@ To use this tool you have to set the following environment variables before star
   ###########################
 
   uploads = subparsers.add_parser('uploads', help='uploads commands')
-  uploads_subparsers = uploads.add_subparsers(help='geonodectl uploads commands', dest="subcommand", required=True)
+  uploads_subparsers = uploads.add_subparsers(
+      help='geonodectl uploads commands', dest="subcommand", required=True)
   uploads_subparsers.add_parser('list', help='list uploads')
 
   args = parser.parse_args()
@@ -193,16 +225,16 @@ To use this tool you have to set the following environment variables before star
     basic = os.environ[GEONODECTL_BASIC_ENV_VAR]
   except KeyError:
     logging.error(
-      f"Could not find one of the following envvars to rung geonodectl: {GEONODECTL_URL_ENV_VAR}, {GEONODECTL_BASIC_ENV_VAR} ")
+        f"Could not find one of the following envvars to rung geonodectl: {GEONODECTL_URL_ENV_VAR}, {GEONODECTL_BASIC_ENV_VAR} ")
     sys.exit(1)
 
   if not url.endswith("api/v2/"):
     raise NameError(
-      f"provided geonode url: {url} not ends with \'api/v2/\'. Please make sure to provide full rest v2api url ...")
+        f"provided geonode url: {url} not ends with \'api/v2/\'. Please make sure to provide full rest v2api url ...")
 
   geonode_env = GeonodeEnv(url=url, auth_basic=basic, verify=args.ssl_verify)
 
-  g_obj = None
+  g_obj: GeoNodeObject
   match args.command:
     case "resources" | "resource": g_obj = GeonodeResources(env=geonode_env)
     case "dataset" | "ds": g_obj = GeonodeDatasets(env=geonode_env)

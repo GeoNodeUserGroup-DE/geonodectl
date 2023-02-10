@@ -1,14 +1,13 @@
-
-from typing import Dict
-
-from src.geonodeobject import GeoNodeObject
+from src.geonodeobject import GeoNodeObject, GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 
 
 class GeonodeMaps(GeoNodeObject):
-    DEFAULT_LIST_KEYS = [{'type': list, 'key': 'pk'},
-                       {'type': list, 'key': 'title'},
-                       {'type': dict, 'key': ['owner', 'username']},
-                       {'type': list, 'key': 'resource_type'},
-                       {'type': list, 'key': 'detail_url'}]
-  
+    DEFAULT_LIST_KEYS = [
+        GeonodeCmdOutListKey(key="pk"),
+        GeonodeCmdOutListKey(key="title"),
+        GeonodeCmdOutDictKey(key=["owner", "username"]),
+        GeonodeCmdOutListKey(key="resource_type"),
+        GeonodeCmdOutListKey(key="detail_url"),
+    ]
+
     RESOURCE_TYPE = "maps"
