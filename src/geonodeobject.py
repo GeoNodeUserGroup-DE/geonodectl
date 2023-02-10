@@ -1,12 +1,11 @@
-
 from src.cmdprint import show_list
 from typing import List, Tuple, TypeAlias, Type, Union, Dict, Optional
 from dataclasses import dataclass
 from abc import abstractmethod
-from functools import reduce
 import requests
 import urllib3
 import io
+
 urllib3.disable_warnings()
 
 
@@ -18,7 +17,6 @@ class GeonodeEnv:
 
 
 class GeonodeCmdOutObjectKey:
-
     @abstractmethod
     def get_key(self, ds: dict):
         raise NotImplementedError
@@ -50,12 +48,13 @@ class GeonodeCmdOutDictKey(GeonodeCmdOutObjectKey):
         return ds
 
 
-GeonodeHTTPFile: TypeAlias = Tuple[str, Union[Tuple[str, io.BufferedReader], Tuple[str, io.BufferedReader, str]]]
+GeonodeHTTPFile: TypeAlias = Tuple[
+    str, Union[Tuple[str, io.BufferedReader], Tuple[str, io.BufferedReader, str]]
+]
 GeonodeCmdOutputKeys: TypeAlias = List[GeonodeCmdOutObjectKey]
 
 
 class GeoNodeObject:
-
     DEFAULT_LIST_KEYS: List[GeonodeCmdOutObjectKey] = [
         GeonodeCmdOutListKey(type=list, key="pk")
     ]
@@ -72,33 +71,34 @@ class GeoNodeObject:
 
     @property
     def header(self):
-        return {'Authorization': f'Basic {self.gn_credentials.auth_basic}'}
+        return {"Authorization": f"Basic {self.gn_credentials.auth_basic}"}
 
     @property
     def verify(self):
         return self.gn_credentials.verify
 
-    def http_post(self,
-                  endpoint: str,
-                  files: Optional[List[GeonodeHTTPFile]] = None,
-                  params: Dict = {},
-                  content_length: Optional[int] = None
-                  ):
-
+    def http_post(
+        self,
+        endpoint: str,
+        files: Optional[List[GeonodeHTTPFile]] = None,
+        params: Dict = {},
+        content_length: Optional[int] = None,
+    ):
         if content_length:
-            self.header['content-length'] = content_length
+            self.header["content-length"] = content_length
         url = self.url + endpoint
 
         try:
-            r = requests.post(url, headers=self.header,
-                              files=files, data=params, verify=self.verify)
+            r = requests.post(
+                url, headers=self.header, files=files, data=params, verify=self.verify
+            )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
         return r.json()
 
     def http_get_download(self, url: str) -> object:
-        """ raw get url
+        """raw get url
 
         Args:
             url (str): url to download
@@ -116,11 +116,8 @@ class GeoNodeObject:
             raise SystemExit(err)
         return r
 
-    def http_get(self,
-                 endpoint: str,
-                 params: Dict = {}
-                 ) -> Dict:
-        """ execute http delete on endpoint with params
+    def http_get(self, endpoint: str, params: Dict = {}) -> Dict:
+        """execute http delete on endpoint with params
 
         Args:
             endpoint (str):  api endpoint
@@ -134,8 +131,7 @@ class GeoNodeObject:
         """
         url = self.url + endpoint
         try:
-            r = requests.get(url, headers=self.header,
-                             data=params, verify=self.verify)
+            r = requests.get(url, headers=self.header, data=params, verify=self.verify)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
@@ -143,7 +139,7 @@ class GeoNodeObject:
         return r.json()
 
     def http_delete(self, endpoint: str, params: Dict = {}) -> Dict:
-        """ execute http delete on endpoint with params
+        """execute http delete on endpoint with params
 
         Args:
             endpoint (str): api endpoint
@@ -166,22 +162,24 @@ class GeoNodeObject:
         return r.json()
 
     def cmd_list(self, *args, **kwargs):
-        """ show list of geonode obj on the cmdline """
+        """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
-        if kwargs['json']:
+        if kwargs["json"]:
             import pprint
+
             pprint.pprint(obj)
         else:
             self.print_list_on_cmd(obj)
 
     def list(self, *args, **kwargs) -> Dict:
-        """ returns dict of datasets from geonode
+        """returns dict of datasets from geonode
 
         Returns:
             Dict: request response
         """
         r = self.http_get(
-            endpoint=f"{self.RESOURCE_TYPE}/?page_size={kwargs['page_size']}")
+            endpoint=f"{self.RESOURCE_TYPE}/?page_size={kwargs['page_size']}"
+        )
         return r[self.RESOURCE_TYPE]
 
     def cmd_delete(self, *args, **kwargs):
@@ -189,24 +187,20 @@ class GeoNodeObject:
         print("deleted ...")
 
     def delete(self, *args, **kwargs):
-        """ delete geonode resource object"""
-        pk = kwargs['pk']
+        """delete geonode resource object"""
+        pk = kwargs["pk"]
         self.http_get(endpoint=f"{self.RESOURCE_TYPE}/{pk}")
         self.http_delete(endpoint=f"resources/{pk}/delete")
 
-    @abstractmethod
     def cmd_patch(self, *args, **kwargs):
         raise NotImplementedError
 
-    @abstractmethod
     def patch(self, *args, **kwargs):
         raise NotImplementedError
 
-    @abstractmethod
     def cmd_upload(self, *args, **kwargs):
         raise NotImplementedError
 
-    @abstractmethod
     def upload(self, *args, **kwargs):
         raise NotImplementedError
 
@@ -215,16 +209,18 @@ class GeoNodeObject:
         print(metadata.text)
 
     def metadata(self, *args, **kwargs):
-        pk = kwargs['pk']
-        r = self.http_get(endpoint=f"resources/{pk}")['resource']
+        pk = kwargs["pk"]
+        r = self.http_get(endpoint=f"resources/{pk}")["resource"]
 
         link: str = ""
         try:
-            link = [m for m in r['links'] if m['name']
-                    == kwargs['metadata_type']][0]["url"]
+            link = [m for m in r["links"] if m["name"] == kwargs["metadata_type"]][0][
+                "url"
+            ]
         except KeyError:
             SystemExit(
-                f"Could not find requested metadata type: {kwargs['metadata_type']}")
+                f"Could not find requested metadata type: {kwargs['metadata_type']}"
+            )
         metadata = self.http_get_download(link)
         return metadata
 
@@ -243,9 +239,9 @@ class GeoNodeObject:
         Args:
             ds (Dict): dict object to print on cmd line
         """
+
         def generate_line(i, ds: Dict, headers: List[GeonodeCmdOutObjectKey]) -> List:
             return [cmdoutkey.get_key(ds[i]) for cmdoutkey in headers]
 
-        values = [generate_line(i, ds, self.DEFAULT_LIST_KEYS)
-                  for i in range(len(ds))]
+        values = [generate_line(i, ds, self.DEFAULT_LIST_KEYS) for i in range(len(ds))]
         show_list(headers=self.cmd_list_header, values=values)

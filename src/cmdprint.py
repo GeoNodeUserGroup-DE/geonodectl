@@ -1,11 +1,8 @@
-
 from typing import List
 from tabulate import tabulate
 
 
-def show_list(headers: List[str],
-              values: List[List[str]],
-              tablefmt="github"):
+def show_list(headers: List[str], values: List[List[str]], tablefmt="github"):
     """_summary_: prints pretty table to commandline
 
     Args:

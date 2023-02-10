@@ -1,59 +1,56 @@
-
 import os
 from pathlib import Path
 from typing import List
 
-from src.geonodeobject import GeoNodeObject, GeonodeHTTPFile, GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from src.geonodeobject import (
+    GeoNodeObject,
+    GeonodeHTTPFile,
+    GeonodeCmdOutListKey,
+    GeonodeCmdOutDictKey,
+)
 from src.cmdprint import show_list
 
 
 class GeonodeDatasets(GeoNodeObject):
-
     DEFAULT_LIST_KEYS = [
-        GeonodeCmdOutListKey(key='pk'),
-        GeonodeCmdOutListKey(key='title'),
-        GeonodeCmdOutDictKey(key=['owner', 'username']),
-        GeonodeCmdOutListKey(key='date'),
-        GeonodeCmdOutListKey(key='is_approved'),
-        GeonodeCmdOutListKey(key='is_published'),
-        GeonodeCmdOutListKey(key='state'),
-        GeonodeCmdOutListKey(key='detail_url')
+        GeonodeCmdOutListKey(key="pk"),
+        GeonodeCmdOutListKey(key="title"),
+        GeonodeCmdOutDictKey(key=["owner", "username"]),
+        GeonodeCmdOutListKey(key="date"),
+        GeonodeCmdOutListKey(key="is_approved"),
+        GeonodeCmdOutListKey(key="is_published"),
+        GeonodeCmdOutListKey(key="state"),
+        GeonodeCmdOutListKey(key="detail_url"),
     ]
 
     RESOURCE_TYPE = "datasets"
 
-    def cmd_upload(self,
-                   charset: str = "UTF-8",
-                   time: bool = False,
-                   **kwargs):
-        """ upload data and show them on the cmdline
+    def cmd_upload(self, charset: str = "UTF-8", time: bool = False, **kwargs):
+        """upload data and show them on the cmdline
 
         Args:
             charset (str, optional): charset of data Defaults to "UTF-8".
             time (bool, optional): set if data is timeseries data Defaults to False.
         """
-        r = self.upload(charset=charset,
-                        time=time,
-                        **kwargs)
-        if kwargs['json'] is True:
+        r = self.upload(charset=charset, time=time, **kwargs)
+        if kwargs["json"] is True:
             import pprint
+
             pprint.pprint(r)
         else:
             list_items = [
-                ["title", kwargs['title']],
-                ["success", str(r['success'])],
-                ["status", r['status']],
-                ["bbox", r['bbox'] if 'bbox' in r else ""],
-                ["crs", r['crs'] if 'crs' in r else ""],
-                ["url", r['url'] if 'url' in r else ""]
+                ["title", kwargs["title"]],
+                ["success", str(r["success"])],
+                ["status", r["status"]],
+                ["bbox", r["bbox"] if "bbox" in r else ""],
+                ["crs", r["crs"] if "crs" in r else ""],
+                ["url", r["url"] if "url" in r else ""],
             ]
             show_list(values=list_items, headers=["key", "value"])
 
-    def upload(self,
-               charset: str = "UTF-8",
-               time: bool = False,
-               mosaic: bool = False,
-               **kwargs):
+    def upload(
+        self, charset: str = "UTF-8", time: bool = False, mosaic: bool = False, **kwargs
+    ):
         """Upload dataset to geonode.
 
         Args:
@@ -67,32 +64,51 @@ class GeonodeDatasets(GeoNodeObject):
         Raises:
             FileNotFoundError: raised when given file is not found
         """
-        dataset_path: Path = kwargs['file_path']
+        dataset_path: Path = kwargs["file_path"]
         files: List[GeonodeHTTPFile] = []
         # handle shape files different
-        if dataset_path.suffix == '.shp':
-            dbf_file = Path(os.path.join(
-                dataset_path.parent, dataset_path.stem + ".dbf"))
-            shx_file = Path(os.path.join(
-                dataset_path.parent, dataset_path.stem + ".shx"))
-            prj_file = Path(os.path.join(
-                dataset_path.parent, dataset_path.stem + ".prj"))
+        if dataset_path.suffix == ".shp":
+            dbf_file = Path(
+                os.path.join(dataset_path.parent, dataset_path.stem + ".dbf")
+            )
+            shx_file = Path(
+                os.path.join(dataset_path.parent, dataset_path.stem + ".shx")
+            )
+            prj_file = Path(
+                os.path.join(dataset_path.parent, dataset_path.stem + ".prj")
+            )
 
             if not any(x.exists for x in [dataset_path, dbf_file, shx_file, prj_file]):
                 raise FileNotFoundError
 
-            content_length: int = sum([os.path.getsize(f) for f in [
-                dataset_path, dbf_file, shx_file, prj_file]])
+            content_length: int = sum(
+                [
+                    os.path.getsize(f)
+                    for f in [dataset_path, dbf_file, shx_file, prj_file]
+                ]
+            )
 
             files = [
-                ('base_file', (dataset_path.name, open(
-                    dataset_path, 'rb'), 'application/octet-stream')),
-                ('dbf_file', (dbf_file.name, open(
-                    dbf_file, 'rb'), 'application/octet-stream')),
-                ('shx_file', (shx_file.name, open(
-                    shx_file, 'rb'), 'application/octet-stream')),
-                ('prj_file', (prj_file.name, open(
-                    prj_file, 'rb'), 'application/octet-stream')),
+                (
+                    "base_file",
+                    (
+                        dataset_path.name,
+                        open(dataset_path, "rb"),
+                        "application/octet-stream",
+                    ),
+                ),
+                (
+                    "dbf_file",
+                    (dbf_file.name, open(dbf_file, "rb"), "application/octet-stream"),
+                ),
+                (
+                    "shx_file",
+                    (shx_file.name, open(shx_file, "rb"), "application/octet-stream"),
+                ),
+                (
+                    "prj_file",
+                    (prj_file.name, open(prj_file, "rb"), "application/octet-stream"),
+                ),
             ]
 
         else:
@@ -101,25 +117,26 @@ class GeonodeDatasets(GeoNodeObject):
             content_length = os.path.getsize(dataset_path)
 
             files = [
-                ('base_file', (dataset_path.name, open(dataset_path, 'rb'))),
+                ("base_file", (dataset_path.name, open(dataset_path, "rb"))),
             ]
 
         params = {
             # layer permissions
             "permissions": '{ "users": {"AnonymousUser": ["view_resourcebase"]} , "groups":{}}',
-            "dataset_title": kwargs['title'],
-            "abstract": kwargs['abstract'] if 'abstract' in kwargs else '',
+            "dataset_title": kwargs["title"],
+            "abstract": kwargs["abstract"] if "abstract" in kwargs else "",
             "mosaic": mosaic,
             "time": str(time),
             "charset": charset,
-            "non_interactive": True
+            "non_interactive": True,
         }
 
-        return self.http_post(endpoint="uploads/upload",
-                              files=files,
-                              params=params,
-                              content_length=content_length,
-                              )
+        return self.http_post(
+            endpoint="uploads/upload",
+            files=files,
+            params=params,
+            content_length=content_length,
+        )
 
     def cmd_show(self, *args, **kwargs):
         raise NotImplementedError

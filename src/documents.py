@@ -2,8 +2,8 @@
 import os
 import mimetypes
 from pathlib import Path
-
-from src.geonodeobject import GeoNodeObject, GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from typing import List, Optional
+from src.geonodeobject import GeoNodeObject, GeonodeCmdOutListKey, GeonodeCmdOutDictKey, GeonodeHTTPFile
 from src.cmdprint import show_list
 
 
@@ -23,7 +23,6 @@ class GeonodeDocuments(GeoNodeObject):
     def cmd_upload(self,
                    charset: str = "UTF-8",
                    time: bool = False,
-                   *args,
                    **kwargs):
         """ upload data and show them on the cmdline
 
@@ -49,7 +48,6 @@ class GeonodeDocuments(GeoNodeObject):
             show_list(values=list_items, headers=["key", "value"])
 
     def upload(self,
-               *args,
                **kwargs):
 
         document_path: Path = kwargs['file_path']
@@ -64,11 +62,17 @@ class GeonodeDocuments(GeoNodeObject):
             'metadata_only': kwargs['metadata_only'],
         }
 
-        content_length = os.path.getsize(document_path)
-        files = [
-            ('doc_file', document_path.name, open(document_path, 'rb'),
-             mimetypes.guess_type(document_path)[0]),
-        ]
+        files: List[GeonodeHTTPFile]
+        content_length: int = os.path.getsize(document_path)
+        mimetype: Optional[str] = mimetypes.guess_type(document_path)[0]
+        if mimetype:
+            files = [
+                ('doc_file', (document_path.name, open(document_path, 'rb'), mimetype)),
+            ]
+        else:
+            files = [
+                ('doc_file', (document_path.name, open(document_path, 'rb'))),
+            ]
 
         return self.http_post(endpoint="documents",
                               files=files,
