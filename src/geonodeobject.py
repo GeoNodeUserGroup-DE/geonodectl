@@ -56,7 +56,10 @@ GeonodeCmdOutputKeys: TypeAlias = List[GeonodeCmdOutObjectKey]
 
 
 class GeoNodeObject:
-    DEFAULT_LIST_KEYS: List[GeonodeCmdOutObjectKey] = [
+    LIST_CMDOUT_HEADER: List[GeonodeCmdOutObjectKey] = [
+        GeonodeCmdOutListKey(type=list, key="pk")
+    ]
+    GET_CMDOUT_PROPERTIES: List[GeonodeCmdOutObjectKey] = [
         GeonodeCmdOutListKey(type=list, key="pk")
     ]
     DEFAULT_UPLOAD_KEYS = ["key", "value"]
@@ -217,11 +220,19 @@ class GeoNodeObject:
         self.http_get(endpoint=f"{self.RESOURCE_TYPE}/{pk}")
         self.http_delete(endpoint=f"resources/{pk}/delete")
 
-    def cmd_patch(self, **kwargs):
-        raise NotImplementedError
-
     def patch(self, **kwargs):
-        raise NotImplementedError
+        pk: int = kwargs["pk"]
+        params: Dict = kwargs['fields']
+        print(params)
+        return self.http_patch(endpoint=f"{self.RESOURCE_TYPE}/{pk}/", params=params)
+
+    def cmd_patch(self, **kwargs):
+        obj = self.patch(**kwargs)
+        if kwargs["json"]:
+            import pprint
+            pprint.pprint(obj)
+        else:
+            self.print_obj_on_cmd(obj)
 
     def cmd_upload(self, **kwargs):
         raise NotImplementedError
@@ -256,7 +267,7 @@ class GeoNodeObject:
         Returns:
             List[str]: list of header elements as str
         """
-        return [str(cmdoutkey) for cmdoutkey in self.DEFAULT_LIST_KEYS]
+        return [str(cmdoutkey) for cmdoutkey in self.LIST_KEYS]
 
     def print_list_on_cmd(self, obj: Dict):
         """print a beautiful list on the cmdline
@@ -267,7 +278,7 @@ class GeoNodeObject:
         def generate_line(i, obj: Dict, headers: List[GeonodeCmdOutObjectKey]) -> List:
             return [cmdoutkey.get_key(obj[i]) for cmdoutkey in headers]
 
-        values = [generate_line(i, obj, self.DEFAULT_LIST_KEYS)
+        values = [generate_line(i, obj, self.LIST_KEYS)
                   for i in range(len(obj))]
         show_list(headers=self.cmd_list_header, values=values)
 

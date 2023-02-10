@@ -2,7 +2,7 @@ from src.geonodeobject import GeoNodeObject, GeonodeCmdOutListKey, GeonodeCmdOut
 
 
 class GeonodeMaps(GeoNodeObject):
-    DEFAULT_LIST_KEYS = [
+    LIST_CMDOUT_HEADER = [
         GeonodeCmdOutListKey(key="pk"),
         GeonodeCmdOutListKey(key="title"),
         GeonodeCmdOutDictKey(key=["owner", "username"]),

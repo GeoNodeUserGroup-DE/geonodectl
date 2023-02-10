@@ -7,7 +7,7 @@ from typing import List
 
 
 class GeonodeUploads(GeoNodeObject):
-    DEFAULT_LIST_KEYS: List[GeonodeCmdOutObjectKey] = [
+    LIST_CMDOUT_HEADER: List[GeonodeCmdOutObjectKey] = [
         GeonodeCmdOutListKey(key="id"),
         GeonodeCmdOutListKey(key="name"),
         GeonodeCmdOutListKey(key="create_date"),

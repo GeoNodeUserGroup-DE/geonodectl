@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Dict
+from typing import List
 
 from src.geonodeobject import (
     GeoNodeObject,
@@ -12,7 +12,8 @@ from src.cmdprint import show_list
 
 
 class GeonodeDatasets(GeoNodeObject):
-    DEFAULT_LIST_KEYS = [
+    
+    LIST_CMDOUT_HEADER = [
         GeonodeCmdOutListKey(key="pk"),
         GeonodeCmdOutListKey(key="title"),
         GeonodeCmdOutDictKey(key=["owner", "username"]),
@@ -21,6 +22,70 @@ class GeonodeDatasets(GeoNodeObject):
         GeonodeCmdOutListKey(key="is_published"),
         GeonodeCmdOutListKey(key="state"),
         GeonodeCmdOutListKey(key="detail_url"),
+    ]
+
+    GET_CMDOUT_PROPERTIES = [
+        GeonodeCmdOutListKey(key="pk"),
+        GeonodeCmdOutListKey(key="uuid"),
+        GeonodeCmdOutListKey(key="name"),
+        GeonodeCmdOutListKey(key="workspace"),
+        GeonodeCmdOutListKey(key="store"),
+        GeonodeCmdOutListKey(key="charset"),
+        GeonodeCmdOutListKey(key="is_mosaic"),
+        GeonodeCmdOutListKey(key="has_time"),
+        GeonodeCmdOutListKey(key="has_elevation"),
+        GeonodeCmdOutListKey(key="time_regex"),
+        GeonodeCmdOutListKey(key="ows_url"),
+        GeonodeCmdOutListKey(key="ptype"),
+        GeonodeCmdOutDictKey(key=["default_style", "name"]),
+        GeonodeCmdOutDictKey(key=["styles", "name"]),
+        GeonodeCmdOutListKey(key="resource_type"),
+        GeonodeCmdOutListKey(key="polymorphic_ctype_id"),
+        GeonodeCmdOutDictKey(key=["owner", "username"]),
+        GeonodeCmdOutListKey(key="title"),
+        GeonodeCmdOutListKey(key="abstract"),
+        GeonodeCmdOutListKey(key="attribution"),
+        GeonodeCmdOutListKey(key="doi"),
+        GeonodeCmdOutListKey(key="alternate"),
+        GeonodeCmdOutListKey(key="abstract"),
+        GeonodeCmdOutListKey(key="date"),
+        GeonodeCmdOutListKey(key="date_type"),
+        GeonodeCmdOutListKey(key="temporal_extent_start"),
+        GeonodeCmdOutListKey(key="temporal_extent_end"),
+        GeonodeCmdOutListKey(key="edition"),
+        GeonodeCmdOutListKey(key="purpose"),
+        GeonodeCmdOutListKey(key="maintenance_frequency"),
+        GeonodeCmdOutListKey(key="constraints_other"),
+        GeonodeCmdOutListKey(key="language"),
+        GeonodeCmdOutListKey(key="supplemental_information"),
+        GeonodeCmdOutListKey(key="data_quality_statement"),
+        GeonodeCmdOutListKey(key="srid"),
+        GeonodeCmdOutListKey(key="group"),
+        GeonodeCmdOutListKey(key="popular_count"),
+        GeonodeCmdOutListKey(key="share_count"),
+        GeonodeCmdOutListKey(key="rating"),
+        GeonodeCmdOutListKey(key="featured"),
+        GeonodeCmdOutListKey(key="is_published"),
+        GeonodeCmdOutListKey(key="is_approved"),
+        GeonodeCmdOutListKey(key="detail_url"),
+        GeonodeCmdOutListKey(key="created"),
+        GeonodeCmdOutListKey(key="last_updated"),
+        GeonodeCmdOutListKey(key="metadata_only"),
+        GeonodeCmdOutListKey(key="processed"),
+        GeonodeCmdOutListKey(key="state"),
+        GeonodeCmdOutListKey(key="sourcetype"),
+        GeonodeCmdOutListKey(key="embed_url"),
+        GeonodeCmdOutListKey(key="thumbnail_url"),
+        GeonodeCmdOutListKey(key="keywords"),
+        GeonodeCmdOutListKey(key="tkeywords"),
+        GeonodeCmdOutDictKey(key=["regions", "name"]),
+        GeonodeCmdOutListKey(key="category"),
+        GeonodeCmdOutListKey(key="restriction_code_type"),
+        GeonodeCmdOutDictKey(key=["license", "identifier"]),
+        GeonodeCmdOutListKey(key="spatial_representation_type"),
+        GeonodeCmdOutListKey(key="is_copyable"),
+        GeonodeCmdOutListKey(key="download_url"),
+        GeonodeCmdOutListKey(key="favorite")
     ]
 
     RESOURCE_TYPE = "datasets"
@@ -140,23 +205,3 @@ class GeonodeDatasets(GeoNodeObject):
             params=params,
             content_length=content_length,
         )
-
-    def cmd_show(self, **kwargs):
-        raise NotImplementedError
-
-    def get(self, **kwargs):
-        raise NotImplementedError
-
-    def patch(self, **kwargs):
-        pk: int = kwargs["pk"]
-        params: Dict = kwargs['fields']
-        print(params)
-        return self.http_patch(endpoint=f"{self.RESOURCE_TYPE}/{pk}/", params=params)
-
-    def cmd_patch(self, **kwargs):
-        obj = self.patch(**kwargs)
-        if kwargs["json"]:
-            import pprint
-            pprint.pprint(obj)
-        else:
-            self.print_obj_on_cmd(obj)

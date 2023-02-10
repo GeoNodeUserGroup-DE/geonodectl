@@ -136,38 +136,32 @@ To use this tool you have to set the following environment variables before star
     # DATASET ARGUMENT PARSING #
     ############################
 
-    datasets = subparsers.add_parser('dataset', description='valid subcommands:',
-                                     help='dataset commands', aliases=('ds',))
-    datasets_subparsers = datasets.add_subparsers(
-        help='geonodectl dataset commands', dest="subcommand", required=True)
+    datasets = subparsers.add_parser('dataset', description='valid subcommands:',help='dataset commands', aliases=('ds',))
+    datasets_subparsers = datasets.add_subparsers(help='geonodectl dataset commands', dest="subcommand", required=True)
 
+    # LIST
     datasets_subparsers.add_parser('list', help='list datasets')
-
-    datasets_upload = datasets_subparsers.add_parser(
-        'upload', help='upload new datasets')
-    datasets_upload.add_argument(
-        '-f', '--file', type=Path, dest='file_path', required=True, help='file to upload')
-    datasets_upload.add_argument(
-        '-t', '--title', type=str, dest='title', required=True, help='dataset title')
-    datasets_upload.add_argument(
-        '-a', '--abstract', type=str, dest='abstract', help='dataset abstract')
+    
+    # UPLOAD
+    datasets_upload = datasets_subparsers.add_parser('upload', help='upload new datasets')
+    datasets_upload.add_argument('-f', '--file', type=Path, dest='file_path', required=True, help='file to upload')
+    datasets_upload.add_argument('-t', '--title', type=str, dest='title', required=True, help='dataset title')
+    datasets_upload.add_argument('-a', '--abstract', type=str, dest='abstract', help='dataset abstract')
     datasets_upload.add_argument('--time', action='store_true', dest='time',
                                  default=False, help='uploads dataset as timeseries')
     datasets_upload.add_argument('--charset', type=str, dest='charset',
                                  default=DEFAULT_CHARSET, help='uploads dataset as timeseries')
 
-    datasets_patch = datasets_subparsers.add_parser(
-        'patch', help='patch datasets metadata')
-    datasets_patch.add_argument(
-          '-pk', type=int, dest='pk', required=True, help='pk of dataset to patch')
+    # PATCH
+    datasets_patch = datasets_subparsers.add_parser('patch', help='patch datasets metadata')
+    datasets_patch.add_argument('-pk', type=int, dest='pk', required=True, help='pk of dataset to patch')
+    datasets_patch.add_argument("--set", nargs='*', dest="fields", action=kwargs_append_action, 
+                                metavar="FIELD_NAME=NEW_VALUE", help="Add field_name/new_value params. supply as many as you like. E.g. --")
 
-    datasets_patch.add_argument("--set", nargs='*', dest="fields", action=kwargs_append_action, metavar="FIELD_NAME=NEW_VALUE",
-                                help="Add field_name/new_value params. supply as many as you like. E.g. --")
+    # DELETE
+    datasets_delete = datasets_subparsers.add_parser('delete', help='delete existing datasets')
+    datasets_delete.add_argument('-pk', type=int, dest='pk', required=True, help='pk of dataset to delete ...')
 
-    datasets_delete = datasets_subparsers.add_parser(
-        'delete', help='delete existing datasets')
-    datasets_delete.add_argument(
-        '-pk', type=int, dest='pk', required=True, help='pk of dataset to delete ...')
 
     #############################
     # DOCUMENT ARGUMENT PARSING #

@@ -9,7 +9,7 @@ from src.cmdprint import show_list
 
 class GeonodeDocuments(GeoNodeObject):
 
-    DEFAULT_LIST_KEYS = [
+    LIST_CMDOUT_HEADER = [
         GeonodeCmdOutListKey(key='pk'),
         GeonodeCmdOutListKey(key='title'),
         GeonodeCmdOutDictKey(key=['owner', 'username']),
