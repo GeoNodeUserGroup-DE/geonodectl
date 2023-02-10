@@ -1,28 +1,30 @@
 
 import os
 from pathlib import Path
+from typing import List
 
-from src.geonodeobject import GeoNodeObject
+from src.geonodeobject import GeoNodeObject, GeonodeHTTPFile, GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 from src.cmdprint import show_list
 
 
 class GeonodeDatasets(GeoNodeObject):
 
-    DEFAULT_LIST_KEYS = [{'type': list, 'key': 'pk'},
-                         {'type': list, 'key': 'title'},
-                         {'type': dict, 'key': ['owner', 'username']},
-                         {'type': list, 'key': 'date'},
-                         {'type': list, 'key': 'is_approved'},
-                         {'type': list, 'key': 'is_published'},
-                         {'type': list, 'key': 'state'},
-                         {'type': list, 'key': 'detail_url'}]
+    DEFAULT_LIST_KEYS = [
+        GeonodeCmdOutListKey(key='pk'),
+        GeonodeCmdOutListKey(key='title'),
+        GeonodeCmdOutDictKey(key=['owner', 'username']),
+        GeonodeCmdOutListKey(key='date'),
+        GeonodeCmdOutListKey(key='is_approved'),
+        GeonodeCmdOutListKey(key='is_published'),
+        GeonodeCmdOutListKey(key='state'),
+        GeonodeCmdOutListKey(key='detail_url')
+    ]
 
     RESOURCE_TYPE = "datasets"
 
     def cmd_upload(self,
                    charset: str = "UTF-8",
                    time: bool = False,
-                   *args,
                    **kwargs):
         """ upload data and show them on the cmdline
 
@@ -32,7 +34,6 @@ class GeonodeDatasets(GeoNodeObject):
         """
         r = self.upload(charset=charset,
                         time=time,
-                        *args,
                         **kwargs)
         if kwargs['json'] is True:
             import pprint
@@ -52,7 +53,6 @@ class GeonodeDatasets(GeoNodeObject):
                charset: str = "UTF-8",
                time: bool = False,
                mosaic: bool = False,
-               *args,
                **kwargs):
         """Upload dataset to geonode.
 
@@ -67,8 +67,8 @@ class GeonodeDatasets(GeoNodeObject):
         Raises:
             FileNotFoundError: raised when given file is not found
         """
-        dataset_path = kwargs['file_path']
-
+        dataset_path: Path = kwargs['file_path']
+        files: List[GeonodeHTTPFile] = []
         # handle shape files different
         if dataset_path.suffix == '.shp':
             dbf_file = Path(os.path.join(
@@ -81,8 +81,8 @@ class GeonodeDatasets(GeoNodeObject):
             if not any(x.exists for x in [dataset_path, dbf_file, shx_file, prj_file]):
                 raise FileNotFoundError
 
-            content_length = sum([os.path.getsize(f) for f in [
-                                 dataset_path, dbf_file, shx_file, prj_file]])
+            content_length: int = sum([os.path.getsize(f) for f in [
+                dataset_path, dbf_file, shx_file, prj_file]])
 
             files = [
                 ('base_file', (dataset_path.name, open(
@@ -101,7 +101,7 @@ class GeonodeDatasets(GeoNodeObject):
             content_length = os.path.getsize(dataset_path)
 
             files = [
-                ('base_file', (dataset_path.name, open(dataset_path), 'rb')),
+                ('base_file', (dataset_path.name, open(dataset_path, 'rb'))),
             ]
 
         params = {

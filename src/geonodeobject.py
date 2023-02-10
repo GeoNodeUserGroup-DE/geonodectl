@@ -1,10 +1,12 @@
 
 from src.cmdprint import show_list
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, TypeAlias, Type, Union, Dict, Optional
 from dataclasses import dataclass
 from abc import abstractmethod
+from functools import reduce
 import requests
 import urllib3
+import io
 urllib3.disable_warnings()
 
 
@@ -15,9 +17,48 @@ class GeonodeEnv:
     verify: bool
 
 
+class GeonodeCmdOutObjectKey:
+
+    @abstractmethod
+    def get_key(self, ds: dict):
+        raise NotImplementedError
+
+
+@dataclass
+class GeonodeCmdOutListKey(GeonodeCmdOutObjectKey):
+    key: str
+    type: Type = list
+
+    def __str__(self) -> str:
+        return self.key
+
+    def get_key(self, ds: dict):
+        return ds[self.key]
+
+
+@dataclass
+class GeonodeCmdOutDictKey(GeonodeCmdOutObjectKey):
+    key: List[str]
+    type: Type = dict
+
+    def __str__(self) -> str:
+        return ".".join(self.key)
+
+    def get_key(self, ds: dict):
+        for k in self.key:
+            ds = ds[k]
+        return ds
+
+
+GeonodeHTTPFile: TypeAlias = Tuple[str, Union[Tuple[str, io.BufferedReader], Tuple[str, io.BufferedReader, str]]]
+GeonodeCmdOutputKeys: TypeAlias = List[GeonodeCmdOutObjectKey]
+
+
 class GeoNodeObject:
 
-    DEFAULT_LIST_KEYS = [{'type': list, 'key': 'pk'}],
+    DEFAULT_LIST_KEYS: List[GeonodeCmdOutObjectKey] = [
+        GeonodeCmdOutListKey(type=list, key="pk")
+    ]
     DEFAULT_UPLOAD_KEYS = ["key", "value"]
 
     RESOURCE_TYPE = ""
@@ -39,8 +80,8 @@ class GeoNodeObject:
 
     def http_post(self,
                   endpoint: str,
-                  files: Optional[List[Tuple]] = None,
-                  params: Optional[Dict] = None,
+                  files: Optional[List[GeonodeHTTPFile]] = None,
+                  params: Dict = {},
                   content_length: Optional[int] = None
                   ):
 
@@ -77,7 +118,7 @@ class GeoNodeObject:
 
     def http_get(self,
                  endpoint: str,
-                 params: Dict = None
+                 params: Dict = {}
                  ) -> Dict:
         """ execute http delete on endpoint with params
 
@@ -194,7 +235,7 @@ class GeoNodeObject:
         Returns:
             List[str]: list of header elements as str
         """
-        return [e['key'] if list == e['type'] else ".".join(e['key']) for e in self.DEFAULT_LIST_KEYS]
+        return [str(cmdoutkey) for cmdoutkey in self.DEFAULT_LIST_KEYS]
 
     def print_list_on_cmd(self, ds: Dict):
         """print a beautiful list on the cmdline
@@ -202,8 +243,8 @@ class GeoNodeObject:
         Args:
             ds (Dict): dict object to print on cmd line
         """
-        def generate_line(i, ds: Dict, headers: List[Dict]) -> List:
-            return [ds[i][e['key']] if list == e['type'] else ds[i][e['key'][0]][e['key'][1]] for e in headers]
+        def generate_line(i, ds: Dict, headers: List[GeonodeCmdOutObjectKey]) -> List:
+            return [cmdoutkey.get_key(ds[i]) for cmdoutkey in headers]
 
         values = [generate_line(i, ds, self.DEFAULT_LIST_KEYS)
                   for i in range(len(ds))]

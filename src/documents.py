@@ -1,19 +1,22 @@
 
 import os
 import mimetypes
+from pathlib import Path
 
-from src.geonodeobject import GeoNodeObject
+from src.geonodeobject import GeoNodeObject, GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 from src.cmdprint import show_list
 
 
 class GeonodeDocuments(GeoNodeObject):
 
-    DEFAULT_LIST_KEYS = [{'type': list, 'key': 'pk'},
-                         {'type': list, 'key': 'title'},
-                         {'type': dict, 'key': ['owner', 'username']},
-                         {'type': list, 'key': 'date'},
-                         {'type': list, 'key': 'resource_type'},
-                         {'type': list, 'key': 'detail_url'}]
+    DEFAULT_LIST_KEYS = [
+        GeonodeCmdOutListKey(key='pk'),
+        GeonodeCmdOutListKey(key='title'),
+        GeonodeCmdOutDictKey(key=['owner', 'username']),
+        GeonodeCmdOutListKey(key='date'),
+        GeonodeCmdOutListKey(key='resource_type'),
+        GeonodeCmdOutListKey(key='detail_url')
+    ]
 
     RESOURCE_TYPE = "documents"
 
@@ -49,7 +52,7 @@ class GeonodeDocuments(GeoNodeObject):
                *args,
                **kwargs):
 
-        document_path = kwargs['file_path']
+        document_path: Path = kwargs['file_path']
         if not document_path.exists():
             raise FileNotFoundError
 
@@ -63,8 +66,8 @@ class GeonodeDocuments(GeoNodeObject):
 
         content_length = os.path.getsize(document_path)
         files = [
-            ('doc_file', (document_path.name, open(document_path, 'rb'),
-             mimetypes.guess_type(document_path)[0])),
+            ('doc_file', document_path.name, open(document_path, 'rb'),
+             mimetypes.guess_type(document_path)[0]),
         ]
 
         return self.http_post(endpoint="documents",
