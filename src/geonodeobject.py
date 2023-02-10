@@ -49,7 +49,8 @@ class GeonodeCmdOutDictKey(GeonodeCmdOutObjectKey):
 
 
 GeonodeHTTPFile: TypeAlias = Tuple[
-    str, Union[Tuple[str, io.BufferedReader], Tuple[str, io.BufferedReader, str]]
+    str, Union[Tuple[str, io.BufferedReader],
+               Tuple[str, io.BufferedReader, str]]
 ]
 GeonodeCmdOutputKeys: TypeAlias = List[GeonodeCmdOutObjectKey]
 
@@ -131,7 +132,31 @@ class GeoNodeObject:
         """
         url = self.url + endpoint
         try:
-            r = requests.get(url, headers=self.header, data=params, verify=self.verify)
+            r = requests.get(url, headers=self.header,
+                             data=params, verify=self.verify)
+            r.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            raise SystemExit(err)
+
+        return r.json()
+
+    def http_patch(self, endpoint: str, params: Dict = {}) -> Dict:
+        """execute http patch on endpoint with params
+
+        Args:
+            endpoint (str): api endpoint
+            params (Dict, optional):  params dict provided with the delete
+
+        Raises:
+              SystemExit: if bad http resonse raise SystemExit with logging
+
+        Returns:
+            Dict: returns response json
+        """
+        url = self.url + endpoint
+        try:
+            r = requests.patch(url, headers=self.header,
+                               data=params, verify=self.verify)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
@@ -161,7 +186,7 @@ class GeoNodeObject:
 
         return r.json()
 
-    def cmd_list(self, *args, **kwargs):
+    def cmd_list(self, **kwargs):
         """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
         if kwargs["json"]:
@@ -171,7 +196,7 @@ class GeoNodeObject:
         else:
             self.print_list_on_cmd(obj)
 
-    def list(self, *args, **kwargs) -> Dict:
+    def list(self, **kwargs) -> Dict:
         """returns dict of datasets from geonode
 
         Returns:
@@ -182,33 +207,33 @@ class GeoNodeObject:
         )
         return r[self.RESOURCE_TYPE]
 
-    def cmd_delete(self, *args, **kwargs):
+    def cmd_delete(self, **kwargs):
         self.delete(**kwargs)
         print("deleted ...")
 
-    def delete(self, *args, **kwargs):
+    def delete(self, **kwargs):
         """delete geonode resource object"""
         pk = kwargs["pk"]
         self.http_get(endpoint=f"{self.RESOURCE_TYPE}/{pk}")
         self.http_delete(endpoint=f"resources/{pk}/delete")
 
-    def cmd_patch(self, *args, **kwargs):
+    def cmd_patch(self, **kwargs):
         raise NotImplementedError
 
-    def patch(self, *args, **kwargs):
+    def patch(self, **kwargs):
         raise NotImplementedError
 
-    def cmd_upload(self, *args, **kwargs):
+    def cmd_upload(self, **kwargs):
         raise NotImplementedError
 
-    def upload(self, *args, **kwargs):
+    def upload(self, **kwargs):
         raise NotImplementedError
 
-    def cmd_metadata(self, *args, **kwargs):
+    def cmd_metadata(self, **kwargs):
         metadata = self.metadata(**kwargs)
         print(metadata.text)
 
-    def metadata(self, *args, **kwargs):
+    def metadata(self, **kwargs):
         pk = kwargs["pk"]
         r = self.http_get(endpoint=f"resources/{pk}")["resource"]
 
@@ -233,15 +258,23 @@ class GeoNodeObject:
         """
         return [str(cmdoutkey) for cmdoutkey in self.DEFAULT_LIST_KEYS]
 
-    def print_list_on_cmd(self, ds: Dict):
+    def print_list_on_cmd(self, obj: Dict):
         """print a beautiful list on the cmdline
 
         Args:
             ds (Dict): dict object to print on cmd line
         """
+        def generate_line(i, obj: Dict, headers: List[GeonodeCmdOutObjectKey]) -> List:
+            return [cmdoutkey.get_key(obj[i]) for cmdoutkey in headers]
 
-        def generate_line(i, ds: Dict, headers: List[GeonodeCmdOutObjectKey]) -> List:
-            return [cmdoutkey.get_key(ds[i]) for cmdoutkey in headers]
-
-        values = [generate_line(i, ds, self.DEFAULT_LIST_KEYS) for i in range(len(ds))]
+        values = [generate_line(i, obj, self.DEFAULT_LIST_KEYS)
+                  for i in range(len(obj))]
         show_list(headers=self.cmd_list_header, values=values)
+
+    def print_obj_on_cmd(self, obj: Dict):
+        """print a beautiful list of object details on the cmdline
+
+        Args:
+            ds (Dict): dict object to print on cmd line
+        """
+        print(obj)

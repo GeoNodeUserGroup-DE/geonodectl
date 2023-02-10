@@ -14,6 +14,8 @@ class GeonodeDocuments(GeoNodeObject):
         GeonodeCmdOutListKey(key='title'),
         GeonodeCmdOutDictKey(key=['owner', 'username']),
         GeonodeCmdOutListKey(key='date'),
+        GeonodeCmdOutListKey(key="is_approved"),
+        GeonodeCmdOutListKey(key="is_published"),
         GeonodeCmdOutListKey(key='resource_type'),
         GeonodeCmdOutListKey(key='detail_url')
     ]

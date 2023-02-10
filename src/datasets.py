@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
 from src.geonodeobject import (
     GeoNodeObject,
@@ -99,15 +99,18 @@ class GeonodeDatasets(GeoNodeObject):
                 ),
                 (
                     "dbf_file",
-                    (dbf_file.name, open(dbf_file, "rb"), "application/octet-stream"),
+                    (dbf_file.name, open(dbf_file, "rb"),
+                     "application/octet-stream"),
                 ),
                 (
                     "shx_file",
-                    (shx_file.name, open(shx_file, "rb"), "application/octet-stream"),
+                    (shx_file.name, open(shx_file, "rb"),
+                     "application/octet-stream"),
                 ),
                 (
                     "prj_file",
-                    (prj_file.name, open(prj_file, "rb"), "application/octet-stream"),
+                    (prj_file.name, open(prj_file, "rb"),
+                     "application/octet-stream"),
                 ),
             ]
 
@@ -138,56 +141,22 @@ class GeonodeDatasets(GeoNodeObject):
             content_length=content_length,
         )
 
-    def cmd_show(self, *args, **kwargs):
+    def cmd_show(self, **kwargs):
         raise NotImplementedError
 
-    def get(self, *args, **kwargs):
+    def get(self, **kwargs):
         raise NotImplementedError
 
-    def update_dataset(resource_id, metadata, headers):
-        raise NotImplementedError
-        # tes = datetime.datetime.strptime(metadata['Start Date'], '%d.%m.%Y').strftime("%Y-%m-%dT%H:%M")
+    def patch(self, **kwargs):
+        pk: int = kwargs["pk"]
+        params: Dict = kwargs['fields']
+        print(params)
+        return self.http_patch(endpoint=f"{self.RESOURCE_TYPE}/{pk}/", params=params)
 
-        # url = f"https://geonode.corki.bonares.de/api/v2/datasets/{resource_id}/"
-        # params = {
-        #     # metadata to ignore:
-        #     # 'Name': html filename
-        #     # 'Citation'
-        #     # 'ShowOnMap',
-        #     # 'Raumelement',
-        #     # 'ID',: ORD ID
-        #     # 'Geolocation', Geo
-        #     # 'RelatedIdentifier',
-        #     # 'ResourceType': e.g. Table
-        #     #  metadata["Created"], hard in geonoide
-        #     # "last_updated": metadata["Modified"], hard in geonode
-        #     'title': metadata["Title"],
-        #     'abstract': metadata['Summary'],
-        #     'doi': metadata["DigitalObjectIdentifier"],
-
-        #     # "date": metadata["PublicationYear"], datetype = published
-
-        #     'temporal_extent_start': tes,
-
-        #     # Authors: must be found in ZALF LDAP
-        #     # 'Subjects', Agrovoc keywords
-        #     # 'Contributors', New Contact roles institutions
-        #     # 'Rights': legal rights - Restrictions mapping
-
-        #     # 'Attribution': TODO,
-        #     # 'data_quality_statement':  TODO,
-        #     # 'constraints_other': TODO,
-        #     # 'edition": TODO,
-        #     # 'purpose': TODO,
-        #     # ' Supplemental information': TODO,
-        #     # 'maintenance_frequency': TODO,
-        #     # attributes
-
-        #     # 'category': 'farming',
-        #     'language': "eng",
-        #     # 'regions': "DE"
-        # }
-        # ds_patched_resp = requests.request("PATCH", url, headers=headers, data=params, verify=False)
-
-        # if ds_patched_resp.status_code != 200:
-        #   logging.error(f"update dataset [{name}] failed ...")
+    def cmd_patch(self, **kwargs):
+        obj = self.patch(**kwargs)
+        if kwargs["json"]:
+            import pprint
+            pprint.pprint(obj)
+        else:
+            self.print_obj_on_cmd(obj)
