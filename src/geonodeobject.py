@@ -49,8 +49,7 @@ class GeonodeCmdOutDictKey(GeonodeCmdOutObjectKey):
 
 
 GeonodeHTTPFile: TypeAlias = Tuple[
-    str, Union[Tuple[str, io.BufferedReader],
-               Tuple[str, io.BufferedReader, str]]
+    str, Union[Tuple[str, io.BufferedReader], Tuple[str, io.BufferedReader, str]]
 ]
 GeonodeCmdOutputKeys: TypeAlias = List[GeonodeCmdOutObjectKey]
 
@@ -135,8 +134,7 @@ class GeoNodeObject:
         """
         url = self.url + endpoint
         try:
-            r = requests.get(url, headers=self.header,
-                             data=params, verify=self.verify)
+            r = requests.get(url, headers=self.header, data=params, verify=self.verify)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
@@ -158,8 +156,9 @@ class GeoNodeObject:
         """
         url = self.url + endpoint
         try:
-            r = requests.patch(url, headers=self.header,
-                               data=params, verify=self.verify)
+            r = requests.patch(
+                url, headers=self.header, data=params, verify=self.verify
+            )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
@@ -222,7 +221,7 @@ class GeoNodeObject:
 
     def patch(self, **kwargs):
         pk: int = kwargs["pk"]
-        params: Dict = kwargs['fields']
+        params: Dict = kwargs["fields"]
         print(params)
         return self.http_patch(endpoint=f"{self.RESOURCE_TYPE}/{pk}/", params=params)
 
@@ -230,6 +229,7 @@ class GeoNodeObject:
         obj = self.patch(**kwargs)
         if kwargs["json"]:
             import pprint
+
             pprint.pprint(obj)
         else:
             self.print_obj_on_cmd(obj)
@@ -275,11 +275,11 @@ class GeoNodeObject:
         Args:
             ds (Dict): dict object to print on cmd line
         """
+
         def generate_line(i, obj: Dict, headers: List[GeonodeCmdOutObjectKey]) -> List:
             return [cmdoutkey.get_key(obj[i]) for cmdoutkey in headers]
 
-        values = [generate_line(i, obj, self.LIST_KEYS)
-                  for i in range(len(obj))]
+        values = [generate_line(i, obj, self.LIST_KEYS) for i in range(len(obj))]
         show_list(headers=self.cmd_list_header, values=values)
 
     def print_obj_on_cmd(self, obj: Dict):
@@ -288,4 +288,4 @@ class GeoNodeObject:
         Args:
             ds (Dict): dict object to print on cmd line
         """
-        print(obj)
+        show_list(headers=["key", "value"], values=[[object_key["value"], obj[object_key['value']]] for object_key in self.GET_CMDOUT_PROPERTIES])
