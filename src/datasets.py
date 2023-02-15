@@ -1,18 +1,18 @@
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
-from src.geonodeobject import (
-    GeoNodeObject,
-    GeonodeHTTPFile,
-    GeonodeCmdOutListKey,
-    GeonodeCmdOutDictKey,
-)
+from src.resources import GeonodeResourceHandler
+from src.geonodetypes import GeonodeHTTPFile
 from src.cmdprint import show_list
+from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 
 
-class GeonodeDatasets(GeoNodeObject):
-    DEFAULT_LIST_KEYS = [
+class GeonodeDatasetsHandler(GeonodeResourceHandler):
+    RESOURCE_TYPE = "datasets"
+    SINGULAR_RESOURCE_NAME = "dataset"
+
+    LIST_CMDOUT_HEADER = [
         GeonodeCmdOutListKey(key="pk"),
         GeonodeCmdOutListKey(key="title"),
         GeonodeCmdOutDictKey(key=["owner", "username"]),
@@ -23,23 +23,39 @@ class GeonodeDatasets(GeoNodeObject):
         GeonodeCmdOutListKey(key="detail_url"),
     ]
 
-    RESOURCE_TYPE = "datasets"
-
-    def cmd_upload(self, charset: str = "UTF-8", time: bool = False, **kwargs):
+    def cmd_upload(
+        self,
+        title: str,
+        file_path: Path,
+        charset: str = "UTF-8",
+        time: bool = False,
+        mosaic: bool = False,
+        **kwargs
+    ):
         """upload data and show them on the cmdline
 
         Args:
+            title (str): title of the new dataset
+            file_path (Path): Path to the file to upload.
             charset (str, optional): charset of data Defaults to "UTF-8".
             time (bool, optional): set if data is timeseries data Defaults to False.
+            mosaic (bool, optional): declare dataset as mosaic
         """
-        r = self.upload(charset=charset, time=time, **kwargs)
+        r = self.upload(
+            title=title,
+            file_path=file_path,
+            charset=charset,
+            time=time,
+            mosaic=mosaic,
+            **kwargs
+        )
         if kwargs["json"] is True:
             import pprint
 
             pprint.pprint(r)
         else:
             list_items = [
-                ["title", kwargs["title"]],
+                ["title", title],
                 ["success", str(r["success"])],
                 ["status", r["status"]],
                 ["bbox", r["bbox"] if "bbox" in r else ""],
@@ -49,22 +65,28 @@ class GeonodeDatasets(GeoNodeObject):
             show_list(values=list_items, headers=["key", "value"])
 
     def upload(
-        self, charset: str = "UTF-8", time: bool = False, mosaic: bool = False, **kwargs
-    ):
+        self,
+        title: str,
+        file_path: Path,
+        charset: str = "UTF-8",
+        time: bool = False,
+        mosaic: bool = False,
+        **kwargs
+    ) -> Dict:
         """Upload dataset to geonode.
 
         Args:
-            filepath_path (Path): Path to the file to upload. If shape make sure to set
+            file_path (Path): Path to the file to upload. If shape make sure to set
                   the shp file and add place other files with same name next to the given
             title (str): title of the new dataset
             charset (str, optional): Fileencoding Defaults to "UTF-8".
-            non_interactive (bool, optional): False if dataset is interactive. Defaults to True.
             time (bool, optional): True if the dataset is a timeseries dataset. Defaults to False.
+            mosaic (bool, optional): declare dataset as mosaic
 
         Raises:
             FileNotFoundError: raised when given file is not found
         """
-        dataset_path: Path = kwargs["file_path"]
+        dataset_path: Path = file_path
         files: List[GeonodeHTTPFile] = []
         # handle shape files different
         if dataset_path.suffix == ".shp":
@@ -123,7 +145,7 @@ class GeonodeDatasets(GeoNodeObject):
         params = {
             # layer permissions
             "permissions": '{ "users": {"AnonymousUser": ["view_resourcebase"]} , "groups":{}}',
-            "dataset_title": kwargs["title"],
+            "dataset_title": title,
             "abstract": kwargs["abstract"] if "abstract" in kwargs else "",
             "mosaic": mosaic,
             "time": str(time),
@@ -137,57 +159,3 @@ class GeonodeDatasets(GeoNodeObject):
             params=params,
             content_length=content_length,
         )
-
-    def cmd_show(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def get(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def update_dataset(resource_id, metadata, headers):
-        raise NotImplementedError
-        # tes = datetime.datetime.strptime(metadata['Start Date'], '%d.%m.%Y').strftime("%Y-%m-%dT%H:%M")
-
-        # url = f"https://geonode.corki.bonares.de/api/v2/datasets/{resource_id}/"
-        # params = {
-        #     # metadata to ignore:
-        #     # 'Name': html filename
-        #     # 'Citation'
-        #     # 'ShowOnMap',
-        #     # 'Raumelement',
-        #     # 'ID',: ORD ID
-        #     # 'Geolocation', Geo
-        #     # 'RelatedIdentifier',
-        #     # 'ResourceType': e.g. Table
-        #     #  metadata["Created"], hard in geonoide
-        #     # "last_updated": metadata["Modified"], hard in geonode
-        #     'title': metadata["Title"],
-        #     'abstract': metadata['Summary'],
-        #     'doi': metadata["DigitalObjectIdentifier"],
-
-        #     # "date": metadata["PublicationYear"], datetype = published
-
-        #     'temporal_extent_start': tes,
-
-        #     # Authors: must be found in ZALF LDAP
-        #     # 'Subjects', Agrovoc keywords
-        #     # 'Contributors', New Contact roles institutions
-        #     # 'Rights': legal rights - Restrictions mapping
-
-        #     # 'Attribution': TODO,
-        #     # 'data_quality_statement':  TODO,
-        #     # 'constraints_other': TODO,
-        #     # 'edition": TODO,
-        #     # 'purpose': TODO,
-        #     # ' Supplemental information': TODO,
-        #     # 'maintenance_frequency': TODO,
-        #     # attributes
-
-        #     # 'category': 'farming',
-        #     'language': "eng",
-        #     # 'regions': "DE"
-        # }
-        # ds_patched_resp = requests.request("PATCH", url, headers=headers, data=params, verify=False)
-
-        # if ds_patched_resp.status_code != 200:
-        #   logging.error(f"update dataset [{name}] failed ...")

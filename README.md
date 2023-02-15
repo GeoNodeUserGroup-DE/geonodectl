@@ -2,6 +2,8 @@
 
 **geonodectl** is a commandline interface tool for [geonode](https://github.com/GeoNode/geonode). It uses the [geonode apiv2](https://docs.geonode.org/en/master/devel/api/V2/index.html) to interact with a geonode installation.
 
+## How to use
+
 geonodectl has currently the following capabilities:
 ```
 ❯ ./geonodectl  --help
@@ -38,26 +40,27 @@ options:
 ```
 
 Currently not all features of the API are implemented. Here is a list of what you can do with geonodectl:
-| geonode resource | capabilities | description |
-|------------------|--------------|--------------|
-| resource         | list, delete, download metadata | resource can handle all kinds of geonode-resources except people |
-| dataset          | list, delete, upload | |
-| documents        | list, delete, upload | |
-| maps             | list, delete | | 
-| geoapps          | list, delete | |
-| people           | list | |
-| uploads          | list | |
+| geonode resource | capabilities |
+|------------------|--------------|
+| resource         | list, delete, download metadata |
+| dataset          | list, delete, patch, describe, upload |
+| documents        | list, delete, patch, describe, upload |
+| maps             | list, delete, patch, describe |
+| geoapps          | list, delete, patch, describe |
+| people           | list, delete, patch, describe |
+| uploads          | list |
 
 This project is WIP, so feel free to add more functions to this project.
 
 ## Usage
 
-first of all install the requirements for this project with:
+first install the project with:
+
 ```
-pip install -r requirements.txt
+pip install https://github.com/GeoNodeUserGroup-DE/geonodectl.git
 ```
 
-Further **geonodectl** requires to set two environment variables like:
+Additionally to package install, **geonodectl** requires to set two environment variables to connect to a geonode instance like:
 ```
 GEONODECTL_URL: https://master.demo.geonode.org/api/v2/ # make sure to supply full api url
 GEONODECTL_BASIC: dXNlcjpwYXNzd29yZA== # you can generate this string like: echo -n user:password | base64
@@ -96,7 +99,7 @@ Now you are ready to go:
 |    1 | wheaterdata 2004            | admin            | 2023-01-23T10:19:00Z        | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/1  |
 
 # delete dataset
-❯ ./geonodectl ds delete -pk 36
+❯ ./geonodectl ds delete 36
 deleted ...
 
 # check if deleted:
