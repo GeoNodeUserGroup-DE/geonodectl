@@ -1,7 +1,11 @@
-from src.geonodeobject import GeoNodeObject, GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from src.resources import GeonodeResourceHandler
+from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 
 
-class GeonodeMaps(GeoNodeObject):
+class GeonodeMapsHandler(GeonodeResourceHandler):
+    RESOURCE_TYPE = "maps"
+    SINGULAR_RESOURCE_NAME = "map"
+
     LIST_CMDOUT_HEADER = [
         GeonodeCmdOutListKey(key="pk"),
         GeonodeCmdOutListKey(key="title"),
@@ -9,5 +13,3 @@ class GeonodeMaps(GeoNodeObject):
         GeonodeCmdOutListKey(key="resource_type"),
         GeonodeCmdOutListKey(key="detail_url"),
     ]
-
-    RESOURCE_TYPE = "maps"
