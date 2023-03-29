@@ -66,9 +66,8 @@ GEONODECTL_URL: https://master.demo.geonode.org/api/v2/ # make sure to supply fu
 GEONODECTL_BASIC: dXNlcjpwYXNzd29yZA== # you can generate this string like: echo -n user:password | base64
 ```
 
-Now you are ready to go:
+Now you are ready to go. upload shape file:
 ```
-# upload shape file
 ❯ ./geonodectl ds upload -f ~/data/geolocation.shp -t example-shape
 | key     | value                                       |
 |---------|---------------------------------------------|
@@ -78,8 +77,10 @@ Now you are ready to go:
 | bbox    | 13.1832819,52.4059715,13.5891838,52.5867805 |
 | crs     | {'type': 'name', 'properties': 'EPSG:4326'} |
 | url     | /catalogue/#/dataset/36                     |
+```
 
-# show all datasets
+show all datasets:
+```
 ❯ ./geonodectl dataset list
 |   pk | title                       | owner.username   | date                        | is_approved   | is_published   | state     | detail_url                                              |
 |------|-----------------------------|------------------|-----------------------------|---------------|----------------|-----------|---------------------------------------------------------|
@@ -97,12 +98,22 @@ Now you are ready to go:
 |    3 | geolocation                 | admin            | 2023-01-25T15:23:44.439151Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/3  |
 |    2 | data_0                      | admin            | 2023-01-25T15:01:51.042680Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/2  |
 |    1 | wheaterdata 2004            | admin            | 2023-01-23T10:19:00Z        | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/1  |
+```
 
-# delete dataset
+patch dataset:
+```
+geonodectl ds patch 36  --set 'category={"identifier": "farming"}'
+...
+```
+
+delete dataset:
+```
 ❯ ./geonodectl ds delete 36
 deleted ...
+```
 
-# check if deleted:
+check if deleted:
+```
 ./geonodectl ds list
 |   pk | title                       | owner.username   | date                        | is_approved   | is_published   | state     | detail_url                                              |
 |------|-----------------------------|------------------|-----------------------------|---------------|----------------|-----------|---------------------------------------------------------|
@@ -120,3 +131,5 @@ deleted ...
 |    2 | data_0                      | admin            | 2023-01-25T15:01:51.042680Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/2  |
 |    1 | wheaterdata 2004            | admin            | 2023-01-23T10:19:00Z        | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/1  |
 ```
+
+
