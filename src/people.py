@@ -1,5 +1,4 @@
 from typing import Dict
-import pprint
 
 from src.geonodeobject import GeonodeObjectHandler
 from src.resources import GeonodeResourceHandler
@@ -44,7 +43,7 @@ class GeonodePeopleHandler(GeonodeObjectHandler):
         if kwargs["user_resources"] is True:
             GeonodeResourceHandler.print_list_on_cmd(obj)
         else:
-            pprint.pprint(obj)
+            self.print_json(obj)
 
     def get(
         self, pk: int, user_resources: bool = False, user_groups: bool = False, **kwargs

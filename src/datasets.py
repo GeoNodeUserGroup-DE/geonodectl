@@ -50,9 +50,8 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             **kwargs
         )
         if kwargs["json"] is True:
-            import pprint
+            self.print_json(r)
 
-            pprint.pprint(r)
         else:
             list_items = [
                 ["title", title],

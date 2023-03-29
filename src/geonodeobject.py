@@ -1,7 +1,5 @@
-from typing import List, Dict
-import pprint
+from typing import List, Dict, Union
 import json
-import logging
 
 from src.geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
 from src.rest import GeonodeRest
@@ -19,11 +17,15 @@ class GeonodeObjectHandler(GeonodeRest):
     RESOURCE_TYPE: str = ""
     SINGULAR_RESOURCE_NAME: str = ""
 
+    @classmethod
+    def print_json(cls, json_str: Union[str, dict]):
+        print(json.dumps(json_str, indent=2))
+
     def cmd_list(self, **kwargs):
         """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
         if kwargs["json"]:
-            pprint.pprint(obj)
+            self.print_json(obj)
         else:
             self.__class__.print_list_on_cmd(obj)
 
@@ -50,7 +52,7 @@ class GeonodeObjectHandler(GeonodeRest):
 
     def cmd_patch(self, pk: int, fields: str, **kwargs):
         obj = self.patch(pk, fields, **kwargs)
-        pprint.pprint(obj)
+        self.print_json(obj)
 
     def patch(self, pk: int, fields: str, **kwargs) -> Dict:
         """tries to generate  object from incoming json string
@@ -78,7 +80,7 @@ class GeonodeObjectHandler(GeonodeRest):
 
     def cmd_describe(self, pk: int, **kwargs):
         obj = self.get(pk=pk, **kwargs)
-        pprint.pprint(obj)
+        self.print_json(obj)
 
     def get(self, pk: int, **kwargs) -> Dict:
         """get details for a given pk

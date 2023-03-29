@@ -56,9 +56,8 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
             ["download-url", r["href"]],
         ]
         if kwargs["json"]:
-            import pprint
+            self.print_json(r)
 
-            pprint.pprint(r)
         else:
             show_list(values=list_items, headers=["key", "value"])
 
