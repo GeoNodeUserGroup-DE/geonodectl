@@ -48,7 +48,7 @@ class GeonodeObjectHandler(GeonodeRest):
         self.http_get(endpoint=f"{self.RESOURCE_TYPE}/{pk}")
         self.http_delete(endpoint=f"resources/{pk}/delete")
 
-    def cmd_patch(self, pk: int, fields: Dict, **kwargs):
+    def cmd_patch(self, pk: int, fields: str, **kwargs):
         obj = self.patch(pk, fields, **kwargs)
         pprint.pprint(obj)
 
