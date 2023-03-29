@@ -95,7 +95,6 @@ class GeonodeRest(object):
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
-
         return r.json()
 
     def http_patch(self, endpoint: str, params: Dict = {}) -> Dict:
@@ -119,7 +118,6 @@ class GeonodeRest(object):
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
-
         return r.json()
 
     def http_delete(self, endpoint: str, params: Dict = {}) -> Dict:
