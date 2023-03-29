@@ -66,7 +66,7 @@ class GeonodeObjectHandler(GeonodeRest):
              ValueError: catches json.decoder.JSONDecodeError and raises ValueError as decoding is not working
         """
         try:
-            json_data = json.loads(fields[0])
+            json_data = json.loads(fields)
         except ValueError:
             raise (
                 ValueError(
