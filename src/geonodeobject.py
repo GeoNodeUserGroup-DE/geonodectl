@@ -1,5 +1,7 @@
 from typing import List, Dict
 import pprint
+import json
+import logging
 
 from src.geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
 from src.rest import GeonodeRest
@@ -46,13 +48,33 @@ class GeonodeObjectHandler(GeonodeRest):
         self.http_get(endpoint=f"{self.RESOURCE_TYPE}/{pk}")
         self.http_delete(endpoint=f"resources/{pk}/delete")
 
-    def cmd_patch(self, pk: int, fields: Dict, **kwargs):
+    def cmd_patch(self, pk: int, fields: str, **kwargs):
         obj = self.patch(pk, fields, **kwargs)
         pprint.pprint(obj)
 
-    def patch(self, pk: int, fields: Dict, **kwargs) -> Dict:
-        print(f"setting up value(s): {fields}")
-        return self.http_patch(endpoint=f"{self.RESOURCE_TYPE}/{pk}/", params=fields)
+    def patch(self, pk: int, fields: str, **kwargs) -> Dict:
+        """tries to generate  object from incoming json string
+
+        Args:
+            pk (int): pk of the object
+            fields (str): string of potential json object
+
+        Returns:
+            Dict: obj details
+
+        Raises:
+             ValueError: catches json.decoder.JSONDecodeError and raises ValueError as decoding is not working
+        """
+        try:
+            json_data = json.loads(fields[0])
+        except ValueError:
+            raise (
+                ValueError(
+                    f"unable to decode argument: | {fields} | to json object ..."
+                )
+            )
+
+        return self.http_patch(endpoint=f"{self.RESOURCE_TYPE}/{pk}/", params=json_data)
 
     def cmd_describe(self, pk: int, **kwargs):
         obj = self.get(pk=pk, **kwargs)

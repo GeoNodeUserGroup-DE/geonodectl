@@ -50,7 +50,7 @@ class GeonodeRest(object):
 
         try:
             r = requests.post(
-                url, headers=self.header, files=files, data=params, verify=self.verify
+                url, headers=self.header, files=files, json=params, verify=self.verify
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
@@ -91,7 +91,7 @@ class GeonodeRest(object):
         """
         url = self.url + endpoint
         try:
-            r = requests.get(url, headers=self.header, data=params, verify=self.verify)
+            r = requests.get(url, headers=self.header, json=params, verify=self.verify)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
@@ -114,7 +114,7 @@ class GeonodeRest(object):
         url = self.url + endpoint
         try:
             r = requests.patch(
-                url, headers=self.header, data=params, verify=self.verify
+                url, headers=self.header, json=params, verify=self.verify
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
