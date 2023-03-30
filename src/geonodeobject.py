@@ -46,7 +46,6 @@ class GeonodeObjectHandler(GeonodeRest):
 
     def delete(self, pk: int, **kwargs):
         """delete geonode resource object"""
-        pk = kwargs["pk"]
         self.http_get(endpoint=f"{self.RESOURCE_TYPE}/{pk}")
         self.http_delete(endpoint=f"resources/{pk}/delete")
 
