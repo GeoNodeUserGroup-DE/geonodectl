@@ -40,7 +40,7 @@ class GeonodePeopleHandler(GeonodeObjectHandler):
             pk, user_resources=user_resources, user_groups=user_groups, **kwargs
         )
         # in this case print as list of ressources
-        if kwargs["user_resources"] is True:
+        if user_resources is True:
             GeonodeResourceHandler.print_list_on_cmd(obj)
         else:
             self.print_json(obj)
