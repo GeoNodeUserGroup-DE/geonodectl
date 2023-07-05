@@ -15,7 +15,7 @@ DEFAULT_METADATA_TYPE: str = "ISO"
 
 
 class GeonodeResourceHandler(GeonodeObjectHandler):
-    RESOURCE_TYPE = "resources"
+    ENDPOINT_NAME = JSON_OBJECT_NAME = "resources"
     SINGULAR_RESOURCE_NAME = "resource"
 
     LIST_CMDOUT_HEADER = [

@@ -5,7 +5,7 @@ from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
 
 
 class GeonodeUploadsHandler(GeonodeObjectHandler):
-    RESOURCE_TYPE = "uploads"
+    ENDPOINT_NAME = JSON_OBJECT_NAME = "uploads"
     SINGULAR_RESOURCE_NAME = "upload"
 
     LIST_CMDOUT_HEADER: List[GeonodeCmdOutObjectKey] = [

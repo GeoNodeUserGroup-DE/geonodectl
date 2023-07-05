@@ -10,7 +10,7 @@ from src.geonodetypes import GeonodeHTTPFile
 
 
 class GeonodeDocumentsHandler(GeonodeResourceHandler):
-    RESOURCE_TYPE = "documents"
+    ENDPOINT_NAME = JSON_OBJECT_NAME = "documents"
     SINGULAR_RESOURCE_NAME = "document"
 
     LIST_CMDOUT_HEADER = [

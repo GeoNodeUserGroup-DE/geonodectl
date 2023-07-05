@@ -6,7 +6,7 @@ from src.geonodetypes import GeonodeCmdOutListKey
 
 
 class GeonodePeopleHandler(GeonodeObjectHandler):
-    RESOURCE_TYPE = "users"
+    ENDPOINT_NAME = JSON_OBJECT_NAME = "users"
     SINGULAR_RESOURCE_NAME = "user"
 
     LIST_CMDOUT_HEADER = [

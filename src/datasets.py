@@ -9,7 +9,7 @@ from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 
 
 class GeonodeDatasetsHandler(GeonodeResourceHandler):
-    RESOURCE_TYPE = "datasets"
+    ENDPOINT_NAME = JSON_OBJECT_NAME = "datasets"
     SINGULAR_RESOURCE_NAME = "dataset"
 
     LIST_CMDOUT_HEADER = [
@@ -51,7 +51,6 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         )
         if kwargs["json"] is True:
             self.print_json(r)
-
         else:
             list_items = [
                 ["title", title],

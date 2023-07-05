@@ -3,7 +3,7 @@ from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 
 
 class GeonodeMapsHandler(GeonodeResourceHandler):
-    RESOURCE_TYPE = "maps"
+    ENDPOINT_NAME = JSON_OBJECT_NAME = "maps"
     SINGULAR_RESOURCE_NAME = "map"
 
     LIST_CMDOUT_HEADER = [
