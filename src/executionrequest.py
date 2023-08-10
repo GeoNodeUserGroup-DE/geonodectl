@@ -44,7 +44,7 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
         """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
         if kwargs["json"]:
-            self.print_json(obj)
+            GeonodeObjectHandler.print_json(obj)
         else:
             GeonodeObjectHandler.print_list_on_cmd(obj)
 

@@ -1,7 +1,6 @@
-from typing import List, Dict, Optional, Union
+from typing import List, Dict, Optional
 import requests
 import urllib3
-import json
 
 from src.geonodetypes import GeonodeEnv, GeonodeHTTPFile
 

@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import argparse
-from typing import List
+from typing import List, Union
 from argparse import RawTextHelpFormatter
 from pathlib import Path
 
@@ -499,7 +499,7 @@ To use this tool you have to set the following environment variables before star
         )
 
     geonode_env = GeonodeEnv(url=url, auth_basic=basic, verify=args.ssl_verify)
-    g_obj: GeonodeObjectHandler
+    g_obj: Union[GeonodeObjectHandler, GeonodeExecutionRequestHandler]
     match args.command:
         case "resources" | "resource":
             g_obj = GeonodeResourceHandler(env=geonode_env)
