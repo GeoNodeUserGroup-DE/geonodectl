@@ -70,16 +70,16 @@ class GeonodePeopleHandler(GeonodeObjectHandler):
         r: Dict
         if user_groups is True:
             r = self.http_get(
-                endpoint=f"{self.RESOURCE_TYPE}/{pk}/groups?page_size={kwargs['page_size']}"
+                endpoint=f"{self.ENDPOINT_NAME}/{pk}/groups?page_size={kwargs['page_size']}"
             )
             return r
         elif user_resources is True:
             r = self.http_get(
-                endpoint=f"{self.RESOURCE_TYPE}/{pk}/resources?page_size={kwargs['page_size']}"
+                endpoint=f"{self.ENDPOINT_NAME}/{pk}/resources?page_size={kwargs['page_size']}"
             )
             return r
         else:
             r = self.http_get(
-                endpoint=f"{self.RESOURCE_TYPE}/{pk}?page_size={kwargs['page_size']}"
+                endpoint=f"{self.ENDPOINT_NAME}/{pk}?page_size={kwargs['page_size']}"
             )
             return r[self.SINGULAR_RESOURCE_NAME]

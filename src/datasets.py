@@ -9,6 +9,8 @@ from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 
 
 class GeonodeDatasetsHandler(GeonodeResourceHandler):
+    """docstring for GeonodeDatasetsHandler"""
+
     ENDPOINT_NAME = JSON_OBJECT_NAME = "datasets"
     SINGULAR_RESOURCE_NAME = "dataset"
 

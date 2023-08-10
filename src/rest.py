@@ -1,6 +1,8 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import requests
 import urllib3
+import json
+
 from src.geonodetypes import GeonodeEnv, GeonodeHTTPFile
 
 urllib3.disable_warnings()

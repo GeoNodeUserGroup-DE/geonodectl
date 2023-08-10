@@ -18,10 +18,6 @@ class GeonodeObjectHandler(GeonodeRest):
     ENDPOINT_NAME: str = ""
     SINGULAR_RESOURCE_NAME: str = ""
 
-    @classmethod
-    def print_json(cls, json_str: Union[str, dict]):
-        print(json.dumps(json_str, indent=2))
-
     def cmd_list(self, **kwargs):
         """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
@@ -120,3 +116,16 @@ class GeonodeObjectHandler(GeonodeRest):
             generate_line(i, obj, cls.LIST_CMDOUT_HEADER) for i in range(len(obj))
         ]
         show_list(headers=cls.cmd_list_header(), values=values)
+
+    @classmethod
+    def print_json(cls, json_str: Union[str, dict]):
+        """
+        Print the given JSON string or dictionary with an indentation of 2 spaces.
+
+        Args:
+            json_str (Union[str, dict]): The JSON string or dictionary to be printed.
+
+        Returns:
+            None
+        """
+        print(json.dumps(json_str, indent=2))
