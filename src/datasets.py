@@ -55,12 +55,7 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             self.print_json(r)
         else:
             list_items = [
-                ["title", title],
-                ["success", str(r["success"])],
-                ["status", r["status"]],
-                ["bbox", r["bbox"] if "bbox" in r else ""],
-                ["crs", r["crs"] if "crs" in r else ""],
-                ["url", r["url"] if "url" in r else ""],
+                ["execution_id", str(r["execution_id"])],
             ]
             show_list(values=list_items, headers=["key", "value"])
 
