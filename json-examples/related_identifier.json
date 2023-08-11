@@ -1,0 +1,23 @@
+{
+  "related_identifier": [
+    {
+      "related_identifier": "test10",
+      "related_identifier_type": {
+        "label": "ARK"
+      },
+      "relation_type": {
+        "label": "IsNewVersionOf"
+      }
+    },
+    {
+      "related_identifier": "test2",
+      "related_identifier_type": {
+        "label": "bibcode"
+      },
+      "relation_type": {
+        "label": "Documents"
+      }
+    }
+  ]
+}
+
