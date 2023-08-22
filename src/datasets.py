@@ -52,7 +52,7 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             mosaic=mosaic,
             **kwargs,
         )
-        if not "execution_id" in r:
+        if "execution_id" not in r:
             raise SystemExit(f"unexpected API response ...\n{r}")
 
         execution_request_handler = GeonodeExecutionRequestHandler(
