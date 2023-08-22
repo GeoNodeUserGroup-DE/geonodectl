@@ -1,10 +1,7 @@
-from typing import TypeAlias, Type, Tuple, Union, List, Callable, Dict, Any
-
+from typing import TypeAlias, Type, Tuple, Union, List
 from dataclasses import dataclass
 from abc import abstractmethod
 import io
-
-from src.rest import GeonodeRest
 
 
 class GeonodeCmdOutObjectKey:
@@ -84,11 +81,6 @@ class GeonodeCmdOutDictKey(GeonodeCmdOutObjectKey):
 GeonodeHTTPFile: TypeAlias = Tuple[
     str, Union[Tuple[str, io.BufferedReader], Tuple[str, io.BufferedReader, str]]
 ]
-
-NetworkExceptionHandlingTypes: TypeAlias = (
-    Callable[[GeonodeRest, str, Dict[Any, Any]], Dict[Any, Any]]
-    | Callable[[GeonodeRest, str], Dict[Any, Any]]
-)
 
 
 @dataclass

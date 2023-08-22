@@ -1,9 +1,16 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, TypeAlias, Callable, Dict, Any
+
 import urllib3
 import requests
-from src.geonodetypes import GeonodeEnv, GeonodeHTTPFile, NetworkExceptionHandlingTypes
+from src.geonodetypes import GeonodeEnv, GeonodeHTTPFile
 
 urllib3.disable_warnings()
+
+
+NetworkExceptionHandlingTypes: TypeAlias = (
+    Callable[["GeonodeRest", str, Dict[Any, Any]], Dict[Any, Any]]
+    | Callable[["GeonodeRest", str], Dict[Any, Any]]
+)
 
 
 class GeonodeRest(object):

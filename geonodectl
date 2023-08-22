@@ -188,12 +188,6 @@ To use this tool you have to set the following environment variables before star
         help="file to upload",
     )
     datasets_upload.add_argument(
-        "-t", "--title", type=str, dest="title", required=True, help="dataset title"
-    )
-    datasets_upload.add_argument(
-        "-a", "--abstract", type=str, dest="abstract", help="dataset abstract"
-    )
-    datasets_upload.add_argument(
         "--time",
         action="store_true",
         dest="time",

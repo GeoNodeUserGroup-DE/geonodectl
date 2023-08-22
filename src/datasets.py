@@ -74,7 +74,6 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
 
     def upload(
         self,
-        title: str,
         file_path: Path,
         charset: str = "UTF-8",
         time: bool = False,
@@ -153,8 +152,6 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         params = {
             # layer permissions
             "permissions": '{ "users": {"AnonymousUser": ["view_resourcebase"]} , "groups":{}}',
-            "dataset_title": title,
-            "abstract": kwargs["abstract"] if "abstract" in kwargs else "",
             "mosaic": mosaic,
             "time": str(time),
             "charset": charset,
