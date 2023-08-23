@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, TypeAlias, Callable, Dict, Any
+from typing import List, Dict, Optional, TypeAlias, Callable, Any
 
 import urllib3
 import requests
