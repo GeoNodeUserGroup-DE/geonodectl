@@ -1,14 +1,44 @@
-from typing import List, Dict, Optional
-import requests
+from typing import List, Dict, Optional, TypeAlias, Callable, Any
+
 import urllib3
+import requests
 from src.geonodetypes import GeonodeEnv, GeonodeHTTPFile
 
 urllib3.disable_warnings()
 
 
+NetworkExceptionHandlingTypes: TypeAlias = (
+    Callable[["GeonodeRest", str, Dict[Any, Any]], Dict[Any, Any]]
+    | Callable[["GeonodeRest", str], Dict[Any, Any]]
+)
+
+
 class GeonodeRest(object):
     def __init__(self, env: GeonodeEnv):
         self.gn_credentials = env
+
+    @staticmethod
+    def network_exception_handling(func: NetworkExceptionHandlingTypes):
+        def inner(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except requests.exceptions.ConnectionError:
+                raise SystemExit(
+                    "connection error: Could not reach geonode api. please check if the endpoint up and available, "
+                    "check also the env variable: GEONODECTL_URL ..."
+                )
+            except urllib3.exceptions.MaxRetryError:
+                raise SystemExit(
+                    "max retries exceeded: Could not reach geonode api. please check if the endpoint up and available, "
+                    "check also the env variable: GEONODECTL_URL ..."
+                )
+            except ConnectionRefusedError:
+                raise SystemExit(
+                    "connection refused: Could not reach geonode api. please check if the endpoint up and available, "
+                    "check also the env variable: GEONODECTL_URL ..."
+                )
+
+        return inner
 
     @property
     def url(self):
@@ -22,6 +52,7 @@ class GeonodeRest(object):
     def verify(self):
         return self.gn_credentials.verify
 
+    @network_exception_handling
     def http_post(
         self,
         endpoint: str,
@@ -57,7 +88,8 @@ class GeonodeRest(object):
             raise SystemExit(err)
         return r.json()
 
-    def http_get_download(self, url: str) -> requests.models.Response:
+    @network_exception_handling
+    def http_get_download(self, url: str) -> Dict:
         """raw get url
 
         Args:
@@ -74,8 +106,9 @@ class GeonodeRest(object):
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
-        return r
+        return r.json()
 
+    @network_exception_handling
     def http_get(self, endpoint: str, params: Dict = {}) -> Dict:
         """execute http delete on endpoint with params
 
@@ -97,6 +130,7 @@ class GeonodeRest(object):
             raise SystemExit(err)
         return r.json()
 
+    @network_exception_handling
     def http_patch(self, endpoint: str, params: Dict = {}) -> Dict:
         """execute http patch on endpoint with params
 
@@ -120,6 +154,7 @@ class GeonodeRest(object):
             raise SystemExit(err)
         return r.json()
 
+    @network_exception_handling
     def http_delete(self, endpoint: str, params: Dict = {}) -> Dict:
         """execute http delete on endpoint with params
 

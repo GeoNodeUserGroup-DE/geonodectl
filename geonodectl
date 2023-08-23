@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import argparse
-from typing import List
+from typing import List, Union
 from argparse import RawTextHelpFormatter
 from pathlib import Path
 
@@ -17,6 +17,7 @@ from src.maps import GeonodeMapsHandler
 from src.people import GeonodePeopleHandler
 from src.geoapps import GeonodeGeoappsHandler
 from src.uploads import GeonodeUploadsHandler
+from src.executionrequest import GeonodeExecutionRequestHandler
 
 GEONODECTL_URL_ENV_VAR: str = "GEONODECTL_URL"
 GEONODECTL_BASIC_ENV_VAR: str = "GEONODECTL_BASIC"
@@ -187,12 +188,6 @@ To use this tool you have to set the following environment variables before star
         help="file to upload",
     )
     datasets_upload.add_argument(
-        "-t", "--title", type=str, dest="title", required=True, help="dataset title"
-    )
-    datasets_upload.add_argument(
-        "-a", "--abstract", type=str, dest="abstract", help="dataset abstract"
-    )
-    datasets_upload.add_argument(
         "--time",
         action="store_true",
         dest="time",
@@ -337,7 +332,6 @@ To use this tool you have to set the following environment variables before star
         help="patch metadata by providing a json string like: \'{\"category\":\"{\"identifier\": \"farming\"}}\'",
     )
 
-
     # DESCRIBE
     maps_describe = maps_subparsers.add_parser("describe", help="get map details")
     maps_describe.add_argument(
@@ -460,6 +454,25 @@ To use this tool you have to set the following environment variables before star
     # LIST
     uploads_subparsers.add_parser("list", help="list uploads")
 
+    #####################################
+    # EXECUTIONREQUEST ARGUMENT PARSING #
+    #####################################
+    executionrequest = subparsers.add_parser("executionrequest", help="executionrequest commands")
+    executionrequest_subparsers = executionrequest.add_subparsers(
+        help="geonodectl executionrequest commands", dest="subcommand", required=True
+    )
+
+    # LIST
+    executionrequest_subparsers.add_parser("list", help="list executionrequests")
+
+    # DESCRIBE
+    executionrequest_describe = executionrequest_subparsers.add_parser(
+        "describe", help="get executionrequest details"
+    )
+    executionrequest_describe.add_argument(
+        type=str, dest="exec_id", help="exec_id of executionrequest to describe ..."
+    )
+
     #####################
     # END OF ARGPARSING #
     #####################
@@ -480,7 +493,7 @@ To use this tool you have to set the following environment variables before star
         )
 
     geonode_env = GeonodeEnv(url=url, auth_basic=basic, verify=args.ssl_verify)
-    g_obj: GeonodeObjectHandler
+    g_obj: Union[GeonodeObjectHandler, GeonodeExecutionRequestHandler]
     match args.command:
         case "resources" | "resource":
             g_obj = GeonodeResourceHandler(env=geonode_env)
@@ -496,6 +509,8 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeGeoappsHandler(env=geonode_env)
         case "uploads":
             g_obj = GeonodeUploadsHandler(env=geonode_env)
+        case "executionrequest" | "execrequest":
+            g_obj = GeonodeExecutionRequestHandler(env=geonode_env)        
         case _:
             raise NotImplemented
 

@@ -14,12 +14,9 @@ class GeonodeObjectHandler(GeonodeRest):
         GeonodeCmdOutListKey(type=list, key="pk")
     ]
     DEFAULT_UPLOAD_KEYS: List[str] = ["key", "value"]
-    RESOURCE_TYPE: str = ""
+    JSON_OBJECT_NAME: str = ""
+    ENDPOINT_NAME: str = ""
     SINGULAR_RESOURCE_NAME: str = ""
-
-    @classmethod
-    def print_json(cls, json_str: Union[str, dict]):
-        print(json.dumps(json_str, indent=2))
 
     def cmd_list(self, **kwargs):
         """show list of geonode obj on the cmdline"""
@@ -36,17 +33,17 @@ class GeonodeObjectHandler(GeonodeRest):
             Dict: request response
         """
         r = self.http_get(
-            endpoint=f"{self.RESOURCE_TYPE}/?page_size={kwargs['page_size']}"
+            endpoint=f"{self.ENDPOINT_NAME}/?page_size={kwargs['page_size']}"
         )
-        return r[self.RESOURCE_TYPE]
+        return r[self.JSON_OBJECT_NAME]
 
     def cmd_delete(self, pk: int, **kwargs):
         self.delete(pk=pk, **kwargs)
-        print(f"{self.RESOURCE_TYPE}: {pk} deleted ...")
+        print(f"{self.JSON_OBJECT_NAME}: {pk} deleted ...")
 
     def delete(self, pk: int, **kwargs):
         """delete geonode resource object"""
-        self.http_get(endpoint=f"{self.RESOURCE_TYPE}/{pk}")
+        self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{pk}")
         self.http_delete(endpoint=f"resources/{pk}/delete")
 
     def cmd_patch(self, pk: int, fields: str, **kwargs):
@@ -75,7 +72,7 @@ class GeonodeObjectHandler(GeonodeRest):
                 )
             )
 
-        return self.http_patch(endpoint=f"{self.RESOURCE_TYPE}/{pk}/", params=json_data)
+        return self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=json_data)
 
     def cmd_describe(self, pk: int, **kwargs):
         obj = self.get(pk=pk, **kwargs)
@@ -91,7 +88,7 @@ class GeonodeObjectHandler(GeonodeRest):
             Dict: obj details
         """
         r = self.http_get(
-            endpoint=f"{self.RESOURCE_TYPE}/{pk}?page_size={kwargs['page_size']}"
+            endpoint=f"{self.ENDPOINT_NAME}/{pk}?page_size={kwargs['page_size']}"
         )
         return r[self.SINGULAR_RESOURCE_NAME]
 
@@ -119,3 +116,16 @@ class GeonodeObjectHandler(GeonodeRest):
             generate_line(i, obj, cls.LIST_CMDOUT_HEADER) for i in range(len(obj))
         ]
         show_list(headers=cls.cmd_list_header(), values=values)
+
+    @classmethod
+    def print_json(cls, json_str: Union[str, dict]):
+        """
+        Print the given JSON string or dictionary with an indentation of 2 spaces.
+
+        Args:
+            json_str (Union[str, dict]): The JSON string or dictionary to be printed.
+
+        Returns:
+            None
+        """
+        print(json.dumps(json_str, indent=2))

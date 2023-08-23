@@ -6,10 +6,13 @@ from src.resources import GeonodeResourceHandler
 from src.geonodetypes import GeonodeHTTPFile
 from src.cmdprint import show_list
 from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from src.executionrequest import GeonodeExecutionRequestHandler
 
 
 class GeonodeDatasetsHandler(GeonodeResourceHandler):
-    RESOURCE_TYPE = "datasets"
+    """docstring for GeonodeDatasetsHandler"""
+
+    ENDPOINT_NAME = JSON_OBJECT_NAME = "datasets"
     SINGULAR_RESOURCE_NAME = "dataset"
 
     LIST_CMDOUT_HEADER = [
@@ -30,7 +33,7 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         charset: str = "UTF-8",
         time: bool = False,
         mosaic: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """upload data and show them on the cmdline
 
@@ -47,30 +50,35 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             charset=charset,
             time=time,
             mosaic=mosaic,
-            **kwargs
+            **kwargs,
         )
-        if kwargs["json"] is True:
-            self.print_json(r)
+        if "execution_id" not in r:
+            raise SystemExit(f"unexpected API response ...\n{r}")
 
+        execution_request_handler = GeonodeExecutionRequestHandler(
+            env=self.gn_credentials
+        )
+        er = execution_request_handler.get(exec_id=str(r["execution_id"]), **kwargs)
+
+        if kwargs["json"] is True:
+            self.print_json(er)
         else:
             list_items = [
-                ["title", title],
-                ["success", str(r["success"])],
-                ["status", r["status"]],
-                ["bbox", r["bbox"] if "bbox" in r else ""],
-                ["crs", r["crs"] if "crs" in r else ""],
-                ["url", r["url"] if "url" in r else ""],
+                ["exec_id", str(er["exec_id"])],
+                ["status", str(er["status"])],
+                ["created", str(er["created"])],
+                ["name", str(er["name"])],
+                ["link", str(er["link"])],
             ]
             show_list(values=list_items, headers=["key", "value"])
 
     def upload(
         self,
-        title: str,
         file_path: Path,
         charset: str = "UTF-8",
         time: bool = False,
         mosaic: bool = False,
-        **kwargs
+        **kwargs,
     ) -> Dict:
         """Upload dataset to geonode.
 
@@ -144,8 +152,6 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         params = {
             # layer permissions
             "permissions": '{ "users": {"AnonymousUser": ["view_resourcebase"]} , "groups":{}}',
-            "dataset_title": title,
-            "abstract": kwargs["abstract"] if "abstract" in kwargs else "",
             "mosaic": mosaic,
             "time": str(time),
             "charset": charset,
