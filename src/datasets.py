@@ -28,7 +28,6 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
 
     def cmd_upload(
         self,
-        title: str,
         file_path: Path,
         charset: str = "UTF-8",
         time: bool = False,
@@ -38,14 +37,12 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         """upload data and show them on the cmdline
 
         Args:
-            title (str): title of the new dataset
             file_path (Path): Path to the file to upload.
             charset (str, optional): charset of data Defaults to "UTF-8".
             time (bool, optional): set if data is timeseries data Defaults to False.
             mosaic (bool, optional): declare dataset as mosaic
         """
         r = self.upload(
-            title=title,
             file_path=file_path,
             charset=charset,
             time=time,
@@ -85,7 +82,6 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         Args:
             file_path (Path): Path to the file to upload. If shape make sure to set
                   the shp file and add place other files with same name next to the given
-            title (str): title of the new dataset
             charset (str, optional): Fileencoding Defaults to "UTF-8".
             time (bool, optional): True if the dataset is a timeseries dataset. Defaults to False.
             mosaic (bool, optional): declare dataset as mosaic

@@ -26,7 +26,6 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
 
     def cmd_upload(
         self,
-        title: str,
         file_path: Path,
         metadata_only: bool = False,
         charset: str = "UTF-8",
@@ -35,17 +34,12 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         """upload data and show them on the cmdline
 
         Args:
-            title (str): title of the new dataset
             file_path (Path): Path to the file to upload.
             charset (str, optional): charset of data Defaults to "UTF-8".
             metadata_only (bool, optional): set upload as metadata_only
         """
         r = self.upload(
-            title=title,
-            file_path=file_path,
-            metadata_only=metadata_only,
-            charset=charset,
-            **kwargs
+            file_path=file_path, metadata_only=metadata_only, charset=charset, **kwargs
         )
         list_items = [
             ["name", r["title"]],
@@ -63,7 +57,6 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
 
     def upload(
         self,
-        title: str,
         file_path: Path,
         charset: str = "UTF-8",
         metadata_only: bool = False,
@@ -72,7 +65,6 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         """upload a document to geonode
 
         Args:
-            title (str): title of the document
             file_path (Path): file to upload
             charset (str, optional): charset. Defaults to "UTF-8".
             metadata_only (bool, optional):  set upload as metadata_only. Defaults to False.
@@ -91,8 +83,6 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         params = {
             # layer permissions
             "permissions": '{ "users": {"AnonymousUser": ["view_resourcebase"]} , "groups":{}}',
-            "title": title,
-            "abstract": kwargs["abstract"] if "abstract" in kwargs else "",
             "charset": charset,
             "metadata_only": metadata_only,
         }
