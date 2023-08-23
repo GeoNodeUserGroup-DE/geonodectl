@@ -266,12 +266,7 @@ To use this tool you have to set the following environment variables before star
         required=True,
         help="file to upload",
     )
-    documents_upload.add_argument(
-        "-t", "--title", type=str, dest="title", required=True, help="document title"
-    )
-    documents_upload.add_argument(
-        "-a", "--abstract", type=str, dest="abstract", help="docment abstract"
-    )
+
     documents_upload.add_argument(
         "--metadata-only",
         action="store_true",
