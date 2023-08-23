@@ -4,7 +4,7 @@ from typing import List, Dict
 
 from src.resources import GeonodeResourceHandler
 from src.geonodetypes import GeonodeHTTPFile
-from src.cmdprint import show_list
+from src.cmdprint import show_list, print_json
 from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 from src.executionrequest import GeonodeExecutionRequestHandler
 
@@ -58,7 +58,7 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         er = execution_request_handler.get(exec_id=str(r["execution_id"]), **kwargs)
 
         if kwargs["json"] is True:
-            self.print_json(er)
+            print_json(er)
         else:
             list_items = [
                 ["exec_id", str(er["exec_id"])],
