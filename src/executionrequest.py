@@ -1,8 +1,8 @@
-from src.geonodetypes import GeonodeCmdOutListKey
-from src.geonodeobject import GeonodeObjectHandler
-from src.rest import GeonodeRest
+from typing import Dict, List
 
-from typing import Dict
+from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
+from src.rest import GeonodeRest
+from src.cmdprint import print_list_on_cmd, print_json
 
 
 class GeonodeExecutionRequestHandler(GeonodeRest):
@@ -10,8 +10,7 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
     JSON_OBJECT_NAME = "requests"
     SINGULAR_RESOURCE_NAME = "request"
 
-    # TODO
-    LIST_CMDOUT_HEADER = [
+    LIST_CMDOUT_HEADER: List[GeonodeCmdOutObjectKey] = [
         GeonodeCmdOutListKey(key="exec_id"),
         GeonodeCmdOutListKey(key="name"),
         GeonodeCmdOutListKey(key="status"),
@@ -23,7 +22,7 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
 
     def cmd_describe(self, exec_id: str, **kwargs):
         obj = self.get(exec_id=exec_id, **kwargs)
-        GeonodeObjectHandler.print_json(obj)
+        print_json(obj)
 
     def get(self, exec_id: str, **kwargs) -> Dict:
         """
@@ -44,9 +43,9 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
         """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
         if kwargs["json"]:
-            GeonodeObjectHandler.print_json(obj)
+            print_json(obj)
         else:
-            GeonodeObjectHandler.print_list_on_cmd(obj)
+            print_list_on_cmd(obj, self.LIST_CMDOUT_HEADER)
 
     def list(self, **kwargs) -> Dict:
         """returns dict of datasets from geonode

@@ -1,8 +1,8 @@
 from typing import Dict
 
 from src.geonodeobject import GeonodeObjectHandler
-from src.resources import GeonodeResourceHandler
 from src.geonodetypes import GeonodeCmdOutListKey
+from src.cmdprint import print_list_on_cmd, print_json
 
 
 class GeonodePeopleHandler(GeonodeObjectHandler):
@@ -41,9 +41,9 @@ class GeonodePeopleHandler(GeonodeObjectHandler):
         )
         # in this case print as list of ressources
         if user_resources is True:
-            GeonodeResourceHandler.print_list_on_cmd(obj)
+            print_list_on_cmd(obj, self.LIST_CMDOUT_HEADER)
         else:
-            self.print_json(obj)
+            print_json(obj)
 
     def get(
         self, pk: int, user_resources: bool = False, user_groups: bool = False, **kwargs

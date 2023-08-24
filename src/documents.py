@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Optional, Dict
 
 from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
-from src.cmdprint import show_list
+from src.cmdprint import show_list, print_json
 from src.resources import GeonodeResourceHandler
 from src.geonodetypes import GeonodeHTTPFile
 
@@ -50,7 +50,7 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
             ["download-url", r["href"]],
         ]
         if kwargs["json"]:
-            self.print_json(r)
+            print_json(r)
 
         else:
             show_list(values=list_items, headers=["key", "value"])
