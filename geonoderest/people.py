@@ -1,8 +1,8 @@
 from typing import Dict
 
-from src.geonodeobject import GeonodeObjectHandler
-from src.geonodetypes import GeonodeCmdOutListKey
-from src.cmdprint import print_list_on_cmd, print_json
+from geonoderest.geonodeobject import GeonodeObjectHandler
+from geonoderest.geonodetypes import GeonodeCmdOutListKey
+from geonoderest.cmdprint import print_list_on_cmd, print_json
 
 
 class GeonodePeopleHandler(GeonodeObjectHandler):
