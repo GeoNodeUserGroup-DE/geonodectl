@@ -3,10 +3,10 @@ import mimetypes
 from pathlib import Path
 from typing import List, Optional, Dict
 
-from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
-from src.cmdprint import show_list, print_json
-from src.resources import GeonodeResourceHandler
-from src.geonodetypes import GeonodeHTTPFile
+from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from geonoderest.cmdprint import show_list, print_json
+from geonoderest.resources import GeonodeResourceHandler
+from geonoderest.geonodetypes import GeonodeHTTPFile
 
 
 class GeonodeDocumentsHandler(GeonodeResourceHandler):
@@ -99,9 +99,10 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
                 ("doc_file", (document_path.name, open(document_path, "rb"))),
             ]
 
-        return self.http_post(
+        r = self.http_post(
             endpoint="documents",
             files=files,
             params=params,
             content_length=content_length,
         )["document"]
+        return r

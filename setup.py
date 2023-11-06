@@ -10,7 +10,7 @@ setup(
     author="marcel wallschlaeger",
     author_email="marcel.wallschlaeger@zalf.de",
     zip_safe=False,
-    packages=["src"],
+    packages=["geonoderest"],
     scripts=["geonodectl"],
     install_requires=[
         "requests",

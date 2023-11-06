@@ -1,7 +1,7 @@
 from typing import List
 
-from src.geonodeobject import GeonodeObjectHandler
-from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
+from geonoderest.geonodeobject import GeonodeObjectHandler
+from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
 
 
 class GeonodeUploadsHandler(GeonodeObjectHandler):

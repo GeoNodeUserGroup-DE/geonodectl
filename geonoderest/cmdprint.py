@@ -2,7 +2,7 @@ from typing import List, Union, Dict
 from tabulate import tabulate
 import json
 
-from src.geonodetypes import GeonodeCmdOutObjectKey
+from geonoderest.geonodetypes import GeonodeCmdOutObjectKey
 
 
 def show_list(headers: List[str], values: List[List[str]], tablefmt="github"):

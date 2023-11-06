@@ -1,5 +1,5 @@
-from src.resources import GeonodeResourceHandler
-from src.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from geonoderest.resources import GeonodeResourceHandler
+from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 
 
 class GeonodeMapsHandler(GeonodeResourceHandler):

@@ -6,19 +6,18 @@
 
 geonodectl has currently the following capabilities:
 ```
-❯ ./geonodectl  --help
 usage: geonodectl [-h] [--not-verify-ssl] [--raw] [--page-size PAGE_SIZE]
-                  {resources,resource,dataset,ds,documents,doc,document,maps,geoapps,apps,people,users,user,uploads}
+                  {resources,resource,dataset,ds,documents,doc,document,maps,geoapps,apps,people,users,user,uploads,executionrequest}
                   ...
 
 geonodectl is a cmd client for the geonodev4 rest-apiv2.
 To use this tool you have to set the following environment variables before starting:
   
 GEONODECTL_URL: https://geonode.example.com/api/v2/ -- path to the v2 endpoint of your target geonode instance
-GEONODECTL_BASIC: dXNlcjpwYXNzd29yZA== -- you can generate this string like: echo -n user:password | base64
+GEONODECTL_BASIC: YWRtaW46YWRtaW4= -- you can generate this string like: echo -n user:password | base64
 
 positional arguments:
-  {resources,resource,dataset,ds,documents,doc,document,maps,geoapps,apps,people,users,user,uploads}
+  {resources,resource,dataset,ds,documents,doc,document,maps,geoapps,apps,people,users,user,uploads,executionrequest}
                         geonodectl commands
     resources (resource)
                         resource commands
@@ -30,6 +29,7 @@ positional arguments:
     people (users,user)
                         people|users commands
     uploads             uploads commands
+    executionrequest    executionrequest commands
 
 options:
   -h, --help            show this help message and exit
@@ -37,6 +37,7 @@ options:
   --raw, --json         return output as raw response json as it comes from the rest API
   --page-size PAGE_SIZE
                         return output as raw response json as it comes from the rest API
+
 ```
 
 Currently not all features of the API are implemented. Here is a list of what you can do with geonodectl:
@@ -49,6 +50,7 @@ Currently not all features of the API are implemented. Here is a list of what yo
 | geoapps          | list, delete, patch, describe |
 | people           | list, delete, patch, describe |
 | uploads          | list |
+| executionrequest | list |
 
 This project is WIP, so feel free to add more functions to this project.
 
@@ -57,7 +59,7 @@ This project is WIP, so feel free to add more functions to this project.
 first install the project with:
 
 ```
-pip install  git+https://github.com/GeoNodeUserGroup-DE/geonodectl.git
+pip install  -e 'git+https://github.com/GeoNodeUserGroup-DE/geonodectl.git@main#egg=geonodectl'
 ```
 
 Additionally to package install, **geonodectl** requires to set two environment variables to connect to a geonode instance like:
