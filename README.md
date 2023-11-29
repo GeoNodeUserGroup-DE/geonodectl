@@ -108,6 +108,11 @@ geonodectl ds patch 36  --set 'category={"identifier": "farming"}'
 ...
 ```
 
+patch dataset from jsonb:
+```
+geonodectl ds patch 36  --json_path 'path_to/your_json_with_attributes_to_patch.json'
+```
+
 delete dataset:
 ```
 ❯ ./geonodectl ds delete 36
