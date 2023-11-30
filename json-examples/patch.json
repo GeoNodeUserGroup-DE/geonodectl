@@ -1,0 +1,16 @@
+{
+    "attribute_set": [
+        {
+            "pk": 21,
+            "description": "now it has a new description",
+            "attribute_label": "a very informative label"
+        },
+        {
+            "pk": 18,
+            "description": "an even better updated description",
+            "attribute_label": "updated label",
+            "visible": false,
+            "display_order": 5
+        }
+    ]
+}

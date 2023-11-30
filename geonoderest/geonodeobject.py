@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 import json
 
 from geonoderest.geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
@@ -46,33 +46,52 @@ class GeonodeObjectHandler(GeonodeRest):
         self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{pk}")
         self.http_delete(endpoint=f"resources/{pk}/delete")
 
-    def cmd_patch(self, pk: int, fields: str, **kwargs):
-        obj = self.patch(pk, fields, **kwargs)
-        print_json(obj)
-
-    def patch(self, pk: int, fields: str, **kwargs) -> Dict:
-        """tries to generate  object from incoming json string
-
+    def cmd_patch(
+        self,
+        pk: int,
+        fields: Optional[str] = None,
+        json_path: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        Tries to generate  object from incoming json string
         Args:
             pk (int): pk of the object
             fields (str): string of potential json object
-
-        Returns:
-            Dict: obj details
+            json_path (str): path to a json file
 
         Raises:
              ValueError: catches json.decoder.JSONDecodeError and raises ValueError as decoding is not working
         """
-        try:
-            json_data = json.loads(fields)
-        except ValueError:
-            raise (
-                ValueError(
-                    f"unable to decode argument: | {fields} | to json object ..."
+        if json_path:
+            with open(json_path, "r") as file:
+                fields_dict = json.load(file)
+                if "attribute_set" in fields_dict:
+                    fields_dict["data"] = {
+                        "attribute_set": fields_dict["attribute_set"]
+                    }
+                    fields_dict.pop("attribute_set", None)
+            obj = self.http_patch(
+                endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=fields_dict
+            )
+        elif fields:
+            try:
+                json_data = json.loads(fields)
+            except ValueError:
+                raise (
+                    ValueError(
+                        f"unable to decode argument: | {fields} | to json object ..."
+                    )
                 )
+            obj = self.http_patch(
+                endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=json_data
+            )
+        else:
+            raise ValueError(
+                "At least one of 'fields' or 'json_path' must be provided."
             )
 
-        return self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=json_data)
+        print_json(obj)
 
     def cmd_describe(self, pk: int, **kwargs):
         obj = self.get(pk=pk, **kwargs)

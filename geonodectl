@@ -223,6 +223,12 @@ To use this tool you have to set the following environment variables before star
         help="patch metadata by providing a json string like: \'{\"category\":\"{\"identifier\": \"farming\"}}\'",
     )
 
+    datasets_patch.add_argument(
+        "--json_path",
+        dest="json_path",
+        type=str,
+        help="patch metadata by providing a path to a json file",
+    )
 
     # DESCRIBE
     datasets_describe = datasets_subparsers.add_parser(
