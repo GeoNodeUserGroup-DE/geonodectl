@@ -54,7 +54,7 @@ class GeonodeObjectHandler(GeonodeRest):
         **kwargs,
     ):
         """
-        Tries to generate  object from incoming json string
+        Tries to generate object from incoming json string
         Args:
             pk (int): pk of the object
             fields (str): string of potential json object
@@ -63,6 +63,16 @@ class GeonodeObjectHandler(GeonodeRest):
         Raises:
              ValueError: catches json.decoder.JSONDecodeError and raises ValueError as decoding is not working
         """
+        obj = self.patch(pk=pk, **kwargs)
+        print_json(obj)
+
+    def patch(
+        self,
+        pk: int,
+        fields: Optional[str] = None,
+        json_path: Optional[str] = None,
+        **kwargs,
+    ):
         if json_path:
             with open(json_path, "r") as file:
                 fields_dict = json.load(file)
@@ -75,23 +85,20 @@ class GeonodeObjectHandler(GeonodeRest):
                 endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=fields_dict
             )
         elif fields:
-            try:
-                json_data = json.loads(fields)
-            except ValueError:
-                raise (
-                    ValueError(
-                        f"unable to decode argument: | {fields} | to json object ..."
-                    )
-                )
-            obj = self.http_patch(
-                endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=json_data
-            )
+            # try:
+            #     json_data = json.loads(fields)
+            # except ValueError:
+            #     raise (
+            #         ValueError(
+            #             f"unable to decode argument: | {fields} | to json object ..."
+            #         )
+            #     )
+            obj = self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=fields)
         else:
             raise ValueError(
                 "At least one of 'fields' or 'json_path' must be provided."
             )
-
-        print_json(obj)
+        return obj
 
     def cmd_describe(self, pk: int, **kwargs):
         obj = self.get(pk=pk, **kwargs)

@@ -3,7 +3,9 @@ from typing import List, Dict, Optional, TypeAlias, Callable, Any
 import urllib3
 import requests
 import logging
-from geonoderest.geonodetypes import GeonodeEnv, GeonodeHTTPFile
+
+from geonoderest.geonodetypes import GeonodeHTTPFile
+from geonoderest.apiconf import GeonodeApiConf
 
 urllib3.disable_warnings()
 
@@ -15,7 +17,7 @@ NetworkExceptionHandlingTypes: TypeAlias = (
 
 
 class GeonodeRest(object):
-    def __init__(self, env: GeonodeEnv):
+    def __init__(self, env: GeonodeApiConf):
         self.gn_credentials = env
 
     @staticmethod
@@ -26,17 +28,17 @@ class GeonodeRest(object):
             except requests.exceptions.ConnectionError:
                 raise SystemExit(
                     "connection error: Could not reach geonode api. please check if the endpoint up and available, "
-                    "check also the env variable: GEONODECTL_URL ..."
+                    "check also the env variable: GEONODE_API_URL ..."
                 )
             except urllib3.exceptions.MaxRetryError:
                 raise SystemExit(
                     "max retries exceeded: Could not reach geonode api. please check if the endpoint up and available, "
-                    "check also the env variable: GEONODECTL_URL ..."
+                    "check also the env variable: GEONODE_API_URL ..."
                 )
             except ConnectionRefusedError:
                 raise SystemExit(
                     "connection refused: Could not reach geonode api. please check if the endpoint up and available, "
-                    "check also the env variable: GEONODECTL_URL ..."
+                    "check also the env variable: GEONODE_API_URL ..."
                 )
 
         return inner

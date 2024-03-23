@@ -81,10 +81,3 @@ class GeonodeCmdOutDictKey(GeonodeCmdOutObjectKey):
 GeonodeHTTPFile: TypeAlias = Tuple[
     str, Union[Tuple[str, io.BufferedReader], Tuple[str, io.BufferedReader, str]]
 ]
-
-
-@dataclass
-class GeonodeEnv:
-    url: str
-    auth_basic: str
-    verify: bool
