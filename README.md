@@ -13,8 +13,8 @@ usage: geonodectl [-h] [--not-verify-ssl] [--raw] [--page-size PAGE_SIZE]
 geonodectl is a cmd client for the geonodev4 rest-apiv2.
 To use this tool you have to set the following environment variables before starting:
   
-GEONODECTL_URL: https://geonode.example.com/api/v2/ -- path to the v2 endpoint of your target geonode instance
-GEONODECTL_BASIC: YWRtaW46YWRtaW4= -- you can generate this string like: echo -n user:password | base64
+GEONODE_API_URL: https://geonode.example.com/api/v2/ -- path to the v2 endpoint of your target geonode instance
+GEONODE_API_BASIC_AUTH: YWRtaW46YWRtaW4= -- you can generate this string like: echo -n user:password | base64
 
 positional arguments:
   {resources,resource,dataset,ds,documents,doc,document,maps,geoapps,apps,people,users,user,uploads,executionrequest}
@@ -64,8 +64,8 @@ pip install  -e 'git+https://github.com/GeoNodeUserGroup-DE/geonodectl.git@main#
 
 Additionally to package install, **geonodectl** requires to set two environment variables to connect to a geonode instance like:
 ```
-GEONODECTL_URL: https://master.demo.geonode.org/api/v2/ # make sure to supply full api url
-GEONODECTL_BASIC: dXNlcjpwYXNzd29yZA== # you can generate this string like: echo -n user:password | base64
+GEONODE_API_URL: https://master.demo.geonode.org/api/v2/ # make sure to supply full api url
+GEONODE_API_BASIC_AUTH: dXNlcjpwYXNzd29yZA== # you can generate this string like: echo -n user:password | base64
 ```
 
 Now you are ready to go. upload shape file:
