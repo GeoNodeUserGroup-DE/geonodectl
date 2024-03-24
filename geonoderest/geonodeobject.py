@@ -49,8 +49,6 @@ class GeonodeObjectHandler(GeonodeRest):
     def cmd_patch(
         self,
         pk: int,
-        fields: Optional[str] = None,
-        json_path: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -85,14 +83,6 @@ class GeonodeObjectHandler(GeonodeRest):
                 endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=fields_dict
             )
         elif fields:
-            # try:
-            #     json_data = json.loads(fields)
-            # except ValueError:
-            #     raise (
-            #         ValueError(
-            #             f"unable to decode argument: | {fields} | to json object ..."
-            #         )
-            #     )
             obj = self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=fields)
         else:
             raise ValueError(
