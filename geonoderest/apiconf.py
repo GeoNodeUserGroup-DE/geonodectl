@@ -35,7 +35,7 @@ class GeonodeApiConf:
         """
         Creates a new GeonodeApiConf object from environment variables
         """
-        if not ["GEONODE_API_URL", "GEONODE_API_BASIC_AUTH"] in os.environ:
+        if not "GEONODE_API_URL" in os.environ or "GEONODE_API_BASIC_AUTH" not in os.environ:
             raise SystemExit(
                 "env vars not set: GEONODE_API_URL, GEONODE_API_BASIC_AUTH"
             )
