@@ -8,7 +8,7 @@ from typing import List, Union
 from argparse import RawTextHelpFormatter
 from pathlib import Path
 
-from geonoderest.geonodetypes import GeonodeEnv
+from geonoderest.apiconf import GeonodeApiConf
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.datasets import GeonodeDatasetsHandler
 from geonoderest.resources import GeonodeResourceHandler, SUPPORTED_METADATA_TYPES, DEFAULT_METADATA_TYPE
@@ -19,8 +19,8 @@ from geonoderest.geoapps import GeonodeGeoappsHandler
 from geonoderest.uploads import GeonodeUploadsHandler
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 
-GEONODECTL_URL_ENV_VAR: str = "GEONODECTL_URL"
-GEONODECTL_BASIC_ENV_VAR: str = "GEONODECTL_BASIC"
+GEONODECTL_URL_ENV_VAR: str = "GEONODE_API_URL"
+GEONODECTL_BASIC_ENV_VAR: str = "GEONODE_API_BASIC_AUTH"
 
 DEFAULT_CHARSET: str = "UTF-8"
 
@@ -493,7 +493,7 @@ To use this tool you have to set the following environment variables before star
             f"provided geonode url: {url} not ends with 'api/v2/'. Please make sure to provide full rest v2api url ..."
         )
 
-    geonode_env = GeonodeEnv(url=url, auth_basic=basic, verify=args.ssl_verify)
+    geonode_env = GeonodeApiConf(url=url, auth_basic=basic, verify=args.ssl_verify)
     g_obj: Union[GeonodeObjectHandler, GeonodeExecutionRequestHandler]
     match args.command:
         case "resources" | "resource":
