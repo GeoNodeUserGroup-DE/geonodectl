@@ -29,7 +29,7 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         file_path: Path,
         metadata_only: bool = False,
         charset: str = "UTF-8",
-        **kwargs
+        **kwargs,
     ):
         """upload data and show them on the cmdline
 
@@ -60,7 +60,7 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         file_path: Path,
         charset: str = "UTF-8",
         metadata_only: bool = False,
-        **kwargs
+        **kwargs,
     ) -> Dict:
         """upload a document to geonode
 

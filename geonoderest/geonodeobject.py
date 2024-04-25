@@ -3,7 +3,11 @@ import json
 
 from geonoderest.geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
 from geonoderest.rest import GeonodeRest
-from geonoderest.cmdprint import print_list_on_cmd, print_json
+from geonoderest.cmdprint import (
+    print_list_on_cmd,
+    print_json,
+    json_decode_error_handler,
+)
 
 
 class GeonodeObjectHandler(GeonodeRest):
@@ -49,6 +53,8 @@ class GeonodeObjectHandler(GeonodeRest):
     def cmd_patch(
         self,
         pk: int,
+        fields: Optional[str] = None,
+        json_path: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -61,33 +67,43 @@ class GeonodeObjectHandler(GeonodeRest):
         Raises:
              ValueError: catches json.decoder.JSONDecodeError and raises ValueError as decoding is not working
         """
-        obj = self.patch(pk=pk, **kwargs)
+
+        json_content: Dict = {}
+        if json_path:
+            with open(json_path, "r") as file:
+                try:
+                    j_dict = json.load(file)
+                except json.decoder.JSONDecodeError as E:
+                    json_decode_error_handler(str(file), E)
+
+                if "attribute_set" in j_dict:
+                    j_dict.pop("attribute_set", None)
+            json_content = {**json_content, **j_dict}
+
+        if fields:
+            try:
+                f_dict = json.loads(fields)
+                json_content = {**json_content, **f_dict}
+            except json.decoder.JSONDecodeError as E:
+                json_decode_error_handler(fields, E)
+
+        if json_content == {}:
+            raise ValueError(
+                "At least one of 'fields' or 'json_path' must be provided."
+            )
+
+        obj = self.patch(pk=pk, json_content=json_content, **kwargs)
         print_json(obj)
 
     def patch(
         self,
         pk: int,
-        fields: Optional[str] = None,
-        json_path: Optional[str] = None,
+        json_content: Optional[Dict] = None,
         **kwargs,
     ):
-        if json_path:
-            with open(json_path, "r") as file:
-                fields_dict = json.load(file)
-                if "attribute_set" in fields_dict:
-                    fields_dict["data"] = {
-                        "attribute_set": fields_dict["attribute_set"]
-                    }
-                    fields_dict.pop("attribute_set", None)
-            obj = self.http_patch(
-                endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=fields_dict
-            )
-        elif fields:
-            obj = self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=fields)
-        else:
-            raise ValueError(
-                "At least one of 'fields' or 'json_path' must be provided."
-            )
+        obj = self.http_patch(
+            endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=json_content
+        )
         return obj
 
     def cmd_describe(self, pk: int, **kwargs):

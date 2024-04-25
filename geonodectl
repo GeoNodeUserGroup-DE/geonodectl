@@ -11,7 +11,11 @@ from pathlib import Path
 from geonoderest.apiconf import GeonodeApiConf
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.datasets import GeonodeDatasetsHandler
-from geonoderest.resources import GeonodeResourceHandler, SUPPORTED_METADATA_TYPES, DEFAULT_METADATA_TYPE
+from geonoderest.resources import (
+    GeonodeResourceHandler,
+    SUPPORTED_METADATA_TYPES,
+    DEFAULT_METADATA_TYPE,
+)
 from geonoderest.documents import GeonodeDocumentsHandler
 from geonoderest.maps import GeonodeMapsHandler
 from geonoderest.people import GeonodePeopleHandler
@@ -135,9 +139,7 @@ To use this tool you have to set the following environment variables before star
 
     # DELETE
     resource_delete = resource_subparsers.add_parser("delete", help="delete resource")
-    resource_delete.add_argument(
-        type=int, dest="pk", help="pk of resource to delete"
-    )
+    resource_delete.add_argument(type=int, dest="pk", help="pk of resource to delete")
 
     # METADATA
     resource_metadata = resource_subparsers.add_parser(
@@ -201,7 +203,7 @@ To use this tool you have to set the following environment variables before star
         default=DEFAULT_CHARSET,
         help="uploads dataset as timeseries",
     )
-    
+
     datasets_upload.add_argument(
         "--mosaic",
         action="store_true",
@@ -213,14 +215,12 @@ To use this tool you have to set the following environment variables before star
     datasets_patch = datasets_subparsers.add_parser(
         "patch", help="patch datasets metadata"
     )
-    datasets_patch.add_argument(
-        type=int, dest="pk", help="pk of dataset to patch"
-    )
+    datasets_patch.add_argument(type=int, dest="pk", help="pk of dataset to patch")
     datasets_patch.add_argument(
         "--set",
         dest="fields",
         type=str,
-        help="patch metadata by providing a json string like: \'{\"category\":\"{\"identifier\": \"farming\"}}\'",
+        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
     )
 
     datasets_patch.add_argument(
@@ -284,16 +284,13 @@ To use this tool you have to set the following environment variables before star
     documents_patch = documents_subparsers.add_parser(
         "patch", help="patch documents metadata"
     )
-    documents_patch.add_argument(
-        type=int, dest="pk", help="pk of document to patch"
-    )
+    documents_patch.add_argument(type=int, dest="pk", help="pk of document to patch")
     documents_patch.add_argument(
         "--set",
         dest="fields",
         type=str,
-        help="patch metadata by providing a json string like: \'{\"category\":\"{\"identifier\": \"farming\"}}\'",
+        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
     )
-
 
     # DESCRIBE
     documents_describe = documents_subparsers.add_parser(
@@ -323,26 +320,53 @@ To use this tool you have to set the following environment variables before star
 
     # PATCH
     maps_patch = maps_subparsers.add_parser("patch", help="patch maps metadata")
-    maps_patch.add_argument(
-        type=int, dest="pk", help="pk of map to patch"
-    )
+    maps_patch.add_argument(type=int, dest="pk", help="pk of map to patch")
     maps_patch.add_argument(
         "--set",
         dest="fields",
         type=str,
-        help="patch metadata by providing a json string like: \'{\"category\":\"{\"identifier\": \"farming\"}}\'",
+        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
     )
 
     # DESCRIBE
     maps_describe = maps_subparsers.add_parser("describe", help="get map details")
-    maps_describe.add_argument(
-        type=int, dest="pk", help="pk of map to describe ..."
-    )
+    maps_describe.add_argument(type=int, dest="pk", help="pk of map to describe ...")
 
     # DELETE
     maps_delete = maps_subparsers.add_parser("delete", help="delete existing map")
-    maps_delete.add_argument(
-        type=int, dest="pk", help="pk of map to delete ..."
+    maps_delete.add_argument(type=int, dest="pk", help="pk of map to delete ...")
+
+    # CREATE
+    maps_create = maps_subparsers.add_parser("create", help="create an (empty) map")
+
+    maps_create.add_argument(
+        "--title",
+        type=str,
+        required=True,
+        dest="title",
+        help="title of the new dataset ...",
+    )
+
+    maps_create.add_argument(
+        "--set",
+        dest="fields",
+        type=str,
+        help='add metadata by providing a json string like: \'\'{ "category": {"identifier": "farming"}, "abstract": "test abstract" }\'\'',
+    )
+
+    maps_create.add_argument(
+        "--json_path",
+        dest="json_path",
+        type=str,
+        help="add metadata by providing a path to a json file",
+    )
+
+    maps_create.add_argument(
+        "--maplayers",
+        nargs="+",
+        dest="maplayers",
+        type=int,
+        help="space seperate list of integers of pks to add as maplayer to the map",
     )
 
     ############################
@@ -362,14 +386,12 @@ To use this tool you have to set the following environment variables before star
     geoapps_patch = geoapps_subparsers.add_parser(
         "patch", help="patch geoapps metadata"
     )
-    geoapps_patch.add_argument(
-        type=int, dest="pk", help="pk of geoapp to patch"
-    )
+    geoapps_patch.add_argument(type=int, dest="pk", help="pk of geoapp to patch")
     geoapps_patch.add_argument(
         "--set",
         dest="fields",
         type=str,
-        help="patch metadata by providing a json string like: \'{\"category\":\"{\"identifier\": \"farming\"}}\'",
+        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
     )
 
     # DESCRIBE
@@ -384,9 +406,7 @@ To use this tool you have to set the following environment variables before star
     geoapps_delete = geoapps_subparsers.add_parser(
         "delete", help="delete existing geoapp"
     )
-    geoapps_delete.add_argument(
-        type=int, dest="pk", help="pk of geoapp to delete ..."
-    )
+    geoapps_delete.add_argument(type=int, dest="pk", help="pk of geoapp to delete ...")
 
     ##########################
     # USERS ARGUMENT PARSING #
@@ -400,14 +420,12 @@ To use this tool you have to set the following environment variables before star
 
     # PATCH
     people_patch = people_subparsers.add_parser("patch", help="patch users metadata")
-    people_patch.add_argument(
-        type=int, dest="pk", help="pk of user to patch"
-    )
+    people_patch.add_argument(type=int, dest="pk", help="pk of user to patch")
     people_patch.add_argument(
         "--set",
         dest="fields",
         type=str,
-        help="patch metadata by providing a json string like: \'{\"category\":\"{\"identifier\": \"farming\"}}\'",
+        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
     )
 
     # DESCRIBE
@@ -440,9 +458,7 @@ To use this tool you have to set the following environment variables before star
 
     # DELETE
     people_delete = people_subparsers.add_parser("delete", help="delete existing user")
-    people_delete.add_argument(
-        type=int, dest="pk", help="pk of geoapp to delete ..."
-    )
+    people_delete.add_argument(type=int, dest="pk", help="pk of geoapp to delete ...")
 
     ###########################
     # UPLOAD ARGUMENT PARSING #
@@ -458,7 +474,9 @@ To use this tool you have to set the following environment variables before star
     #####################################
     # EXECUTIONREQUEST ARGUMENT PARSING #
     #####################################
-    executionrequest = subparsers.add_parser("executionrequest", help="executionrequest commands")
+    executionrequest = subparsers.add_parser(
+        "executionrequest", help="executionrequest commands"
+    )
     executionrequest_subparsers = executionrequest.add_subparsers(
         help="geonodectl executionrequest commands", dest="subcommand", required=True
     )
@@ -511,7 +529,7 @@ To use this tool you have to set the following environment variables before star
         case "uploads":
             g_obj = GeonodeUploadsHandler(env=geonode_env)
         case "executionrequest" | "execrequest":
-            g_obj = GeonodeExecutionRequestHandler(env=geonode_env)        
+            g_obj = GeonodeExecutionRequestHandler(env=geonode_env)
         case _:
             raise NotImplemented
 
