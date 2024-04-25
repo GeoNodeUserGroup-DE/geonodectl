@@ -46,7 +46,7 @@ Currently not all features of the API are implemented. Here is a list of what yo
 | resource         | list, delete, download metadata |
 | dataset          | list, delete, patch, describe, upload |
 | documents        | list, delete, patch, describe, upload |
-| maps             | list, delete, patch, describe |
+| maps             | list, delete, patch, describe, create |
 | geoapps          | list, delete, patch, describe |
 | people           | list, delete, patch, describe |
 | uploads          | list |
