@@ -36,7 +36,7 @@ class GeonodeApiConf:
         Creates a new GeonodeApiConf object from environment variables
         """
         if (
-            not "GEONODE_API_URL" in os.environ
+            "GEONODE_API_URL" not in os.environ
             or "GEONODE_API_BASIC_AUTH" not in os.environ
         ):
 
