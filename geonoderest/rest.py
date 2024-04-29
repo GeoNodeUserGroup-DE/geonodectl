@@ -23,11 +23,6 @@ class GeonodeRest(object):
     def __init__(self, env: GeonodeApiConf):
         self.gn_credentials = env
 
-    def __add_default_params__(self, params: Dict = {}) -> Dict:
-        for default_key, default_value in self.DEFAULTS.items():
-            params.setdefault(default_key, default_value)
-        return params
-
     @staticmethod
     def network_exception_handling(func: NetworkExceptionHandlingTypes):
         def inner(*args, **kwargs):
@@ -86,7 +81,6 @@ class GeonodeRest(object):
         Returns:
             Dict: post response
         """
-        params = self.__add_default_params__(params)
         if content_length:
             self.header["content-length"] = content_length
         url = self.url + endpoint
@@ -136,7 +130,6 @@ class GeonodeRest(object):
         Returns:
             Dict: returns response json
         """
-        params = self.__add_default_params__(params)
         url = self.url + endpoint
         try:
             r = requests.get(url, headers=self.header, json=params, verify=self.verify)
@@ -160,7 +153,6 @@ class GeonodeRest(object):
         Returns:
             Dict: returns response json
         """
-        params = self.__add_default_params__(params)
         url = self.url + endpoint
         try:
             r = requests.patch(
@@ -186,7 +178,6 @@ class GeonodeRest(object):
         Returns:
             Dict: returns response json
         """
-        params = self.__add_default_params__(params)
         url = self.url + endpoint
 
         try:
