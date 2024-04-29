@@ -18,7 +18,7 @@ from geonoderest.resources import (
 )
 from geonoderest.documents import GeonodeDocumentsHandler
 from geonoderest.maps import GeonodeMapsHandler
-from geonoderest.people import GeonodePeopleHandler
+from geonoderest.users import GeonodeUsersHandler
 from geonoderest.geoapps import GeonodeGeoappsHandler
 from geonoderest.uploads import GeonodeUploadsHandler
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
@@ -411,17 +411,17 @@ To use this tool you have to set the following environment variables before star
     ##########################
     # USERS ARGUMENT PARSING #
     ##########################
-    people = subparsers.add_parser(
-        "people", help="people|users commands", aliases=("users", "user")
+    users = subparsers.add_parser(
+        "users", help="user|users commands", aliases=("user")
     )
-    people_subparsers = people.add_subparsers(
-        help="geonodectl people commands", dest="subcommand", required=True
+    users_subparsers = users.add_subparsers(
+        help="geonodectl users commands", dest="subcommand", required=True
     )
 
     # PATCH
-    people_patch = people_subparsers.add_parser("patch", help="patch users metadata")
-    people_patch.add_argument(type=int, dest="pk", help="pk of user to patch")
-    people_patch.add_argument(
+    users_patch = users_subparsers.add_parser("patch", help="patch users metadata")
+    users_patch.add_argument(type=int, dest="pk", help="pk of user to patch")
+    users_patch.add_argument(
         "--set",
         dest="fields",
         type=str,
@@ -429,23 +429,23 @@ To use this tool you have to set the following environment variables before star
     )
 
     # DESCRIBE
-    people_describe = people_subparsers.add_parser(
-        "describe", help="get people details"
+    users_describe = users_subparsers.add_parser(
+        "describe", help="get users details"
     )
-    people_describe.add_argument(
-        type=int, dest="pk", help="pk of people to describe ..."
+    users_describe.add_argument(
+        type=int, dest="pk", help="pk of users to describe ..."
     )
-    people_describe_subgroup = people_describe.add_mutually_exclusive_group(
+    users_describe_subgroup = users_describe.add_mutually_exclusive_group(
         required=False
     )
-    people_describe_subgroup.add_argument(
+    users_describe_subgroup.add_argument(
         "--groups",
         dest="user_groups",
         required=False,
         action="store_true",
         help="show groups of user with given -pk ...",
     )
-    people_describe_subgroup.add_argument(
+    users_describe_subgroup.add_argument(
         "--resources",
         dest="user_resources",
         required=False,
@@ -454,11 +454,11 @@ To use this tool you have to set the following environment variables before star
     )
 
     # LIST
-    people_subparsers.add_parser("list", help="list documents")
+    users_subparsers.add_parser("list", help="list documents")
 
     # DELETE
-    people_delete = people_subparsers.add_parser("delete", help="delete existing user")
-    people_delete.add_argument(type=int, dest="pk", help="pk of geoapp to delete ...")
+    users_delete = users_subparsers.add_parser("delete", help="delete existing user")
+    users_delete.add_argument(type=int, dest="pk", help="pk of geoapp to delete ...")
 
     ###########################
     # UPLOAD ARGUMENT PARSING #
@@ -522,8 +522,8 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeDocumentsHandler(env=geonode_env)
         case "maps":
             g_obj = GeonodeMapsHandler(env=geonode_env)
-        case "people" | "users" | "user":
-            g_obj = GeonodePeopleHandler(env=geonode_env)
+        case "users" | "user":
+            g_obj = GeonodeUsersHandler(env=geonode_env)
         case "geoapps" | "apps":
             g_obj = GeonodeGeoappsHandler(env=geonode_env)
         case "uploads":

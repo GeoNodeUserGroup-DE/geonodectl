@@ -1,11 +1,11 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey
 from geonoderest.cmdprint import print_list_on_cmd, print_json
 
 
-class GeonodePeopleHandler(GeonodeObjectHandler):
+class GeonodeUsersHandler(GeonodeObjectHandler):
     ENDPOINT_NAME = JSON_OBJECT_NAME = "users"
     SINGULAR_RESOURCE_NAME = "user"
 
@@ -14,6 +14,9 @@ class GeonodePeopleHandler(GeonodeObjectHandler):
         GeonodeCmdOutListKey(key="username"),
         GeonodeCmdOutListKey(key="first_name"),
         GeonodeCmdOutListKey(key="last_name"),
+        GeonodeCmdOutListKey(key="email"),
+        GeonodeCmdOutListKey(key="is_staff"),
+        GeonodeCmdOutListKey(key="is_superuser"),
     ]
 
     def cmd_describe(
@@ -83,3 +86,26 @@ class GeonodePeopleHandler(GeonodeObjectHandler):
                 endpoint=f"{self.ENDPOINT_NAME}/{pk}?page_size={kwargs['page_size']}"
             )
             return r[self.SINGULAR_RESOURCE_NAME]
+
+    def cmd_create(
+        self,
+        username: str,
+        password: Optional[str],
+        email: str = "",
+        first_name: str = "",
+        last_name: str = "",
+        **kwargs,
+    ):
+        """
+        creates an user with the given characteristics
+
+        Args:
+            username (str): username of the new user
+            password (Optional[str]): password of the new user
+            email (str): email of the new user
+            first_name (str): first name of the new user
+            last_name (str): last name of the new user
+        """
+
+        obj = self.create(title=title, extra_json_content=json_content, **kwargs)
+        print_json(obj)
