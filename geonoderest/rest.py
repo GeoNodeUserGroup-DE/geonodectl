@@ -17,6 +17,9 @@ NetworkExceptionHandlingTypes: TypeAlias = (
 
 
 class GeonodeRest(object):
+
+    DEFAULTS = {"page_size": 100, "page": 1}
+
     def __init__(self, env: GeonodeApiConf):
         self.gn_credentials = env
 
@@ -68,7 +71,7 @@ class GeonodeRest(object):
         Args:
             endpoint (str): api endpoint
             files (Optional[List[GeonodeHTTPFile]], optional): files to post. Defaults to None.
-            params (Dict, optional): parameter to pust. Defaults to {}.
+            params (Dict, optional): parameter to post. Defaults to {}.
             content_length (Optional[int], optional): optional content length
                       sometimes its useful to set by yourself. Defaults to None.
 

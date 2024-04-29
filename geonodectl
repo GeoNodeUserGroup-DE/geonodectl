@@ -27,9 +27,8 @@ GEONODECTL_URL_ENV_VAR: str = "GEONODE_API_URL"
 GEONODECTL_BASIC_ENV_VAR: str = "GEONODE_API_BASIC_AUTH"
 
 DEFAULT_CHARSET: str = "UTF-8"
-
-DEFAULT_LIST_PAGE_SIZE: int = 100
-
+DEFAULT_CMD_PAGE_SIZE: int = 80
+DEFAULT_CMD_PAGE: int = 1
 
 class AliasedSubParsersAction(argparse._SubParsersAction):
     class _AliasedPseudoAction(argparse.Action):
@@ -117,9 +116,18 @@ To use this tool you have to set the following environment variables before star
     parser.add_argument(
         "--page-size",
         dest="page_size",
-        default=DEFAULT_LIST_PAGE_SIZE,
-        help="return output as raw response json as it comes from the rest API",
+        default=DEFAULT_CMD_PAGE_SIZE,
+        type=int,
+        help="Number of results to return per page",
     )
+    parser.add_argument(
+        "--page",
+        dest="page",
+        default=DEFAULT_CMD_PAGE,
+        type=int,
+        help=" A page number within the paginated result set",
+    )
+ 
     subparsers = parser.add_subparsers(
         help="geonodectl commands", dest="command", required=True
     )
