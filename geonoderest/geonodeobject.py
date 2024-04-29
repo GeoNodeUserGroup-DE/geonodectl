@@ -36,12 +36,10 @@ class GeonodeObjectHandler(GeonodeRest):
         Returns:
             Dict: request response
         """
-        
-        endpoint=f"{self.ENDPOINT_NAME}/?page_size={kwargs['page_size']}&page={kwargs['page']}"
 
-        r = self.http_get(
-            endpoint=endpoint
-        )
+        endpoint = f"{self.ENDPOINT_NAME}/?page_size={kwargs['page_size']}&page={kwargs['page']}"
+
+        r = self.http_get(endpoint=endpoint)
         return r[self.JSON_OBJECT_NAME]
 
     def cmd_delete(self, pk: int, **kwargs):
