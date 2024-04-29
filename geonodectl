@@ -468,6 +468,19 @@ To use this tool you have to set the following environment variables before star
     users_delete = users_subparsers.add_parser("delete", help="delete existing user")
     users_delete.add_argument(type=int, dest="pk", help="pk of geoapp to delete ...")
 
+    # CREATE
+    users_create = users_subparsers.add_parser("create", help="create a new user")
+
+    users_create.add_argument(
+        "--username",
+        type=str,
+        required=True,
+        dest="username",
+        help="username of the new user ...",
+    )
+
+
+
     ###########################
     # UPLOAD ARGUMENT PARSING #
     ###########################

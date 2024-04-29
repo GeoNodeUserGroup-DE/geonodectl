@@ -1,5 +1,6 @@
 from typing import Dict, Optional
 
+from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey
 from geonoderest.cmdprint import print_list_on_cmd, print_json
@@ -40,7 +41,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         )
         # in this case print as list of ressources
         if user_resources is True:
-            print_list_on_cmd(obj, self.LIST_CMDOUT_HEADER)
+            print_list_on_cmd(obj['resources'], GeonodeResourceHandler.LIST_CMDOUT_HEADER)
         else:
             print_json(obj)
 
@@ -62,7 +63,6 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         Returns:
             Dict: requested info, details of user or list of accessable resources or groups of user are returned
         """
-        breakpoint()
         if user_resources and user_groups:
             raise AttributeError(
                 "cannot handle user_resources and user_groups True at the same time ..."
@@ -74,8 +74,10 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             )
             return r
         elif user_resources is True:
+            endpoint=f"{GeonodeResourceHandler.ENDPOINT_NAME}?page_size={kwargs['page_size']}&page={kwargs['page']}"
+            endpoint+= "&filter{owner.pk}=" + str(pk)
             r = self.http_get(
-                endpoint=f"{self.ENDPOINT_NAME}/{pk}/resources?page_size={kwargs['page_size']}&page={kwargs['page']}"
+                endpoint=endpoint
             )
             return r
         else:
