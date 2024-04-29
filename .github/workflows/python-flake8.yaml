@@ -28,27 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-<<<<<<< HEAD
-<<<<<<< HEAD:.github/workflows/python-check.yaml
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: run black check
-        run: |
-          black --check .
-      - name: Test with mypy
-        run: "mypy geonodectl --check-untyped-defs"
-=======
           pip install `grep flake8 requirements.txt`
->>>>>>> e0762e8 ([Fixes #39] add .github/ISSUE_TEMPLATE/ and .github/pull_request_template.md):.github/workflows/python-flake8.yaml
-=======
-<<<<<<< HEAD:.github/workflows/python-flake8.yaml
-          pip install `grep flake8 requirements.txt`
-=======
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: run black check
-        run: |
-          black --check .
->>>>>>> 8d0dc8f ([Fixes #32] make page size a default value inside the project):.github/workflows/python-check.yaml
->>>>>>> e15f302 ([Fixes #32] make page size a default value inside the project)
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names

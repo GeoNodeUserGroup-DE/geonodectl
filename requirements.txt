@@ -5,12 +5,4 @@ types-tabulate==0.9.0.20240106
 types-urllib3==1.26.25.14
 flake8==7.0.0
 black==24.4.1
-<<<<<<< HEAD
-<<<<<<< HEAD
 mypy==1.10.0
-=======
-mypy==1.10.0
->>>>>>> e0762e8 ([Fixes #39] add .github/ISSUE_TEMPLATE/ and .github/pull_request_template.md)
-=======
-mypy==1.10.0
->>>>>>> e15f302 ([Fixes #32] make page size a default value inside the project)
