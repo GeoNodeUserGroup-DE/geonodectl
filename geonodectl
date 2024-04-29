@@ -420,7 +420,7 @@ To use this tool you have to set the following environment variables before star
     # USERS ARGUMENT PARSING #
     ##########################
     users = subparsers.add_parser(
-        "users", help="user|users commands", aliases=("user")
+        "users", help="user | users commands", aliases=("user",)
     )
     users_subparsers = users.add_subparsers(
         help="geonodectl users commands", dest="subcommand", required=True

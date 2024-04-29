@@ -34,10 +34,6 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         Raises:
             SystemExit: if user_resource and user_groups are true at the same time this function gets confused and exits
         """
-        if user_resources and user_groups:
-            raise SystemExit(
-                "user_resource and user_group cannot be active at the same time ..."
-            )
 
         obj = self.get(
             pk, user_resources=user_resources, user_groups=user_groups, **kwargs
@@ -66,6 +62,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         Returns:
             Dict: requested info, details of user or list of accessable resources or groups of user are returned
         """
+        breakpoint()
         if user_resources and user_groups:
             raise AttributeError(
                 "cannot handle user_resources and user_groups True at the same time ..."
@@ -73,17 +70,17 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         r: Dict
         if user_groups is True:
             r = self.http_get(
-                endpoint=f"{self.ENDPOINT_NAME}/{pk}/groups?page_size={kwargs['page_size']}"
+                endpoint=f"{self.ENDPOINT_NAME}/{pk}/groups?page_size={kwargs['page_size']}&page={kwargs['page']}"
             )
             return r
         elif user_resources is True:
             r = self.http_get(
-                endpoint=f"{self.ENDPOINT_NAME}/{pk}/resources?page_size={kwargs['page_size']}"
+                endpoint=f"{self.ENDPOINT_NAME}/{pk}/resources?page_size={kwargs['page_size']}&page={kwargs['page']}"
             )
             return r
         else:
             r = self.http_get(
-                endpoint=f"{self.ENDPOINT_NAME}/{pk}?page_size={kwargs['page_size']}"
+                endpoint=f"{self.ENDPOINT_NAME}/{pk}?page_size={kwargs['page_size']}&page={kwargs['page']}"
             )
             return r[self.SINGULAR_RESOURCE_NAME]
 
@@ -91,7 +88,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         self,
         username: str,
         password: Optional[str],
-        email: str = "",
+        email: str,
         first_name: str = "",
         last_name: str = "",
         **kwargs,
@@ -107,5 +104,43 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             last_name (str): last name of the new user
         """
 
-        obj = self.create(title=title, extra_json_content=json_content, **kwargs)
+        obj = self.create(username=username,
+                          password=password,
+                          email=email,
+                          first_name=first_name,
+                          last_name=last_name, 
+                          **kwargs)
         print_json(obj)
+
+    def create(
+        self,
+        username: str,
+        password: Optional[str],
+        email: str,
+        first_name: str = "",
+        last_name: str = "",
+        **kwargs,
+    ) -> Dict:
+        """
+        creates an user with the given characteristics
+
+        Args:
+            username (str): username of the new user
+            password (Optional[str]): password of the new user
+            email (str): email of the new user
+            first_name (str): first name of the new user
+            last_name (str): last name of the new user
+        """
+        json_content = {
+            "username": username,
+            "email": email,
+            "first_name": first_name,
+            "last_name": last_name,
+        }
+        if password:
+            json_content["password"] = password
+          
+        return self.http_post(
+            endpoint=self.ENDPOINT_NAME,
+            params=json_content,
+        )
