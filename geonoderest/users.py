@@ -89,10 +89,12 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
     def cmd_create(
         self,
         username: str,
-        password: Optional[str],
         email: str,
         first_name: str = "",
         last_name: str = "",
+        is_superuser: bool = False,
+        is_staff: bool = False,
+        password: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -104,6 +106,8 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             email (str): email of the new user
             first_name (str): first name of the new user
             last_name (str): last name of the new user
+            is_superuser (bool): if true user will be a superuser
+            is_staff (bool): if true user will be staff user
         """
 
         obj = self.create(username=username,
@@ -111,6 +115,8 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
                           email=email,
                           first_name=first_name,
                           last_name=last_name, 
+                          is_superuser=is_superuser,
+                          is_staff=is_staff,
                           **kwargs)
         print_json(obj)
 
@@ -121,6 +127,8 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         email: str,
         first_name: str = "",
         last_name: str = "",
+        is_superuser: bool = False,
+        is_staff: bool = False,
         **kwargs,
     ) -> Dict:
         """
@@ -138,10 +146,11 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             "email": email,
             "first_name": first_name,
             "last_name": last_name,
+            "is_staff": is_staff,
+            "is_superuser": is_superuser,
         }
-        if password:
+        if password is not None:
             json_content["password"] = password
-          
         return self.http_post(
             endpoint=self.ENDPOINT_NAME,
             params=json_content,

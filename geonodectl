@@ -479,7 +479,55 @@ To use this tool you have to set the following environment variables before star
         help="username of the new user ...",
     )
 
+    users_create.add_argument(
+        "--email",
+        type=str,
+        required=True,
+        dest="email",
+        help="email of the new user ...",
+    )
 
+    users_create.add_argument(
+        "--first_name",
+        type=str,
+        required=False,
+        dest="first_name",
+        help="first_name of the new user ...",
+    )
+
+    users_create.add_argument(
+        "--last_name",
+        type=str,
+        required=False,
+        dest="last_name",
+        help="last_name of the new user ...",
+    )
+
+    users_create.add_argument(
+        "--is_superuser",
+        action='store_true',
+        required=False,
+        dest="is_superuser",
+        default=False,
+        help="set to make the new user a superuser ...",
+    )
+
+    users_create.add_argument(
+        "--is_staff",
+        action='store_true',
+        required=False,
+        dest="is_staff",
+        default=False,
+        help="set to make the new user a staff user ...",
+    )
+
+    users_create.add_argument(
+        "--password",
+        type=str,
+        required=False,
+        dest="password",
+        help="password of the new user ...",
+    )
 
     ###########################
     # UPLOAD ARGUMENT PARSING #
