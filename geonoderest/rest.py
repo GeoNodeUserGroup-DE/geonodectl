@@ -135,7 +135,6 @@ class GeonodeRest(object):
             r = requests.get(url, headers=self.header, json=params, verify=self.verify)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            logging.error(r.json())
             raise SystemExit(err)
         return r.json()
 
@@ -160,7 +159,6 @@ class GeonodeRest(object):
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            logging.error(r.json())
             raise SystemExit(err)
         return r.json()
 
@@ -184,6 +182,5 @@ class GeonodeRest(object):
             r = requests.delete(url, headers=self.header, verify=self.verify)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            logging.error(r.json())
             raise SystemExit(err)
         return r.json()
