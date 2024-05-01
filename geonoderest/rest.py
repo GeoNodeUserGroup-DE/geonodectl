@@ -17,7 +17,6 @@ NetworkExceptionHandlingTypes: TypeAlias = (
 
 
 class GeonodeRest(object):
-
     DEFAULTS = {"page_size": 100, "page": 1}
 
     def __init__(self, env: GeonodeApiConf):

@@ -224,14 +224,16 @@ To use this tool you have to set the following environment variables before star
         "patch", help="patch datasets metadata"
     )
     datasets_patch.add_argument(type=int, dest="pk", help="pk of dataset to patch")
-    datasets_patch.add_argument(
+    datasets_patch_mutually_exclusive_group = datasets_patch.add_mutually_exclusive_group()
+
+    datasets_patch_mutually_exclusive_group.add_argument(
         "--set",
         dest="fields",
         type=str,
         help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
     )
 
-    datasets_patch.add_argument(
+    datasets_patch_mutually_exclusive_group.add_argument(
         "--json_path",
         dest="json_path",
         type=str,
@@ -289,15 +291,21 @@ To use this tool you have to set the following environment variables before star
     )
 
     # PATCH
-    documents_patch = documents_subparsers.add_parser(
-        "patch", help="patch documents metadata"
-    )
-    documents_patch.add_argument(type=int, dest="pk", help="pk of document to patch")
-    documents_patch.add_argument(
+    documents_patch = documents_subparsers.add_parser("patch", help="patch documents metadata")
+    documents_patch.add_argument(type=int, dest="pk", help="pk of documents to patch")
+    documents_patch_mutually_exclusive_group = documents_patch.add_mutually_exclusive_group()
+
+    documents_patch_mutually_exclusive_group.add_argument(
         "--set",
         dest="fields",
         type=str,
         help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
+    )
+    documents_patch_mutually_exclusive_group.add_argument(
+        "--json_path",
+        dest="json_path",
+        type=str,
+        help="add metadata by providing a path to a json file",
     )
 
     # DESCRIBE
@@ -329,11 +337,19 @@ To use this tool you have to set the following environment variables before star
     # PATCH
     maps_patch = maps_subparsers.add_parser("patch", help="patch maps metadata")
     maps_patch.add_argument(type=int, dest="pk", help="pk of map to patch")
-    maps_patch.add_argument(
+    maps_patch_mutually_exclusive_group = maps.add_mutually_exclusive_group()
+
+    maps_patch_mutually_exclusive_group.add_argument(
         "--set",
         dest="fields",
         type=str,
         help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
+    )
+    maps_patch_mutually_exclusive_group.add_argument(
+        "--json_path",
+        dest="json_path",
+        type=str,
+        help="add metadata by providing a path to a json file",
     )
 
     # DESCRIBE
@@ -347,22 +363,21 @@ To use this tool you have to set the following environment variables before star
     # CREATE
     maps_create = maps_subparsers.add_parser("create", help="create an (empty) map")
 
-    maps_create.add_argument(
+    maps_create_mutually_exclusive_group = maps_create.add_mutually_exclusive_group()
+    maps_create_mutually_exclusive_group.add_argument(
         "--title",
         type=str,
-        required=True,
         dest="title",
         help="title of the new dataset ...",
     )
-
-    maps_create.add_argument(
+    maps_create_mutually_exclusive_group.add_argument(
         "--set",
         dest="fields",
         type=str,
         help='add metadata by providing a json string like: \'\'{ "category": {"identifier": "farming"}, "abstract": "test abstract" }\'\'',
     )
 
-    maps_create.add_argument(
+    maps_create_mutually_exclusive_group.add_argument(
         "--json_path",
         dest="json_path",
         type=str,
@@ -395,11 +410,20 @@ To use this tool you have to set the following environment variables before star
         "patch", help="patch geoapps metadata"
     )
     geoapps_patch.add_argument(type=int, dest="pk", help="pk of geoapp to patch")
-    geoapps_patch.add_argument(
+
+    geoapps_patch_mutually_exclusive_group = geoapps_patch.add_mutually_exclusive_group()
+    geoapps_patch_mutually_exclusive_group.add_argument(
         "--set",
         dest="fields",
         type=str,
         help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
+    )
+
+    geoapps_patch_mutually_exclusive_group.add_argument(
+        "--json_path",
+        dest="json_path",
+        type=str,
+        help="patch metadata (user credentials) by providing a path to a json file, like --set written in file ...",
     )
 
     # DESCRIBE
@@ -429,11 +453,20 @@ To use this tool you have to set the following environment variables before star
     # PATCH
     users_patch = users_subparsers.add_parser("patch", help="patch users metadata")
     users_patch.add_argument(type=int, dest="pk", help="pk of user to patch")
-    users_patch.add_argument(
+    
+    user_patch_mutually_exclusive_group = users_patch.add_mutually_exclusive_group()
+    user_patch_mutually_exclusive_group.add_argument(
         "--set",
         dest="fields",
         type=str,
         help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
+    )
+
+    user_patch_mutually_exclusive_group.add_argument(
+        "--json_path",
+        dest="json_path",
+        type=str,
+        help="patch metadata (user credentials) by providing a path to a json file, like --set written in file ...",
     )
 
     # DESCRIBE
@@ -470,21 +503,20 @@ To use this tool you have to set the following environment variables before star
 
     # CREATE
     users_create = users_subparsers.add_parser("create", help="create a new user")
-
-    users_create.add_argument(
+    user_create_mutually_exclusive_group = users_create.add_mutually_exclusive_group()
+    user_create_mutually_exclusive_group.add_argument(
         "--username",
         type=str,
-        required=True,
         dest="username",
-        help="username of the new user ...",
+        help="username of the new user ... (mutually exclusive [a])",
     )
 
     users_create.add_argument(
         "--email",
         type=str,
-        required=True,
+        required=False,
         dest="email",
-        help="email of the new user ...",
+        help="email of the new user ... (only working combined with --username) ...",
     )
 
     users_create.add_argument(
@@ -492,7 +524,7 @@ To use this tool you have to set the following environment variables before star
         type=str,
         required=False,
         dest="first_name",
-        help="first_name of the new user ...",
+        help="first_name of the new user (only working combined with --username) ...",
     )
 
     users_create.add_argument(
@@ -500,7 +532,7 @@ To use this tool you have to set the following environment variables before star
         type=str,
         required=False,
         dest="last_name",
-        help="last_name of the new user ...",
+        help="last_name of the new user (only working combined with --username) ...",
     )
 
     users_create.add_argument(
@@ -509,7 +541,7 @@ To use this tool you have to set the following environment variables before star
         required=False,
         dest="is_superuser",
         default=False,
-        help="set to make the new user a superuser ...",
+        help="set to make the new user a superuser (only working combined with --username) ...",
     )
 
     users_create.add_argument(
@@ -518,15 +550,21 @@ To use this tool you have to set the following environment variables before star
         required=False,
         dest="is_staff",
         default=False,
-        help="set to make the new user a staff user ...",
+        help="set to make the new user a staff user (only working combined with --username) ...",
     )
 
-    users_create.add_argument(
-        "--password",
+    user_create_mutually_exclusive_group.add_argument(
+        "--json_path",
+        dest="json_path",
         type=str,
-        required=False,
-        dest="password",
-        help="password of the new user ...",
+        help="add metadata (user credentials) by providing a path to a json file, like --set written in file ...(mutually exclusive [b])",
+    )
+
+    user_create_mutually_exclusive_group.add_argument(
+        "--set",
+        dest="fields",
+        type=str,
+        help='create user by providing a json string like: \'{"username":"test_user", "email":"test_email@gmail.com", "first_name": "test_first_name", "last_name":"test_last_name", "is_staff": true, "is_superuser": true}\' ... (mutually exclusive [c])',
     )
 
     ###########################
@@ -601,7 +639,7 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeExecutionRequestHandler(env=geonode_env)
         case _:
             raise NotImplemented
-
+    print(g_obj,args.__dict__)
     g_obj_func = getattr(g_obj, "cmd_" + args.subcommand)
     g_obj_func(**args.__dict__)
 

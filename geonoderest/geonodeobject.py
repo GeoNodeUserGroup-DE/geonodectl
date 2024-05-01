@@ -69,7 +69,7 @@ class GeonodeObjectHandler(GeonodeRest):
              ValueError: catches json.decoder.JSONDecodeError and raises ValueError as decoding is not working
         """
 
-        json_content: Dict = {}
+        json_content = None
         if json_path:
             with open(json_path, "r") as file:
                 try:
@@ -88,7 +88,7 @@ class GeonodeObjectHandler(GeonodeRest):
             except json.decoder.JSONDecodeError as E:
                 json_decode_error_handler(fields, E)
 
-        if json_content == {}:
+        if json_content is None:
             raise ValueError(
                 "At least one of 'fields' or 'json_path' must be provided."
             )
