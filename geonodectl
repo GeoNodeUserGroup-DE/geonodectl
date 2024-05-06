@@ -639,7 +639,6 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeExecutionRequestHandler(env=geonode_env)
         case _:
             raise NotImplemented
-    print(g_obj,args.__dict__)
     g_obj_func = getattr(g_obj, "cmd_" + args.subcommand)
     g_obj_func(**args.__dict__)
 
