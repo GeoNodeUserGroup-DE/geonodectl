@@ -27,6 +27,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         title: Path,
         fields: Optional[str] = None,
         json_path: Optional[str] = None,
+        maplayers: Optional[List[int]] = [],
         **kwargs,
     ):
         """
@@ -41,25 +42,22 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         Raises:
             Json.decoder.JSONDecodeError: when decoding is not working
         """
-        json_content: Dict = {}
+        json_content = None
         if json_path:
             with open(json_path, "r") as file:
                 try:
-                    j_dict = json.load(file)
+                    json_content = json.load(file)
                 except json.decoder.JSONDecodeError as E:
                     json_decode_error_handler(str(file), E)
-
-                if "attribute_set" in j_dict:
-                    j_dict.pop("attribute_set", None)
-            json_content = {**json_content, **j_dict}
-        if fields:
+        elif fields:
             try:
-                f_dict = json.loads(fields)
-                json_content = {**json_content, **f_dict}
+                json_content = json.loads(fields)
             except json.decoder.JSONDecodeError as E:
                 json_decode_error_handler(fields, E)
 
-        obj = self.create(title=title, extra_json_content=json_content, **kwargs)
+        obj = self.create(
+            title=title, json_content=json_content, maplayers=maplayers, **kwargs
+        )
         print_json(obj)
 
     def create(

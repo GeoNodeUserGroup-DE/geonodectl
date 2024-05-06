@@ -39,7 +39,6 @@ class GeonodeApiConf:
             "GEONODE_API_URL" not in os.environ
             or "GEONODE_API_BASIC_AUTH" not in os.environ
         ):
-
             raise SystemExit(
                 "env vars not set: GEONODE_API_URL, GEONODE_API_BASIC_AUTH"
             )
