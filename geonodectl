@@ -337,7 +337,7 @@ To use this tool you have to set the following environment variables before star
     # PATCH
     maps_patch = maps_subparsers.add_parser("patch", help="patch maps metadata")
     maps_patch.add_argument(type=int, dest="pk", help="pk of map to patch")
-    maps_patch_mutually_exclusive_group = maps.add_mutually_exclusive_group()
+    maps_patch_mutually_exclusive_group = maps_patch.add_mutually_exclusive_group()
 
     maps_patch_mutually_exclusive_group.add_argument(
         "--set",
