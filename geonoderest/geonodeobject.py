@@ -77,7 +77,7 @@ class GeonodeObjectHandler(GeonodeRest):
                 except json.decoder.JSONDecodeError as E:
                     json_decode_error_handler(str(file), E)
 
-                if "attribute_set" in json_content:
+                if json_content is not None and "attribute_set" in json_content:
                     json_content.pop("attribute_set", None)
 
         if fields:
