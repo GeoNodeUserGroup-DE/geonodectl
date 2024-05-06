@@ -158,6 +158,7 @@ class GeonodeRest(object):
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
+            logging.error(r.text)
             raise SystemExit(err)
         return r.json()
 
