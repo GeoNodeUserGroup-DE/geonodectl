@@ -37,10 +37,13 @@ class GeonodeObjectHandler(GeonodeRest):
             Dict: request response
         """
         endpoint = f"{self.ENDPOINT_NAME}/"
-        params = {
-            "page_size": kwargs["page_size"],
-            "page": kwargs["page"],
-        }
+        params = {}
+
+        if "page_size" in kwargs:
+            params["page_size"] = kwargs["page_size"]
+        if "page" in kwargs:
+            params["page"] = kwargs["page"]
+
         if "filter" in kwargs and kwargs["filter"] is not None:
             for field, value in kwargs["filter"].items():
                 field = "filter{" + field + "}"
