@@ -131,19 +131,21 @@ class GeonodeRest(object):
         """
         url = self.url + endpoint
         try:
-            r = requests.get(url, headers=self.header, json=params, verify=self.verify)
+            r = requests.get(
+                url, headers=self.header, params=params, verify=self.verify
+            )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
         return r.json()
 
     @network_exception_handling
-    def http_patch(self, endpoint: str, params: Dict = {}) -> Dict:
+    def http_patch(self, endpoint: str, data: Dict = {}) -> Dict:
         """execute http patch on endpoint with params
 
         Args:
             endpoint (str): api endpoint
-            params (Dict, optional):  params dict provided with the delete
+            data (Dict, optional):  params dict with data to patch
 
         Raises:
               SystemExit: if bad http resonse raise SystemExit with logging
@@ -153,9 +155,7 @@ class GeonodeRest(object):
         """
         url = self.url + endpoint
         try:
-            r = requests.patch(
-                url, headers=self.header, json=params, verify=self.verify
-            )
+            r = requests.patch(url, headers=self.header, json=data, verify=self.verify)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             logging.error(r.text)

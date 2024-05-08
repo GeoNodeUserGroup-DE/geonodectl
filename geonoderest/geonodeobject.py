@@ -36,10 +36,20 @@ class GeonodeObjectHandler(GeonodeRest):
         Returns:
             Dict: request response
         """
+        endpoint = f"{self.ENDPOINT_NAME}/"
+        params = {}
 
-        endpoint = f"{self.ENDPOINT_NAME}/?page_size={kwargs['page_size']}&page={kwargs['page']}"
+        if "page_size" in kwargs:
+            params["page_size"] = kwargs["page_size"]
+        if "page" in kwargs:
+            params["page"] = kwargs["page"]
 
-        r = self.http_get(endpoint=endpoint)
+        if "filter" in kwargs and kwargs["filter"] is not None:
+            for field, value in kwargs["filter"].items():
+                field = "filter{" + field + "}"
+                params[field] = value
+
+        r = self.http_get(endpoint=endpoint, params=params)
         return r[self.JSON_OBJECT_NAME]
 
     def cmd_delete(self, pk: int, **kwargs):
@@ -99,9 +109,7 @@ class GeonodeObjectHandler(GeonodeRest):
         json_content: Optional[Dict] = None,
         **kwargs,
     ):
-        obj = self.http_patch(
-            endpoint=f"{self.ENDPOINT_NAME}/{pk}/", params=json_content
-        )
+        obj = self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", data=json_content)
         return obj
 
     def cmd_describe(self, pk: int, **kwargs):
@@ -117,7 +125,7 @@ class GeonodeObjectHandler(GeonodeRest):
         Returns:
             Dict: obj details
         """
-        r = self.http_get(
-            endpoint=f"{self.ENDPOINT_NAME}/{pk}?page_size={kwargs['page_size']}"
-        )
+        endpoint = f"{self.ENDPOINT_NAME}/{pk}"
+        r = self.http_get(endpoint=endpoint)
+
         return r[self.SINGULAR_RESOURCE_NAME]
