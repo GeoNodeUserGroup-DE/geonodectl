@@ -30,6 +30,7 @@ DEFAULT_CHARSET: str = "UTF-8"
 DEFAULT_CMD_PAGE_SIZE: int = 80
 DEFAULT_CMD_PAGE: int = 1
 
+
 class AliasedSubParsersAction(argparse._SubParsersAction):
     class _AliasedPseudoAction(argparse.Action):
         def __init__(self, name, aliases, help):
@@ -127,7 +128,7 @@ To use this tool you have to set the following environment variables before star
         type=int,
         help=" A page number within the paginated result set",
     )
- 
+
     subparsers = parser.add_subparsers(
         help="geonodectl commands", dest="command", required=True
     )
@@ -183,7 +184,14 @@ To use this tool you have to set the following environment variables before star
     )
 
     # LIST
-    datasets_subparsers.add_parser("list", help="list datasets")
+    datasets_list = datasets_subparsers.add_parser("list", help="list datasets")
+    datasets_list.add_argument(
+        "--filter",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter datasets by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
+    )
 
     # UPLOAD
     datasets_upload = datasets_subparsers.add_parser(
@@ -224,7 +232,9 @@ To use this tool you have to set the following environment variables before star
         "patch", help="patch datasets metadata"
     )
     datasets_patch.add_argument(type=int, dest="pk", help="pk of dataset to patch")
-    datasets_patch_mutually_exclusive_group = datasets_patch.add_mutually_exclusive_group()
+    datasets_patch_mutually_exclusive_group = (
+        datasets_patch.add_mutually_exclusive_group()
+    )
 
     datasets_patch_mutually_exclusive_group.add_argument(
         "--set",
@@ -268,8 +278,14 @@ To use this tool you have to set the following environment variables before star
     )
 
     # LIST
-    documents_subparsers.add_parser("list", help="list documents")
-
+    documents_list = documents_subparsers.add_parser("list", help="list documents")
+    documents_list.add_argument(
+        "--filter",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter document by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
+    )
     # UPLOAD
     documents_upload = documents_subparsers.add_parser(
         "upload", help="upload new datasets"
@@ -291,9 +307,13 @@ To use this tool you have to set the following environment variables before star
     )
 
     # PATCH
-    documents_patch = documents_subparsers.add_parser("patch", help="patch documents metadata")
+    documents_patch = documents_subparsers.add_parser(
+        "patch", help="patch documents metadata"
+    )
     documents_patch.add_argument(type=int, dest="pk", help="pk of documents to patch")
-    documents_patch_mutually_exclusive_group = documents_patch.add_mutually_exclusive_group()
+    documents_patch_mutually_exclusive_group = (
+        documents_patch.add_mutually_exclusive_group()
+    )
 
     documents_patch_mutually_exclusive_group.add_argument(
         "--set",
@@ -332,8 +352,14 @@ To use this tool you have to set the following environment variables before star
         help="geonodectl maps commands", dest="subcommand", required=True
     )
     # LIST
-    maps_subparsers.add_parser("list", help="list documents")
-
+    maps_list = maps_subparsers.add_parser("list", help="list documents")
+    maps_list.add_argument(
+        "--filter",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter maps by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
+    )
     # PATCH
     maps_patch = maps_subparsers.add_parser("patch", help="patch maps metadata")
     maps_patch.add_argument(type=int, dest="pk", help="pk of map to patch")
@@ -403,15 +429,23 @@ To use this tool you have to set the following environment variables before star
     )
 
     # LIST
-    geoapps_subparsers.add_parser("list", help="list geoapps")
-
+    geoapps_list = geoapps_subparsers.add_parser("list", help="list geoapps")
+    geoapps_list.add_argument(
+        "--filter",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter geoapps by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
+    )
     # PATCH
     geoapps_patch = geoapps_subparsers.add_parser(
         "patch", help="patch geoapps metadata"
     )
     geoapps_patch.add_argument(type=int, dest="pk", help="pk of geoapp to patch")
 
-    geoapps_patch_mutually_exclusive_group = geoapps_patch.add_mutually_exclusive_group()
+    geoapps_patch_mutually_exclusive_group = (
+        geoapps_patch.add_mutually_exclusive_group()
+    )
     geoapps_patch_mutually_exclusive_group.add_argument(
         "--set",
         dest="fields",
@@ -453,7 +487,7 @@ To use this tool you have to set the following environment variables before star
     # PATCH
     users_patch = users_subparsers.add_parser("patch", help="patch users metadata")
     users_patch.add_argument(type=int, dest="pk", help="pk of user to patch")
-    
+
     user_patch_mutually_exclusive_group = users_patch.add_mutually_exclusive_group()
     user_patch_mutually_exclusive_group.add_argument(
         "--set",
@@ -470,12 +504,8 @@ To use this tool you have to set the following environment variables before star
     )
 
     # DESCRIBE
-    users_describe = users_subparsers.add_parser(
-        "describe", help="get users details"
-    )
-    users_describe.add_argument(
-        type=int, dest="pk", help="pk of users to describe ..."
-    )
+    users_describe = users_subparsers.add_parser("describe", help="get users details")
+    users_describe.add_argument(type=int, dest="pk", help="pk of users to describe ...")
     users_describe_subgroup = users_describe.add_mutually_exclusive_group(
         required=False
     )
@@ -495,8 +525,14 @@ To use this tool you have to set the following environment variables before star
     )
 
     # LIST
-    users_subparsers.add_parser("list", help="list documents")
-
+    users_list = users_subparsers.add_parser("list", help="list documents")
+    users_list.add_argument(
+        "--filter",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter users by key value pairs. E.g. --filter last_name=svenson or --filter username=svenson",
+    )
     # DELETE
     users_delete = users_subparsers.add_parser("delete", help="delete existing user")
     users_delete.add_argument(type=int, dest="pk", help="pk of geoapp to delete ...")
@@ -537,7 +573,7 @@ To use this tool you have to set the following environment variables before star
 
     users_create.add_argument(
         "--is_superuser",
-        action='store_true',
+        action="store_true",
         required=False,
         dest="is_superuser",
         default=False,
@@ -546,7 +582,7 @@ To use this tool you have to set the following environment variables before star
 
     users_create.add_argument(
         "--is_staff",
-        action='store_true',
+        action="store_true",
         required=False,
         dest="is_staff",
         default=False,
@@ -576,7 +612,14 @@ To use this tool you have to set the following environment variables before star
     )
 
     # LIST
-    uploads_subparsers.add_parser("list", help="list uploads")
+    uploads_list = uploads_subparsers.add_parser("list", help="list uploads")
+    uploads_list.add_argument(
+        "--filter",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter uploads by key value pairs. E.g. --filter title=test",
+    )
 
     #####################################
     # EXECUTIONREQUEST ARGUMENT PARSING #
@@ -589,8 +632,16 @@ To use this tool you have to set the following environment variables before star
     )
 
     # LIST
-    executionrequest_subparsers.add_parser("list", help="list executionrequests")
-
+    executionrequest_list = executionrequest_subparsers.add_parser(
+        "list", help="list executionrequests"
+    )
+    executionrequest_list.add_argument(
+        "--filter",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter execution requests by key value pairs. E.g. --filter status=ready",
+    )
     # DESCRIBE
     executionrequest_describe = executionrequest_subparsers.add_parser(
         "describe", help="get executionrequest details"
