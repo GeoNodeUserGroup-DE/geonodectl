@@ -75,7 +75,7 @@ class kwargs_append_action(argparse.Action):
         except ValueError as ex:
             raise argparse.ArgumentError(
                 self,
-                f'Could not parse argument "{values}" as field_name1=new_value1 field_name2=new_value2 ... format',
+                f'Could not parse argument "{values}" as column=filter-value column2=filter-value2 ... format',
             )
         setattr(args, self.dest, d)
 
@@ -187,6 +187,7 @@ To use this tool you have to set the following environment variables before star
     datasets_list = datasets_subparsers.add_parser("list", help="list datasets")
     datasets_list.add_argument(
         "--filter",
+        nargs="*",
         action=kwargs_append_action,
         dest="filter",
         type=str,
@@ -281,6 +282,7 @@ To use this tool you have to set the following environment variables before star
     documents_list = documents_subparsers.add_parser("list", help="list documents")
     documents_list.add_argument(
         "--filter",
+        nargs="*",
         action=kwargs_append_action,
         dest="filter",
         type=str,
@@ -355,6 +357,7 @@ To use this tool you have to set the following environment variables before star
     maps_list = maps_subparsers.add_parser("list", help="list documents")
     maps_list.add_argument(
         "--filter",
+        nargs="*",
         action=kwargs_append_action,
         dest="filter",
         type=str,
@@ -432,6 +435,7 @@ To use this tool you have to set the following environment variables before star
     geoapps_list = geoapps_subparsers.add_parser("list", help="list geoapps")
     geoapps_list.add_argument(
         "--filter",
+        nargs="*",
         action=kwargs_append_action,
         dest="filter",
         type=str,
@@ -528,6 +532,7 @@ To use this tool you have to set the following environment variables before star
     users_list = users_subparsers.add_parser("list", help="list documents")
     users_list.add_argument(
         "--filter",
+        nargs="*",
         action=kwargs_append_action,
         dest="filter",
         type=str,
@@ -615,6 +620,7 @@ To use this tool you have to set the following environment variables before star
     uploads_list = uploads_subparsers.add_parser("list", help="list uploads")
     uploads_list.add_argument(
         "--filter",
+        nargs="*",
         action=kwargs_append_action,
         dest="filter",
         type=str,
@@ -637,6 +643,7 @@ To use this tool you have to set the following environment variables before star
     )
     executionrequest_list.add_argument(
         "--filter",
+        nargs="*",
         action=kwargs_append_action,
         dest="filter",
         type=str,
