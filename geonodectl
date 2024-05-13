@@ -22,6 +22,9 @@ from geonoderest.users import GeonodeUsersHandler
 from geonoderest.geoapps import GeonodeGeoappsHandler
 from geonoderest.uploads import GeonodeUploadsHandler
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
+from geonoderest.tkeywords import GeonodeThesauriKeywordsRequestHandler
+from geonoderest.tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
+
 
 GEONODECTL_URL_ENV_VAR: str = "GEONODE_API_URL"
 GEONODECTL_BASIC_ENV_VAR: str = "GEONODE_API_BASIC_AUTH"
@@ -650,6 +653,70 @@ To use this tool you have to set the following environment variables before star
         type=str, dest="exec_id", help="exec_id of executionrequest to describe ..."
     )
 
+    #####################################
+    # THESAURI KEYWORD ARGUMENT PARSING #
+    #####################################
+    thesaurikeywords = subparsers.add_parser(
+        "tkeywords", help="thesaurikeyword commands"
+    )
+    thesaurikeywords_subparsers = thesaurikeywords.add_subparsers(
+        help="geonodectl thesaurikeywords commands", dest="subcommand", required=True
+    )
+
+    # LIST
+    thesaurikeywords_list = thesaurikeywords_subparsers.add_parser(
+        "list", help="list thesaurikeywords"
+    )
+    thesaurikeywords_list.add_argument(
+        "--filter",
+        nargs="*",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter thesaurikeywords requests by key value pairs. E.g. --filter alt_label=soil",
+    )
+    # DESCRIBE
+    thesaurikeywords_describe = thesaurikeywords_subparsers.add_parser(
+        "describe", help="get thesaurikeyword details"
+    )
+    # not fully clean to use pk here, as it is actually keyword but for now ...
+    thesaurikeywords_describe.add_argument(
+        type=str, dest="pk", help="keyword of thesaurikeywords to describe ..."
+    )
+
+    #####################################
+    # THESAURI KEYWORD LABEL ARGUMENT PARSING #
+    #####################################
+    thesaurikeywordlabels = subparsers.add_parser(
+        "tkeywordlabels", help="thesaurikeywordlabel commands"
+    )
+    thesaurikeywordlabels_subparsers = thesaurikeywordlabels.add_subparsers(
+        help="geonodectl thesaurikeywordlabels commands",
+        dest="subcommand",
+        required=True,
+    )
+
+    # LIST
+    thesaurikeywordlabels_list = thesaurikeywordlabels_subparsers.add_parser(
+        "list", help="list thesaurikeywordlabels"
+    )
+    thesaurikeywordlabels_list.add_argument(
+        "--filter",
+        nargs="*",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter thesaurikeywordlabels requests by key value pairs. E.g. --filter lang=de label=Abbau",
+    )
+    # DESCRIBE
+    hesaurikeywordlabels_describe = thesaurikeywordlabels_subparsers.add_parser(
+        "describe", help="get thesaurikeywordlabels details"
+    )
+    # not fully clean to use pk here, as it is actually keyword but for now ...
+    hesaurikeywordlabels_describe.add_argument(
+        type=str, dest="pk", help="keyword of thesaurikeywordlabels to describe ..."
+    )
+
     #####################
     # END OF ARGPARSING #
     #####################
@@ -688,6 +755,11 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeUploadsHandler(env=geonode_env)
         case "executionrequest" | "execrequest":
             g_obj = GeonodeExecutionRequestHandler(env=geonode_env)
+        case "thesaurikeywords" | "tkeywords":
+            g_obj = GeonodeThesauriKeywordsRequestHandler(env=geonode_env)
+        case "thesaurikeywordlabels" | "tkeywordlabels":
+            g_obj = GeonodeThesauriKeywordLabelsRequestHandler(env=geonode_env)
+
         case _:
             raise NotImplemented
     g_obj_func = getattr(g_obj, "cmd_" + args.subcommand)

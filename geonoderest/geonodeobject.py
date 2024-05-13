@@ -127,5 +127,4 @@ class GeonodeObjectHandler(GeonodeRest):
         """
         endpoint = f"{self.ENDPOINT_NAME}/{pk}"
         r = self.http_get(endpoint=endpoint)
-
         return r[self.SINGULAR_RESOURCE_NAME]
