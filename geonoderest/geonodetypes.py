@@ -43,7 +43,11 @@ class GeonodeCmdOutListKey(GeonodeCmdOutObjectKey):
         Returns:
             The value associated with the key in the dictionary.
         """
-        return ds[self.key]
+        try:
+            ret = ds[self.key]
+        except KeyError:
+            ret = ""
+        return ret
 
 
 GeonodeCmdOutputKeys: TypeAlias = List[GeonodeCmdOutObjectKey]

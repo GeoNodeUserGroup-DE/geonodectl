@@ -34,26 +34,5 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
         Returns:
             Dict: obj details
         """
-        r = self.http_get(
-            endpoint=f"{self.ENDPOINT_NAME}/{exec_id}?page_size={kwargs['page_size']}"
-        )
+        r = self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{exec_id}")
         return r[self.SINGULAR_RESOURCE_NAME]
-
-    def cmd_list(self, **kwargs):
-        """show list of geonode obj on the cmdline"""
-        obj = self.list(**kwargs)
-        if kwargs["json"]:
-            print_json(obj)
-        else:
-            print_list_on_cmd(obj, self.LIST_CMDOUT_HEADER)
-
-    def list(self, **kwargs) -> Dict:
-        """returns dict of datasets from geonode
-
-        Returns:
-            Dict: request response
-        """
-        r = self.http_get(
-            endpoint=f"{self.ENDPOINT_NAME}/?page_size={kwargs['page_size']}"
-        )
-        return r[self.JSON_OBJECT_NAME]
