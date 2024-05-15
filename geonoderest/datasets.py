@@ -144,6 +144,10 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             files = [
                 ("base_file", (dataset_path.name, open(dataset_path, "rb"))),
             ]
+            if dataset_path.suffix == ".zip":
+                files.append(
+                    ("zip_file", (dataset_path.name, open(dataset_path, "rb")))
+                )
 
         params = {
             # layer permissions
