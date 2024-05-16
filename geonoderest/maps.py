@@ -90,7 +90,11 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         json_content = (
             {**base_json_content, **json_content} if json_content else base_json_content
         )
-        return self.http_post(
+        r = self.http_post(
             endpoint=self.ENDPOINT_NAME,
             params=json_content,
         )
+        return  r[self.JSON_OBJECT_NAME]
+
+       
+       
