@@ -94,7 +94,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             endpoint=self.ENDPOINT_NAME,
             params=json_content,
         )
-        return  r[self.JSON_OBJECT_NAME]
+        return  r[self.SINGULAR_RESOURCE_NAME]
 
        
        
