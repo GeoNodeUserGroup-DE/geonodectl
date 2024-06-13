@@ -75,19 +75,19 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
                 "cannot handle user_resources and user_groups True at the same time ..."
             )
         r: Dict
+        params = self.__handle_http_params__({}, kwargs)
+
         if user_groups is True:
-            r = self.http_get(
-                endpoint=f"{self.ENDPOINT_NAME}/{pk}/groups?page_size={kwargs['page_size']}&page={kwargs['page']}"
-            )
+            r = self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{pk}/groups")
             return r
         elif user_resources is True:
-            endpoint = f"{GeonodeResourceHandler.ENDPOINT_NAME}?page_size={kwargs['page_size']}&page={kwargs['page']}"
-            endpoint += "&filter{owner.pk}=" + str(pk)
-            r = self.http_get(endpoint=endpoint)
+            endpoint = f"{GeonodeResourceHandler.ENDPOINT_NAME}"
+            r = self.http_get(endpoint=endpoint, params=params)
             return r
         else:
             r = self.http_get(
-                endpoint=f"{self.ENDPOINT_NAME}/{pk}?page_size={kwargs['page_size']}&page={kwargs['page']}"
+                endpoint=f"{self.ENDPOINT_NAME}/{pk}",
+                params=params,
             )
             return r[self.SINGULAR_RESOURCE_NAME]
 

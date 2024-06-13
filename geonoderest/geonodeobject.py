@@ -22,6 +22,19 @@ class GeonodeObjectHandler(GeonodeRest):
     ENDPOINT_NAME: str = ""
     SINGULAR_RESOURCE_NAME: str = ""
 
+    def __handle_http_params__(self, params: Dict, kwargs: Dict) -> Dict:
+        if "page_size" in kwargs:
+            params["page_size"] = kwargs["page_size"]
+        if "page" in kwargs:
+            params["page"] = kwargs["page"]
+
+        if "filter" in kwargs and kwargs["filter"] is not None:
+            for field, value in kwargs["filter"].items():
+                field = "filter{" + field + "}"
+                params[field] = value
+
+        return params
+
     def cmd_list(self, **kwargs):
         """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
@@ -37,17 +50,8 @@ class GeonodeObjectHandler(GeonodeRest):
             Dict: request response
         """
         endpoint = f"{self.ENDPOINT_NAME}/"
-        params = {}
 
-        if "page_size" in kwargs:
-            params["page_size"] = kwargs["page_size"]
-        if "page" in kwargs:
-            params["page"] = kwargs["page"]
-
-        if "filter" in kwargs and kwargs["filter"] is not None:
-            for field, value in kwargs["filter"].items():
-                field = "filter{" + field + "}"
-                params[field] = value
+        params = self.__handle_http_params__({}, kwargs)
 
         r = self.http_get(endpoint=endpoint, params=params)
         return r[self.JSON_OBJECT_NAME]
