@@ -157,7 +157,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
 
     def cmd_create(
         self,
-        username: str,
+        username: str = None,
         email: str = "",
         first_name: str = "",
         last_name: str = "",
@@ -208,7 +208,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
 
     def create(
         self,
-        username: str,
+        username: str = None,
         email: str = "",
         first_name: str = "",
         last_name: str = "",
@@ -231,6 +231,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             json_content (dict) dict object with addition metadata / fields
         """
         if json_content is None:
+            if username is None:
             json_content = {
                 "username": username,
                 "email": email,
@@ -243,3 +244,12 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             endpoint=self.ENDPOINT_NAME,
             params=json_content,
         )
+
+    def cmd_delete(self, pk: int, **kwargs):
+        self.delete(pk=pk, **kwargs)
+        print(f"{self.JSON_OBJECT_NAME}: {pk} deleted ...")
+
+    def delete(self, pk: int, **kwargs):
+        """delete geonode resource object"""
+        self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{pk}")
+        self.http_delete(endpoint=f"users/{pk}")
