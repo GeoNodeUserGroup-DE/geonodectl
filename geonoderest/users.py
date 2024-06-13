@@ -1,4 +1,6 @@
 import json
+import sys
+import logging
 from typing import Dict, Optional
 
 from geonoderest.resources import GeonodeResourceHandler
@@ -232,6 +234,9 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         """
         if json_content is None:
             if username is None:
+                logging.error("missing username for user creation ...")
+                sys.exit(1)
+
             json_content = {
                 "username": username,
                 "email": email,
