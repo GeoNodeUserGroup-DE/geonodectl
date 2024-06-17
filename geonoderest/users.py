@@ -159,7 +159,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
 
     def cmd_create(
         self,
-        username: str = None,
+        username: Optional[str] = None,
         email: str = "",
         first_name: str = "",
         last_name: str = "",
@@ -210,7 +210,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
 
     def create(
         self,
-        username: str = None,
+        username: Optional[str] = None,
         email: str = "",
         first_name: str = "",
         last_name: str = "",
