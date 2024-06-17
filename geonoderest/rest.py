@@ -181,6 +181,8 @@ class GeonodeRest(object):
         try:
             r = requests.delete(url, headers=self.header, verify=self.verify)
             r.raise_for_status()
+            if r.status_code in [204]:
+                return {}
         except requests.exceptions.HTTPError as err:
             raise SystemExit(err)
         return r.json()
