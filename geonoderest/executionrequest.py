@@ -3,9 +3,10 @@ from typing import Dict, List
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
 from geonoderest.rest import GeonodeRest
 from geonoderest.cmdprint import print_list_on_cmd, print_json
+from geonoderest.resources import GeonodeResourceHandler
 
 
-class GeonodeExecutionRequestHandler(GeonodeRest):
+class GeonodeExecutionRequestHandler(GeonodeResourceHandler):
     ENDPOINT_NAME = "executionrequest"
     JSON_OBJECT_NAME = "requests"
     SINGULAR_RESOURCE_NAME = "request"

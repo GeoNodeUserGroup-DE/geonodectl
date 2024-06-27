@@ -52,7 +52,6 @@ class GeonodeObjectHandler(GeonodeRest):
         endpoint = f"{self.ENDPOINT_NAME}/"
 
         params = self.__handle_http_params__({}, kwargs)
-
         r = self.http_get(endpoint=endpoint, params=params)
         return r[self.JSON_OBJECT_NAME]
 

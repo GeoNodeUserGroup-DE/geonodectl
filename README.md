@@ -104,7 +104,7 @@ show all datasets:
 
 patch dataset:
 ```
-geonodectl ds patch 36  --set 'category={"identifier": "farming"}'
+geonodectl ds patch 36  --set '{"category":{"identifier":"biota"}}'
 ...
 ```
 
