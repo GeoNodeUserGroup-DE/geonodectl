@@ -22,6 +22,19 @@ class GeonodeRest(object):
     def __init__(self, env: GeonodeApiConf):
         self.gn_credentials = env
 
+    def __handle_http_params__(self, params: Dict, kwargs: Dict) -> Dict:
+        if "page_size" in kwargs:
+            params["page_size"] = kwargs["page_size"]
+        if "page" in kwargs:
+            params["page"] = kwargs["page"]
+
+        if "filter" in kwargs and kwargs["filter"] is not None:
+            for field, value in kwargs["filter"].items():
+                field = "filter{" + field + "}"
+                params[field] = value
+
+        return params
+
     @staticmethod
     def network_exception_handling(func: NetworkExceptionHandlingTypes):
         def inner(*args, **kwargs):
