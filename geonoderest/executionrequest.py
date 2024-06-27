@@ -1,7 +1,9 @@
 from typing import Dict, List
 
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
+from geonoderest.geonodeobject import GeonodeObjectHandler as GOH
 from geonoderest.rest import GeonodeRest
+
 from geonoderest.cmdprint import print_list_on_cmd, print_json
 
 
@@ -36,3 +38,23 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
         """
         r = self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{exec_id}")
         return r[self.SINGULAR_RESOURCE_NAME]
+
+    def cmd_list(self, **kwargs):
+        """show list of geonode obj on the cmdline"""
+        obj = self.list(**kwargs)
+        if kwargs["json"]:
+            print_json(obj)
+        else:
+            print_list_on_cmd(obj, self.LIST_CMDOUT_HEADER)
+
+    def list(self, **kwargs) -> Dict:
+        """returns dict of execution requests from geonode
+
+        Returns:
+            Dict: request response
+        """
+        endpoint = f"{self.ENDPOINT_NAME}/"
+
+        params = self.__handle_http_params__({}, kwargs)
+        r = self.http_get(endpoint=endpoint, params=params)
+        return r[self.JSON_OBJECT_NAME]
