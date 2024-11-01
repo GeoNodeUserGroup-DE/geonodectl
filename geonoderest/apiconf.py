@@ -47,3 +47,6 @@ class GeonodeApiConf:
         auth_basic = os.getenv("GEONODE_API_BASIC_AUTH", "")
         verify = True if "True" == os.getenv("GEONODE_API_VERIFY", "True") else False
         return GeonodeApiConf(url=url, auth_basic=auth_basic, verify=verify)
+
+    def get_geonode_base_url(self) -> str:
+        return self.url[:-8]
