@@ -1,8 +1,10 @@
 from pathlib import Path
 import json
+import logging
 from typing import List, Dict, Optional
 
 from geonoderest.cmdprint import print_json, json_decode_error_handler
+from geonoderest.datasets import GeonodeDatasetsHandler
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodetypes import (
     GeonodeCmdOutListKey,
@@ -81,9 +83,25 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         maplayers_list = []
         if maplayers is not None:
             maplayers_list = [{"pk": pk} for pk in maplayers]
+
+        # download map template from mapstore config statics of remote geonode instance
+        geonode_base_url = self.gn_credentials.get_geonode_base_url()
+        blob = self.http_get_download(
+            f"{geonode_base_url}/static/mapstore/configs/map.json"
+        )
+
+        # add maplayers to map.blob
+        gnResourceHandler = GeonodeResourceHandler(self.gn_credentials)
+        for maplayer_pk in maplayers:
+            try:
+                blob["map"]["layers"].append(gnResourceHandler.get(pk=maplayer_pk))
+            except Exception as err:
+                logging.error(f"dataset {maplayer_pk} not found ...")
+
         base_json_content = {
             "ressource_type": self.SINGULAR_RESOURCE_NAME,
             "title": title,
+            "blob": blob,
             "maplayers": maplayers_list,
         }
 
