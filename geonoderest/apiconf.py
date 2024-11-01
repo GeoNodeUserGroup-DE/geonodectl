@@ -49,5 +49,4 @@ class GeonodeApiConf:
         return GeonodeApiConf(url=url, auth_basic=auth_basic, verify=verify)
 
     def get_geonode_base_url(self) -> str:
-        if self.url.endswith("/api/v2/"):
-            return self.url[:-8]
+        return self.url[:-8]
