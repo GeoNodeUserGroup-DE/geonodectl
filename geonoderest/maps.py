@@ -92,11 +92,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
         # add maplayers to map.blob
         gnResourceHandler = GeonodeResourceHandler(self.gn_credentials)
-        for maplayer_pk in maplayers:
-            try:
-                blob["map"]["layers"].append(gnResourceHandler.get(pk=maplayer_pk))
-            except Exception as err:
-                logging.error(f"dataset {maplayer_pk} not found ...")
+        if maplayers is not None:
+          for maplayer_pk in maplayers:
+              try:
+                  blob["map"]["layers"].append(gnResourceHandler.get(pk=maplayer_pk))
+              except Exception as err:
+                  logging.error(f"dataset {maplayer_pk} not found ...")
 
         base_json_content = {
             "ressource_type": self.SINGULAR_RESOURCE_NAME,
