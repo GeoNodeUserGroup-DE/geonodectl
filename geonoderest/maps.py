@@ -1,6 +1,8 @@
 from pathlib import Path
 import json
 import logging
+import uuid
+
 from typing import List, Dict, Optional
 
 from geonoderest.cmdprint import print_json, json_decode_error_handler
@@ -80,10 +82,6 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         Raises:
             Json.decoder.JSONDecodeError: when decoding is not working
         """
-        maplayers_list = []
-        if maplayers is not None:
-            maplayers_list = [{"pk": pk} for pk in maplayers]
-
         # download map template from mapstore config statics of remote geonode instance
         geonode_base_url = self.gn_credentials.get_geonode_base_url()
         blob = self.http_get_download(
@@ -92,13 +90,34 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
         # add maplayers to map.blob
         gnResourceHandler = GeonodeResourceHandler(self.gn_credentials)
+        gnDatasetsHandler = GeonodeDatasetsHandler(self.gn_credentials)
+
+        # init maplayer list
+        maplayers_list = []
+
         if maplayers is not None:
             for maplayer_pk in maplayers:
+                print("BLAA")
                 try:
                     blob["map"]["layers"].append(gnResourceHandler.get(pk=maplayer_pk))
+
+                    dataset = gnDatasetsHandler.get(pk=maplayer_pk)
+                    workspace = dataset["default_style"]["workspace"]
+                    ds_title = dataset["title"]
+                    name = workspace + ":" + ds_title
+
+                    maplayer = {
+                        "extra_params": {"msId": str(uuid.uuid4()), "styles": []},
+                        "current_style": name,
+                        "name": name,
+                        "order": 0,
+                        "visibility": True,
+                        "opacity": 1.0,
+                    }
+
+                    maplayers_list.append(maplayer)
                 except Exception as err:
                     logging.error(f"dataset {maplayer_pk} not found ...")
-
         base_json_content = {
             "ressource_type": self.SINGULAR_RESOURCE_NAME,
             "title": title,
@@ -109,6 +128,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         json_content = (
             {**base_json_content, **json_content} if json_content else base_json_content
         )
+
         r = self.http_post(
             endpoint=self.ENDPOINT_NAME,
             params=json_content,
