@@ -97,7 +97,6 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
         if maplayers is not None:
             for maplayer_pk in maplayers:
-                print("BLAA")
                 try:
                     blob["map"]["layers"].append(gnResourceHandler.get(pk=maplayer_pk))
 
