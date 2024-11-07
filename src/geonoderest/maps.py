@@ -13,6 +13,8 @@ from .geonodetypes import (
     GeonodeCmdOutDictKey,
 )
 
+OGC_WFS_LINK_TYPE = "OGC:WFS"
+
 
 class GeonodeMapsHandler(GeonodeResourceHandler):
     ENDPOINT_NAME = JSON_OBJECT_NAME = "maps"
@@ -64,6 +66,153 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         )
         print_json(obj)
 
+    def __build_blob_data__(self):
+
+        # download map template from mapstore config statics of remote geonode instance
+        geonode_base_url = self.gn_credentials.get_geonode_base_url()
+        blob = self.http_get_download(
+            f"{geonode_base_url}/static/mapstore/configs/map.json"
+        )
+
+        mapnik_layer = {
+            "id": "mapnik__0",
+            "name": "mapnik",
+            "type": "osm",
+            "group": "background",
+            "title": "Open Street Map",
+            "hidden": False,
+            "source": "osm",
+            "expanded": False,
+            "dimensions": [],
+            "singleTile": False,
+            "visibility": True,
+            "hideLoading": False,
+            "useForElevation": False,
+            "handleClickOnLayer": False,
+        }
+
+        opentopomap_layer = {
+            "id": "OpenTopoMap__1",
+            "name": "OpenTopoMap",
+            "type": "tileprovider",
+            "group": "background",
+            "title": "OpenTopoMap",
+            "hidden": False,
+            "source": "OpenTopoMap",
+            "expanded": False,
+            "provider": "OpenTopoMap",
+            "dimensions": [],
+            "singleTile": False,
+            "visibility": False,
+            "hideLoading": False,
+            "useForElevation": False,
+            "handleClickOnLayer": False,
+        }
+
+        s2cloudless_layer = {
+            "id": "s2cloudless",
+            "url": "https://maps.geosolutionsgroup.com/geoserver/wms",
+            "name": "s2cloudless:s2cloudless",
+            "type": "wms",
+            "group": "background",
+            "title": "Sentinel-2 cloudless - https://s2maps.eu",
+            "format": "image/jpeg",
+            "hidden": False,
+            "expanded": False,
+            "thumbURL": "{geonode_base_url}/static/mapstorestyle/img/s2cloudless-s2cloudless.png",
+            "dimensions": [],
+            "singleTile": False,
+            "visibility": False,
+            "hideLoading": False,
+            "useForElevation": False,
+            "handleClickOnLayer": False,
+        }
+
+        none_layer = {
+            "id": "none",
+            "name": "empty",
+            "type": "empty",
+            "group": "background",
+            "title": "Empty Background",
+            "hidden": False,
+            "source": "ol",
+            "expanded": False,
+            "dimensions": [],
+            "singleTile": False,
+            "visibility": False,
+            "hideLoading": False,
+            "useForElevation": False,
+            "handleClickOnLayer": False,
+        }
+        blob["map"]["layers"].append(mapnik_layer)
+        blob["map"]["layers"].append(opentopomap_layer)
+        blob["map"]["layers"].append(s2cloudless_layer)
+        blob["map"]["layers"].append(mapnik_layer)
+
+        return blob
+
+    def __build_blob_maplayer__(
+        self, maplayer_uuid: str, ds_title: str, name: str, dataset: str
+    ):
+        """
+        Builds a blob layer with provided map layer UUID, dataset title, name, and dataset information.
+
+        Args:
+            maplayer_uuid (str): Unique identifier for the map layer.
+            ds_title (str): Title of the dataset.
+            name (str): Style name for the map layer.
+            dataset (str): Dataset information containing links, extent, and other metadata.
+
+        Returns:
+            dict: A dictionary representing the blob layer with attributes such as id, url, bbox,
+                  name, type, style, title, feature info template, and additional configurations.
+        """
+
+        for link in dataset["links"]:
+            if link["link_type"] == OGC_WFS_LINK_TYPE:
+                wfs_url = link["url"]
+
+        ptype = "wms" if dataset["ptype"] == "gxp_wmscsource" else "wfs"
+
+        blob_layer = {
+            "id": maplayer_uuid,
+            "url": wfs_url,
+            "bbox": {
+                "crs": dataset["extent"]["srid"],
+                "bounds": {
+                    "maxx": dataset["extent"]["coords"][2],
+                    "maxy": dataset["extent"]["coords"][3],
+                    "minx": dataset["extent"]["coords"][0],
+                    "miny": dataset["extent"]["coords"][1],
+                },
+            },
+            "name": ds_title,
+            "type": ptype,
+            "style": name,
+            "title": ds_title,
+            "hidden": False,
+            "search": {"url": wfs_url, "type": "wfs"},
+            "expanded": False,
+            "dimensions": [],
+            "singleTile": False,
+            "visibility": True,
+            "featureInfo": {
+                "format": "TEMPLATE",
+                "template": '<div style="overflow-x:hidden"><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">SITE_ID:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'SITE_ID\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">STAT_NUM:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'STAT_NUM\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">NAME:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'NAME\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">FAO_SOIL:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'FAO_SOIL\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">COUNTRY:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'COUNTRY\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">LOCALMSSG:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'LOCALMSSG\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">TOP_DEPTH_GW:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'TOP_DEPTH_GW\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">BOT_DEPTH_GW:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'BOT_DEPTH_GW\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">SITEDESCRIP:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'SITEDESCRIP\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">SAMPLEDATE:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'SAMPLEDATE\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">ANNRAIN:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'ANNRAIN\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">AVE_JAN_TEMP:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'AVE_JAN_TEMP\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">AVE_JUL_TEMP:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'AVE_JUL_TEMP\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">NUMBER_HOR:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'NUMBER_HOR\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">X_ETRS89:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'X_ETRS89\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">Y_ETRS89:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'Y_ETRS89\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">ZONE:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'ZONE\']}</div></div></div>',
+            },
+            "hideLoading": False,
+            "extendedParams": {
+                "pk": dataset["pk"],
+                "mapLayer": {
+                    "dataset": dataset,
+                    "defaultStyle": {"name": name, "title": ds_title},
+                },
+            },
+            "useForElevation": False,
+            "handleClickOnLayer": False,
+        }
+        return blob_layer
+
     def create(
         self,
         title: Path,
@@ -82,25 +231,20 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         Raises:
             Json.decoder.JSONDecodeError: when decoding is not working
         """
-        # download map template from mapstore config statics of remote geonode instance
-        geonode_base_url = self.gn_credentials.get_geonode_base_url()
-        blob = self.http_get_download(
-            f"{geonode_base_url}/static/mapstore/configs/map.json"
-        )
-
-        # add maplayers to map.blob
-        gnResourceHandler = GeonodeResourceHandler(self.gn_credentials)
+        # initialize Dataset Handler, required for map.blob.layer and api.map.maplayer building
         gnDatasetsHandler = GeonodeDatasetsHandler(self.gn_credentials)
+
+        blob = self.__build_blob_data__()
 
         # init maplayer list
         maplayers_list = []
+        order: int = 0
 
         if maplayers is not None:
             for maplayer_pk in maplayers:
                 try:
-                    blob["map"]["layers"].append(gnResourceHandler.get(pk=maplayer_pk))
-
                     dataset = gnDatasetsHandler.get(pk=maplayer_pk)
+<<<<<<< HEAD:src/geonoderest/maps.py
                     workspace = dataset["default_style"]["workspace"]
                     ds_title = dataset["title"]
                     name = workspace + ":" + ds_title
@@ -116,7 +260,37 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
                     maplayers_list.append(maplayer)
                 except Exception:
+=======
+                except Exception as err:
+>>>>>>> 73154b8 ([Fixes #74] Bug: when creating a map the order of the datasets of the maplayers are always 0):geonoderest/maps.py
                     logging.error(f"dataset {maplayer_pk} not found ...")
+
+                # uuid to connect blob layer with api.maplayer
+                maplayer_uuid = str(uuid.uuid4())
+
+                workspace = dataset["default_style"]["workspace"]
+                ds_title = dataset["title"]
+                name = workspace + ":" + ds_title
+
+                # append map.blob.layer to blob data
+                blob_map_layer = self.__build_blob_maplayer__(
+                    maplayer_uuid, ds_title, name, dataset
+                )
+                blob["map"]["layers"].append(blob_map_layer)
+
+                # build new api.map.maplayer
+                maplayer = {
+                    "extra_params": {"msId": maplayer_uuid, "styles": []},
+                    "current_style": name,
+                    "name": title,
+                    "order": order,
+                    "visibility": True,
+                    "opacity": 1.0,
+                }
+
+                order += 1
+                maplayers_list.append(maplayer)
+
         base_json_content = {
             "ressource_type": self.SINGULAR_RESOURCE_NAME,
             "title": title,
