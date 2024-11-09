@@ -1,0 +1,28 @@
+
+[build-system]
+requires = [
+      "setuptools>=61.0.0",
+      "wheel",
+    ]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = 'geonodectl'
+version="0.2.0"
+description="a commandline interface tool for Geonode Rest API v2"
+authors = [{ name = "marcel wallschlaeger", email="marcel.wallschlaeger@zalf.de" }]
+readme = "Readme.md"
+requires-python = '>=3.8'
+dependencies = [
+    "requests==2.32.0",
+    "types-requests==2.32.0.20241016",
+    "tabulate==0.9.0",
+    "types-tabulate==0.9.0.20240106",
+    "types-urllib3==1.26.25.14",
+]
+[project.urls]
+repository = "https://github.com/GeoNodeUserGroup-DE/geonodectl/"
+
+[project.scripts]
+geonodectl = "client.cli:geonodectl"
+

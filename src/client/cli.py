@@ -83,7 +83,7 @@ class kwargs_append_action(argparse.Action):
         setattr(args, self.dest, d)
 
 
-def main():
+def geonodectl():
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(
         prog="geonodectl",
@@ -774,4 +774,4 @@ To use this tool you have to set the following environment variables before star
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(geonodectl())
