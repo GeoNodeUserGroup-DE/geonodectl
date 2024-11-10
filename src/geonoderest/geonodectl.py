@@ -790,6 +790,8 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeUploadsHandler(env=geonode_env)
         case "executionrequest" | "execrequest":
             g_obj = GeonodeExecutionRequestHandler(env=geonode_env)
+       case "keywords" | "keywords":
+            g_obj = GeonodeKeywordsRequestHandler(env=geonode_env)
         case "thesaurikeywords" | "tkeywords":
             g_obj = GeonodeThesauriKeywordsRequestHandler(env=geonode_env)
         case "thesaurikeywordlabels" | "tkeywordlabels":
