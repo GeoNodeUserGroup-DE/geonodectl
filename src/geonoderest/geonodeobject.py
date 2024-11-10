@@ -42,13 +42,44 @@ class GeonodeObjectHandler(GeonodeRest):
         r = self.http_get(endpoint=endpoint, params=params)
         return r[self.JSON_OBJECT_NAME]
 
-    def cmd_delete(self, pk: int, **kwargs):
-        self.delete(pk=pk, **kwargs)
-        print(f"{self.JSON_OBJECT_NAME}: {pk} deleted ...")
+    def __parse_delete_pk_string__(self, pk: str) -> List[int]:
+        """
+        differentiate between pk range, pk list or single pk
+
+        Args:
+            pk (str): pk of the object, as string with range or list or single pk
+        """
+
+        # pk range: 5-10
+        if "-" in pk:
+            try:
+                pk_begin, pk_end = pk.split("-")
+            except:
+                raise ValueError(f"Invalid pk {pk} found, not a range ...")
+            if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
+                raise ValueError(f"Invalid pk {pk} found, not an integer ...")
+            return [i for i in range(int(pk_begin), int(pk_end))]
+
+        # pk list: 1,2,3,4,5,6,7
+        elif "," in pk:
+            pk_list = pk.split(",")
+            if not all(x.isdigit() for x in pk_list):
+                raise ValueError(f"Invalid pk {pk} found, not an integer ...")
+            return pk_list
+
+        # single pk: 1
+        else:
+            if not pk.isdigit():
+                raise ValueError(f"Invalid pk {pk}, is not an integer ...")
+            return [pk]
+
+    def cmd_delete(self, pk: str, **kwargs):
+        for pk in self.__parse_delete_pk_string__(pk):
+            self.delete(pk=int(pk), **kwargs)
+            print(f"{self.JSON_OBJECT_NAME}: {pk} deleted ...")
 
     def delete(self, pk: int, **kwargs):
         """delete geonode resource object"""
-        self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{pk}")
         self.http_delete(endpoint=f"resources/{pk}/delete")
 
     def cmd_patch(

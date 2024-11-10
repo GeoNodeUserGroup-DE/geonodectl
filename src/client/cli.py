@@ -151,7 +151,7 @@ To use this tool you have to set the following environment variables before star
 
     # DELETE
     resource_delete = resource_subparsers.add_parser("delete", help="delete resource")
-    resource_delete.add_argument(type=int, dest="pk", help="pk of resource to delete")
+    resource_delete.add_argument(type=str, dest="pk", help="pk of resource to delete")
 
     # METADATA
     resource_metadata = resource_subparsers.add_parser(
@@ -267,7 +267,7 @@ To use this tool you have to set the following environment variables before star
         "delete", help="delete existing datasets"
     )
     datasets_delete.add_argument(
-        type=int, dest="pk", help="pk of dataset to delete ..."
+        type=str, dest="pk", help="pk of dataset to delete ..."
     )
 
     #############################
@@ -346,7 +346,7 @@ To use this tool you have to set the following environment variables before star
         "delete", help="delete existing document"
     )
     documents_delete.add_argument(
-        type=int, dest="pk", help="pk of document to delete ..."
+        type=str, dest="pk", help="pk of document to delete ..."
     )
 
     ########################
@@ -390,7 +390,7 @@ To use this tool you have to set the following environment variables before star
 
     # DELETE
     maps_delete = maps_subparsers.add_parser("delete", help="delete existing map")
-    maps_delete.add_argument(type=int, dest="pk", help="pk of map to delete ...")
+    maps_delete.add_argument(type=str, dest="pk", help="pk of map to delete ...")
 
     # CREATE
     maps_create = maps_subparsers.add_parser("create", help="create an (empty) map")
@@ -479,7 +479,7 @@ To use this tool you have to set the following environment variables before star
     geoapps_delete = geoapps_subparsers.add_parser(
         "delete", help="delete existing geoapp"
     )
-    geoapps_delete.add_argument(type=int, dest="pk", help="pk of geoapp to delete ...")
+    geoapps_delete.add_argument(type=str, dest="pk", help="pk of geoapp to delete ...")
 
     ##########################
     # USERS ARGUMENT PARSING #
@@ -543,7 +543,7 @@ To use this tool you have to set the following environment variables before star
     )
     # DELETE
     users_delete = users_subparsers.add_parser("delete", help="delete existing user")
-    users_delete.add_argument(type=int, dest="pk", help="pk of geoapp to delete ...")
+    users_delete.add_argument(type=str, dest="pk", help="pk of geoapp to delete ...")
 
     # CREATE
     users_create = users_subparsers.add_parser("create", help="create a new user")

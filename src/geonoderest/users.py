@@ -250,10 +250,6 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             params=json_content,
         )
 
-    def cmd_delete(self, pk: int, **kwargs):
-        self.delete(pk=pk, **kwargs)
-        print(f"{self.JSON_OBJECT_NAME}: {pk} deleted ...")
-
     def delete(self, pk: int, **kwargs):
         """delete geonode resource object"""
         self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{pk}")
