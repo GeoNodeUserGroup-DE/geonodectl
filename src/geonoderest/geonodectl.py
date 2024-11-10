@@ -22,6 +22,7 @@ from .users import GeonodeUsersHandler
 from .geoapps import GeonodeGeoappsHandler
 from .uploads import GeonodeUploadsHandler
 from .executionrequest import GeonodeExecutionRequestHandler
+from .keywords import GeonodeKeywordsRequestHandler
 from .tkeywords import GeonodeThesauriKeywordsRequestHandler
 from .tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
 
