@@ -1,9 +1,9 @@
 from typing import List, Dict, Optional
 import json
 
-from geonoderest.geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
-from geonoderest.rest import GeonodeRest
-from geonoderest.cmdprint import (
+from .geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
+from .rest import GeonodeRest
+from .cmdprint import (
     print_list_on_cmd,
     print_json,
     json_decode_error_handler,
@@ -54,28 +54,28 @@ class GeonodeObjectHandler(GeonodeRest):
         if "-" in pk:
             try:
                 pk_begin, pk_end = pk.split("-")
-            except:
-                raise ValueError(f"Invalid pk {pk} found, not a range ...")
+            except ValueError:
+                SystemExit(f"Invalid pk {pk} found, not a range ...")
             if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
-                raise ValueError(f"Invalid pk {pk} found, not an integer ...")
+                SystemExit(f"Invalid pk {pk} found, not an integer ...")
             return [i for i in range(int(pk_begin), int(pk_end))]
 
         # pk list: 1,2,3,4,5,6,7
         elif "," in pk:
             pk_list = pk.split(",")
             if not all(x.isdigit() for x in pk_list):
-                raise ValueError(f"Invalid pk {pk} found, not an integer ...")
-            return pk_list
+                SystemExit(f"Invalid pk {pk} found, not an integer ...")
+            return [int(i) for i in pk_list]
 
         # single pk: 1
         else:
             if not pk.isdigit():
-                raise ValueError(f"Invalid pk {pk}, is not an integer ...")
-            return [pk]
+                SystemExit(f"Invalid pk {pk}, is not an integer ...")
+            return [int(pk)]
 
     def cmd_delete(self, pk: str, **kwargs):
-        for pk in self.__parse_delete_pk_string__(pk):
-            self.delete(pk=int(pk), **kwargs)
+        for _pk in self.__parse_delete_pk_string__(pk):
+            self.delete(pk=_pk, **kwargs)
             print(f"{self.JSON_OBJECT_NAME}: {pk} deleted ...")
 
     def delete(self, pk: int, **kwargs):

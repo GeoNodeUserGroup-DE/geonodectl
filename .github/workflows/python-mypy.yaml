@@ -27,7 +27,7 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip mypy==1.10.0
+          pip install -e .
       - name: Test with mypy
-        run: "mypy geonodectl --check-untyped-defs"
+        run: "mypy -p src.geonoderest --check-untyped-defs"

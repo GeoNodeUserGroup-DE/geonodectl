@@ -1,5 +1,5 @@
-from geonoderest.resources import GeonodeResourceHandler
-from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from .resources import GeonodeResourceHandler
+from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 
 
 class GeonodeGeoappsHandler(GeonodeResourceHandler):

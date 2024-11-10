@@ -5,10 +5,10 @@ import uuid
 
 from typing import List, Dict, Optional
 
-from geonoderest.cmdprint import print_json, json_decode_error_handler
-from geonoderest.datasets import GeonodeDatasetsHandler
-from geonoderest.resources import GeonodeResourceHandler
-from geonoderest.geonodetypes import (
+from .cmdprint import print_json, json_decode_error_handler
+from .datasets import GeonodeDatasetsHandler
+from .resources import GeonodeResourceHandler
+from .geonodetypes import (
     GeonodeCmdOutListKey,
     GeonodeCmdOutDictKey,
 )
@@ -116,7 +116,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                     }
 
                     maplayers_list.append(maplayer)
-                except Exception as err:
+                except Exception:
                     logging.error(f"dataset {maplayer_pk} not found ...")
         base_json_content = {
             "ressource_type": self.SINGULAR_RESOURCE_NAME,

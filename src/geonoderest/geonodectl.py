@@ -8,22 +8,23 @@ from typing import List, Union
 from argparse import RawTextHelpFormatter
 from pathlib import Path
 
-from geonoderest.apiconf import GeonodeApiConf
-from geonoderest.geonodeobject import GeonodeObjectHandler
-from geonoderest.datasets import GeonodeDatasetsHandler
-from geonoderest.resources import (
+from .apiconf import GeonodeApiConf
+from .geonodeobject import GeonodeObjectHandler
+from .datasets import GeonodeDatasetsHandler
+from .resources import (
     GeonodeResourceHandler,
     SUPPORTED_METADATA_TYPES,
     DEFAULT_METADATA_TYPE,
 )
-from geonoderest.documents import GeonodeDocumentsHandler
-from geonoderest.maps import GeonodeMapsHandler
-from geonoderest.users import GeonodeUsersHandler
-from geonoderest.geoapps import GeonodeGeoappsHandler
-from geonoderest.uploads import GeonodeUploadsHandler
-from geonoderest.executionrequest import GeonodeExecutionRequestHandler
-from geonoderest.tkeywords import GeonodeThesauriKeywordsRequestHandler
-from geonoderest.tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
+from .documents import GeonodeDocumentsHandler
+from .maps import GeonodeMapsHandler
+from .users import GeonodeUsersHandler
+from .geoapps import GeonodeGeoappsHandler
+from .uploads import GeonodeUploadsHandler
+from .executionrequest import GeonodeExecutionRequestHandler
+from .keywords import GeonodeKeywordsRequestHandler
+from .tkeywords import GeonodeThesauriKeywordsRequestHandler
+from .tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
 
 
 GEONODECTL_URL_ENV_VAR: str = "GEONODE_API_URL"
@@ -660,6 +661,34 @@ To use this tool you have to set the following environment variables before star
         type=str, dest="exec_id", help="exec_id of executionrequest to describe ..."
     )
 
+    ############################
+    # KEYWORD ARGUMENT PARSING #
+    ############################
+    keywords = subparsers.add_parser("keywords", help="(Hierarchical) keyword commands")
+    keywords_subparsers = keywords.add_subparsers(
+        help="geonodectl keywords commands", dest="subcommand", required=True
+    )
+
+    # LIST
+    keywords_list = keywords_subparsers.add_parser("list", help="list keywords")
+    keywords_list.add_argument(
+        "--filter",
+        nargs="*",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter keywords requests by key value pairs. E.g. --filter name=soil",
+    )
+
+    # DESCRIBE
+    keywords_describe = keywords_subparsers.add_parser(
+        "describe", help="get thesaurikeyword details"
+    )
+    # not fully clean to use pk here, as it is actually keyword but for now ...
+    keywords_describe.add_argument(
+        type=str, dest="pk", help="keyword of keywords to describe ..."
+    )
+
     #####################################
     # THESAURI KEYWORD ARGUMENT PARSING #
     #####################################
@@ -762,6 +791,8 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeUploadsHandler(env=geonode_env)
         case "executionrequest" | "execrequest":
             g_obj = GeonodeExecutionRequestHandler(env=geonode_env)
+        case "keywords" | "keywords":
+            g_obj = GeonodeKeywordsRequestHandler(env=geonode_env)
         case "thesaurikeywords" | "tkeywords":
             g_obj = GeonodeThesauriKeywordsRequestHandler(env=geonode_env)
         case "thesaurikeywordlabels" | "tkeywordlabels":

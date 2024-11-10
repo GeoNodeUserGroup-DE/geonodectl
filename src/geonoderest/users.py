@@ -3,10 +3,10 @@ import sys
 import logging
 from typing import Dict, Optional
 
-from geonoderest.resources import GeonodeResourceHandler
-from geonoderest.geonodeobject import GeonodeObjectHandler
-from geonoderest.geonodetypes import GeonodeCmdOutListKey
-from geonoderest.cmdprint import (
+from .resources import GeonodeResourceHandler
+from .geonodeobject import GeonodeObjectHandler
+from .geonodetypes import GeonodeCmdOutListKey
+from .cmdprint import (
     print_list_on_cmd,
     print_json,
     json_decode_error_handler,
