@@ -4,8 +4,8 @@ import urllib3
 import requests
 import logging
 
-from geonoderest.geonodetypes import GeonodeHTTPFile
-from geonoderest.apiconf import GeonodeApiConf
+from .geonodetypes import GeonodeHTTPFile
+from .apiconf import GeonodeApiConf
 
 urllib3.disable_warnings()
 

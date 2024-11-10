@@ -3,10 +3,10 @@ import mimetypes
 from pathlib import Path
 from typing import List, Optional, Dict
 
-from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
-from geonoderest.cmdprint import show_list, print_json
-from geonoderest.resources import GeonodeResourceHandler
-from geonoderest.geonodetypes import GeonodeHTTPFile
+from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from .cmdprint import show_list, print_json
+from .resources import GeonodeResourceHandler
+from .geonodetypes import GeonodeHTTPFile
 
 
 class GeonodeDocumentsHandler(GeonodeResourceHandler):

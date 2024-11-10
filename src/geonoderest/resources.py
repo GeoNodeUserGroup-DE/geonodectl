@@ -1,8 +1,8 @@
 from typing import List
 import requests
 
-from geonoderest.geonodeobject import GeonodeObjectHandler
-from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from .geonodeobject import GeonodeObjectHandler
+from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 
 SUPPORTED_METADATA_TYPES: List[str] = [
     "Atom",

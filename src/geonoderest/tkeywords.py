@@ -1,11 +1,11 @@
 from typing import List
 
-from geonoderest.geonodetypes import (
+from .geonodetypes import (
     GeonodeCmdOutListKey,
     GeonodeCmdOutObjectKey,
     GeonodeCmdOutDictKey,
 )
-from geonoderest.geonodeobject import GeonodeObjectHandler
+from .geonodeobject import GeonodeObjectHandler
 
 
 class GeonodeThesauriKeywordsRequestHandler(GeonodeObjectHandler):

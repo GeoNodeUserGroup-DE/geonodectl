@@ -1,11 +1,10 @@
 from typing import List
 
-from geonoderest.cmdprint import print_json
-from geonoderest.geonodetypes import (
+from .geonodetypes import (
     GeonodeCmdOutListKey,
     GeonodeCmdOutObjectKey,
 )
-from geonoderest.geonodeobject import GeonodeObjectHandler
+from .geonodeobject import GeonodeObjectHandler
 
 
 class GeonodeKeywordsRequestHandler(GeonodeObjectHandler):

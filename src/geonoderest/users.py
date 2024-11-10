@@ -3,10 +3,10 @@ import sys
 import logging
 from typing import Dict, Optional
 
-from geonoderest.resources import GeonodeResourceHandler
-from geonoderest.geonodeobject import GeonodeObjectHandler
-from geonoderest.geonodetypes import GeonodeCmdOutListKey
-from geonoderest.cmdprint import (
+from .resources import GeonodeResourceHandler
+from .geonodeobject import GeonodeObjectHandler
+from .geonodetypes import GeonodeCmdOutListKey
+from .cmdprint import (
     print_list_on_cmd,
     print_json,
     json_decode_error_handler,
@@ -249,10 +249,6 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             endpoint=self.ENDPOINT_NAME,
             params=json_content,
         )
-
-    def cmd_delete(self, pk: int, **kwargs):
-        self.delete(pk=pk, **kwargs)
-        print(f"{self.JSON_OBJECT_NAME}: {pk} deleted ...")
 
     def delete(self, pk: int, **kwargs):
         """delete geonode resource object"""

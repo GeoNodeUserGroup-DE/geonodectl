@@ -1,7 +1,7 @@
 from typing import Dict, List
 
-from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
-from geonoderest.geonodeobject import GeonodeObjectHandler
+from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
+from .geonodeobject import GeonodeObjectHandler
 
 
 class GeonodeThesauriKeywordLabelsRequestHandler(GeonodeObjectHandler):
