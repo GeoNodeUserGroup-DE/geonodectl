@@ -2,11 +2,11 @@ import os
 from pathlib import Path
 from typing import List, Dict
 
-from geonoderest.resources import GeonodeResourceHandler
-from geonoderest.geonodetypes import GeonodeHTTPFile
-from geonoderest.cmdprint import show_list, print_json
-from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
-from geonoderest.executionrequest import GeonodeExecutionRequestHandler
+from .resources import GeonodeResourceHandler
+from .geonodetypes import GeonodeHTTPFile
+from .cmdprint import show_list, print_json
+from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from .executionrequest import GeonodeExecutionRequestHandler
 
 
 class GeonodeDatasetsHandler(GeonodeResourceHandler):

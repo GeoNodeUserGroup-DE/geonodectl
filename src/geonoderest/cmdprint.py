@@ -4,7 +4,7 @@ import json
 import logging
 import sys
 
-from geonoderest.geonodetypes import GeonodeCmdOutObjectKey
+from .geonodetypes import GeonodeCmdOutObjectKey
 
 
 def show_list(headers: List[str], values: List[List[str]], tablefmt="github"):

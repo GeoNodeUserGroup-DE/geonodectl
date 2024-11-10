@@ -1,10 +1,9 @@
 from typing import Dict, List
 
-from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
-from geonoderest.geonodeobject import GeonodeObjectHandler as GOH
-from geonoderest.rest import GeonodeRest
+from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
+from .rest import GeonodeRest
 
-from geonoderest.cmdprint import print_list_on_cmd, print_json
+from .cmdprint import print_list_on_cmd, print_json
 
 
 class GeonodeExecutionRequestHandler(GeonodeRest):
