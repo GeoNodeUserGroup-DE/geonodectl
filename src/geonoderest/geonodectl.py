@@ -660,6 +660,34 @@ To use this tool you have to set the following environment variables before star
         type=str, dest="exec_id", help="exec_id of executionrequest to describe ..."
     )
 
+    ############################
+    # KEYWORD ARGUMENT PARSING #
+    ############################
+    keywords = subparsers.add_parser("keywords", help="(Hierarchical) keyword commands")
+    keywords_subparsers = keywords.add_subparsers(
+        help="geonodectl keywords commands", dest="subcommand", required=True
+    )
+
+    # LIST
+    keywords_list = keywords_subparsers.add_parser("list", help="list keywords")
+    keywords_list.add_argument(
+        "--filter",
+        nargs="*",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter keywords requests by key value pairs. E.g. --filter name=soil",
+    )
+
+    # DESCRIBE
+    keywords_describe = keywords_subparsers.add_parser(
+        "describe", help="get thesaurikeyword details"
+    )
+    # not fully clean to use pk here, as it is actually keyword but for now ...
+    keywords_describe.add_argument(
+        type=str, dest="pk", help="keyword of keywords to describe ..."
+    )
+
     #####################################
     # THESAURI KEYWORD ARGUMENT PARSING #
     #####################################
