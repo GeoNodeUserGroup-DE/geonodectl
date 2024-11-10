@@ -4,7 +4,7 @@ from .geonodetypes import (
     GeonodeCmdOutListKey,
     GeonodeCmdOutObjectKey,
 )
-from geonoderest.geonodeobject import GeonodeObjectHandler
+from .geonodeobject import GeonodeObjectHandler
 
 
 class GeonodeKeywordsRequestHandler(GeonodeObjectHandler):
