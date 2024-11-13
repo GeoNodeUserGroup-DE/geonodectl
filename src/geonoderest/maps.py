@@ -24,7 +24,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         GeonodeCmdOutListKey(key="pk"),
         GeonodeCmdOutListKey(key="title"),
         GeonodeCmdOutDictKey(key=["owner", "username"]),
-        GeonodeCmdOutListKey(key="resource_type"),
+        GeonodeCmdOutListKey(key="subtype"),
         GeonodeCmdOutListKey(key="detail_url"),
     ]
 
@@ -148,6 +148,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         blob["map"]["layers"].append(opentopomap_layer)
         blob["map"]["layers"].append(s2cloudless_layer)
         blob["map"]["layers"].append(mapnik_layer)
+        blob["map"]["layers"].append(none_layer)
 
         return blob
 
@@ -244,7 +245,6 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             for maplayer_pk in maplayers:
                 try:
                     dataset = gnDatasetsHandler.get(pk=maplayer_pk)
-<<<<<<< HEAD:src/geonoderest/maps.py
                     workspace = dataset["default_style"]["workspace"]
                     ds_title = dataset["title"]
                     name = workspace + ":" + ds_title
@@ -260,9 +260,6 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
                     maplayers_list.append(maplayer)
                 except Exception:
-=======
-                except Exception as err:
->>>>>>> 73154b8 ([Fixes #74] Bug: when creating a map the order of the datasets of the maplayers are always 0):geonoderest/maps.py
                     logging.error(f"dataset {maplayer_pk} not found ...")
 
                 # uuid to connect blob layer with api.maplayer

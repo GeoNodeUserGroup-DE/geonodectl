@@ -58,7 +58,7 @@ class GeonodeObjectHandler(GeonodeRest):
                 SystemExit(f"Invalid pk {pk} found, not a range ...")
             if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
                 SystemExit(f"Invalid pk {pk} found, not an integer ...")
-            return [i for i in range(int(pk_begin), int(pk_end))]
+            return [i for i in range(int(pk_begin), int(pk_end) + 1)]
 
         # pk list: 1,2,3,4,5,6,7
         elif "," in pk:
@@ -76,7 +76,7 @@ class GeonodeObjectHandler(GeonodeRest):
     def cmd_delete(self, pk: str, **kwargs):
         for _pk in self.__parse_delete_pk_string__(pk):
             self.delete(pk=_pk, **kwargs)
-            print(f"{self.JSON_OBJECT_NAME}: {pk} deleted ...")
+            print(f"{self.JSON_OBJECT_NAME}: {_pk} deleted ...")
 
     def delete(self, pk: int, **kwargs):
         """delete geonode resource object"""
