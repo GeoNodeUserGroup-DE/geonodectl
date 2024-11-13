@@ -147,13 +147,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         blob["map"]["layers"].append(mapnik_layer)
         blob["map"]["layers"].append(opentopomap_layer)
         blob["map"]["layers"].append(s2cloudless_layer)
-        blob["map"]["layers"].append(mapnik_layer)
         blob["map"]["layers"].append(none_layer)
 
         return blob
 
     def __build_blob_maplayer__(
-        self, maplayer_uuid: str, ds_title: str, name: str, dataset: str
+        self, maplayer_uuid: str, ds_title: str, alternate: str, dataset: Dict
     ):
         """
         Builds a blob layer with provided map layer UUID, dataset title, name, and dataset information.
@@ -162,7 +161,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             maplayer_uuid (str): Unique identifier for the map layer.
             ds_title (str): Title of the dataset.
             name (str): Style name for the map layer.
-            dataset (str): Dataset information containing links, extent, and other metadata.
+            dataset (Dict): Dataset information containing links, extent, and other metadata.
 
         Returns:
             dict: A dictionary representing the blob layer with attributes such as id, url, bbox,
@@ -187,9 +186,9 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                     "miny": dataset["extent"]["coords"][1],
                 },
             },
-            "name": ds_title,
+            "name": alternate,
             "type": ptype,
-            "style": name,
+            "style": alternate,
             "title": ds_title,
             "hidden": False,
             "search": {"url": wfs_url, "type": "wfs"},
@@ -206,7 +205,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                 "pk": dataset["pk"],
                 "mapLayer": {
                     "dataset": dataset,
-                    "defaultStyle": {"name": name, "title": ds_title},
+                    "defaultStyle": {"name": alternate, "title": alternate},
                 },
             },
             "useForElevation": False,
@@ -235,6 +234,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         # initialize Dataset Handler, required for map.blob.layer and api.map.maplayer building
         gnDatasetsHandler = GeonodeDatasetsHandler(self.gn_credentials)
 
+        # init map blob
         blob = self.__build_blob_data__()
 
         # init maplayer list
@@ -243,50 +243,31 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
         if maplayers is not None:
             for maplayer_pk in maplayers:
-                try:
-                    dataset = gnDatasetsHandler.get(pk=maplayer_pk)
-                    workspace = dataset["default_style"]["workspace"]
-                    ds_title = dataset["title"]
-                    name = workspace + ":" + ds_title
 
-                    maplayer = {
-                        "extra_params": {"msId": str(uuid.uuid4()), "styles": []},
-                        "current_style": name,
-                        "name": name,
-                        "order": 0,
-                        "visibility": True,
-                        "opacity": 1.0,
-                    }
-
-                    maplayers_list.append(maplayer)
-                except Exception:
-                    logging.error(f"dataset {maplayer_pk} not found ...")
+                # get dataset of maplayer pk
+                dataset = gnDatasetsHandler.get(pk=maplayer_pk)
 
                 # uuid to connect blob layer with api.maplayer
                 maplayer_uuid = str(uuid.uuid4())
 
-                workspace = dataset["default_style"]["workspace"]
-                ds_title = dataset["title"]
-                name = workspace + ":" + ds_title
-
                 # append map.blob.layer to blob data
-                blob_map_layer = self.__build_blob_maplayer__(
-                    maplayer_uuid, ds_title, name, dataset
+                blob["map"]["layers"].append(
+                    self.__build_blob_maplayer__(maplayer_uuid, dataset["title"], dataset["alternate"], dataset)
                 )
-                blob["map"]["layers"].append(blob_map_layer)
 
                 # build new api.map.maplayer
-                maplayer = {
-                    "extra_params": {"msId": maplayer_uuid, "styles": []},
-                    "current_style": name,
-                    "name": title,
-                    "order": order,
-                    "visibility": True,
-                    "opacity": 1.0,
-                }
-
+                maplayers_list.append(
+                    {
+                        "extra_params": {"msId": maplayer_uuid, "styles": []},
+                        "current_style": dataset["alternate"],
+                        #"dataset": dataset,
+                        "name": dataset["alternate"],
+                        "order": order,
+                        "visibility": True,
+                        "opacity": 1.0,
+                    }
+                )
                 order += 1
-                maplayers_list.append(maplayer)
 
         base_json_content = {
             "ressource_type": self.SINGULAR_RESOURCE_NAME,
