@@ -177,6 +177,40 @@ To use this tool you have to set the following environment variables before star
         help="pk of resource to show metadata",
     )
 
+    ####################################
+    # LINKED RESOURCE ARGUMENT PARSING #
+    ####################################
+    linked_resources = subparsers.add_parser(
+        "linked_resources", help="handle linked resources for a resource"
+    )
+    linked_resources.add_argument(
+        "add",
+        type=int,
+        dest="add",
+        help="pk of resource to add linked_resource to linked",
+    )
+
+    linked_resources.add_argument(
+        "delete",
+        type=int,
+        dest="delete",
+        help="pk of resource to delete linked_resource from linked",
+    )
+
+    linked_resources.add_argument(
+        "set",
+        type=int,
+        dest="set",
+        help="pk(s) linked_resource for linked",
+    )
+
+    linked_resources.add_argument(
+        "list",
+        type=int,
+        dest="list",
+        help="list linked_resource of resource",
+    )
+
     ############################
     # DATASET ARGUMENT PARSING #
     ############################
@@ -796,6 +830,8 @@ To use this tool you have to set the following environment variables before star
     g_obj: Union[GeonodeObjectHandler, GeonodeExecutionRequestHandler]
     match args.command:
         case "resources" | "resource":
+            g_obj = GeonodeResourceHandler(env=geonode_env)
+        case "linked_resources" | "linked-resource" | "linkedresources":
             g_obj = GeonodeResourceHandler(env=geonode_env)
         case "dataset" | "ds":
             g_obj = GeonodeDatasetsHandler(env=geonode_env)

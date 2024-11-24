@@ -1,4 +1,5 @@
 from typing import TypeAlias, Type, Tuple, Union, List
+from enum import Enum
 from dataclasses import dataclass
 from abc import abstractmethod
 import io
@@ -85,3 +86,7 @@ class GeonodeCmdOutDictKey(GeonodeCmdOutObjectKey):
 GeonodeHTTPFile: TypeAlias = Tuple[
     str, Union[Tuple[str, io.BufferedReader], Tuple[str, io.BufferedReader, str]]
 ]
+
+class LinkedResourcesRelation(Enum):
+    TO = 1
+    FROM = 2
