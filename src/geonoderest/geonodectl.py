@@ -25,7 +25,7 @@ from .executionrequest import GeonodeExecutionRequestHandler
 from .keywords import GeonodeKeywordsRequestHandler
 from .tkeywords import GeonodeThesauriKeywordsRequestHandler
 from .tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
-
+from .linkedresources import GeonodeLinkedResourcesHandler
 
 GEONODECTL_URL_ENV_VAR: str = "GEONODE_API_URL"
 GEONODECTL_BASIC_ENV_VAR: str = "GEONODE_API_BASIC_AUTH"
@@ -180,35 +180,94 @@ To use this tool you have to set the following environment variables before star
     ####################################
     # LINKED RESOURCE ARGUMENT PARSING #
     ####################################
+
     linked_resources = subparsers.add_parser(
-        "linked_resources", help="handle linked resources for a resource"
+        "linked-resources", help="handle linked resources for a resource"
     )
-    linked_resources.add_argument(
-        "add",
-        type=int,
-        dest="add",
-        help="pk of resource to add linked_resource to linked",
+    linked_resource_subparsers = linked_resources.add_subparsers(
+        help="geonodectl linked-resources commands", dest="subcommand", required=True
     )
 
-    linked_resources.add_argument(
+
+    # DELETE
+    linked_resource_delete_subparser = linked_resource_subparsers.add_parser(
         "delete",
+        help="pks of resource to delete linked-resource from linked-to or linked-by or both",
+    )
+    linked_resource_delete_subparser.add_argument(
+        "--linked-to",
+        nargs="+",
+        dest="linked_to",
         type=int,
-        dest="delete",
-        help="pk of resource to delete linked_resource from linked",
+        required=False,
+        help="space seperate list of integers of pks to delete as linked-to resources to the provided resource"
+    )
+    linked_resource_delete_subparser.add_argument(
+        "--linked-by",
+        nargs="+",
+        dest="linked_from",
+        type=int,
+        required=False,
+        help="space seperate list of integers of pks to delete as linked-ny resources to the provided resource"
     )
 
-    linked_resources.add_argument(
+
+    # ADD
+    linked_resource_add_subparser = linked_resource_subparsers.add_parser(
+        "add",
+        help="pks of resources to add linked-resource to linked-to or linked-by or both",
+    )
+    linked_resource_add_subparser.add_argument(
+        "--linked-to",
+        nargs="+",
+        dest="linked_to",
+        type=int,
+        required=False,
+        help="space seperate list of integers of pks to add as linked-to resources to the provided resource"
+    )
+    linked_resource_add_subparser.add_argument(
+        "--linked-by",
+        nargs="+",
+        dest="linked_from",
+        type=int,
+        required=False,
+        help="space seperate list of integers of pks to add as linked-by resources to the provided resource"
+    )
+
+
+    # SET
+    linked_resource_set_subparser = linked_resource_subparsers.add_parser(
         "set",
+        help="set linked-resource for ether linked-to, linked-by or both. If used without --linked-to and --linked-by it will remove all linked resources",
+    )
+    linked_resource_set_subparser.add_argument(
+        type=int, dest="pk", help="pk of dataset to describe ..."
+    )
+    linked_resource_set_subparser.add_argument(
+        "--linked-to",
+        nargs="+",
+        dest="linked_to",
         type=int,
-        dest="set",
-        help="pk(s) linked_resource for linked",
+        required=False,
+        help="space seperate list of integers of pks to set as linked-to resources to the provided resource"
+    )
+    linked_resource_set_subparser.add_argument(
+        "--linked-by",
+        nargs="+",
+        dest="linked_from",
+        type=int,
+        required=False,
+        help="space seperate list of integers of pks to set as linked-by resources to the provided resource"
     )
 
-    linked_resources.add_argument(
-        "list",
-        type=int,
-        dest="list",
+
+    # DESCRIBE
+    linked_resource_describe_subparser = linked_resource_subparsers.add_parser(
+        "describe",
         help="list linked_resource of resource",
+    )
+    linked_resource_describe_subparser.add_argument(
+        type=int, dest="pk", help="pk of dataset to describe ..."
     )
 
     ############################
@@ -774,9 +833,9 @@ To use this tool you have to set the following environment variables before star
         type=str, dest="pk", help="keyword of thesaurikeywords to describe ..."
     )
 
-    #####################################
+    ###########################################
     # THESAURI KEYWORD LABEL ARGUMENT PARSING #
-    #####################################
+    ###########################################
     thesaurikeywordlabels = subparsers.add_parser(
         "tkeywordlabels", help="thesaurikeywordlabel commands"
     )
@@ -831,8 +890,8 @@ To use this tool you have to set the following environment variables before star
     match args.command:
         case "resources" | "resource":
             g_obj = GeonodeResourceHandler(env=geonode_env)
-        case "linked_resources" | "linked-resource" | "linkedresources":
-            g_obj = GeonodeResourceHandler(env=geonode_env)
+        case "linked_resources" | "linked-resources" | "linkedresources":
+            g_obj = GeonodeLinkedResourcesHandler(env=geonode_env)
         case "dataset" | "ds":
             g_obj = GeonodeDatasetsHandler(env=geonode_env)
         case "documents" | "doc" | "document":
