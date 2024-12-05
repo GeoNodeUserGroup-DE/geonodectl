@@ -14,6 +14,7 @@ from .geonodetypes import (
 )
 
 OGC_WFS_LINK_TYPE = "OGC:WFS"
+OGC_WCS_LINK_TYPE = "OGC:WCS"
 
 
 class GeonodeMapsHandler(GeonodeResourceHandler):
@@ -170,6 +171,8 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
         for link in dataset["links"]:
             if link["link_type"] == OGC_WFS_LINK_TYPE:
+                wfs_url = link["url"]
+            if link["link_type"] == OGC_WCS_LINK_TYPE:
                 wfs_url = link["url"]
 
         ptype = "wms" if dataset["ptype"] == "gxp_wmscsource" else "wfs"
