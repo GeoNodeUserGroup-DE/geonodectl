@@ -252,7 +252,9 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
                 # append map.blob.layer to blob data
                 blob["map"]["layers"].append(
-                    self.__build_blob_maplayer__(maplayer_uuid, dataset["title"], dataset["alternate"], dataset)
+                    self.__build_blob_maplayer__(
+                        maplayer_uuid, dataset["title"], dataset["alternate"], dataset
+                    )
                 )
 
                 # build new api.map.maplayer
@@ -260,7 +262,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                     {
                         "extra_params": {"msId": maplayer_uuid, "styles": []},
                         "current_style": dataset["alternate"],
-                        #"dataset": dataset,
+                        # "dataset": dataset,
                         "name": dataset["alternate"],
                         "order": order,
                         "visibility": True,
