@@ -8,24 +8,24 @@ from typing import List, Union
 from argparse import RawTextHelpFormatter
 from pathlib import Path
 
-from .apiconf import GeonodeApiConf
-from .geonodeobject import GeonodeObjectHandler
-from .datasets import GeonodeDatasetsHandler
-from .resources import (
+from geonoderest.apiconf import GeonodeApiConf
+from geonoderest.geonodeobject import GeonodeObjectHandler
+from geonoderest.datasets import GeonodeDatasetsHandler
+from geonoderest.resources import (
     GeonodeResourceHandler,
     SUPPORTED_METADATA_TYPES,
     DEFAULT_METADATA_TYPE,
 )
-from .documents import GeonodeDocumentsHandler
-from .maps import GeonodeMapsHandler
-from .users import GeonodeUsersHandler
-from .geoapps import GeonodeGeoappsHandler
-from .uploads import GeonodeUploadsHandler
-from .executionrequest import GeonodeExecutionRequestHandler
-from .keywords import GeonodeKeywordsRequestHandler
-from .tkeywords import GeonodeThesauriKeywordsRequestHandler
-from .tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
-from .linkedresources import GeonodeLinkedResourcesHandler
+from geonoderest.documents import GeonodeDocumentsHandler
+from geonoderest.maps import GeonodeMapsHandler
+from geonoderest.users import GeonodeUsersHandler
+from geonoderest.geoapps import GeonodeGeoappsHandler
+from geonoderest.uploads import GeonodeUploadsHandler
+from geonoderest.executionrequest import GeonodeExecutionRequestHandler
+from geonoderest.keywords import GeonodeKeywordsRequestHandler
+from geonoderest.tkeywords import GeonodeThesauriKeywordsRequestHandler
+from geonoderest.tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
+from geonoderest.linkedresources import GeonodeLinkedResourcesHandler
 
 GEONODECTL_URL_ENV_VAR: str = "GEONODE_API_URL"
 GEONODECTL_BASIC_ENV_VAR: str = "GEONODE_API_BASIC_AUTH"
