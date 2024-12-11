@@ -2,10 +2,11 @@ from typing import Dict, List
 import logging
 import sys
 
-from .rest import GeonodeRest
+from geonoderest.rest import GeonodeRest
+from geonoderest.resources import GeonodeResourceHandler
+
 
 from .cmdprint import show_list, print_json
-
 
 
 class GeonodeLinkedResourcesHandler(GeonodeRest):
@@ -16,20 +17,31 @@ class GeonodeLinkedResourcesHandler(GeonodeRest):
         linked_by_values = [ [ "linked_by", ref["pk"], ref["resource_type"], ref["title"] ] for ref in obj["linked_by"] ]
         show_list(headers=["link_type", "pk", "resource_type","title"], values=linked_to_values + linked_by_values)
 
-    def cmd_set(self, pk: int, linked_to: List[int] = [], linked_by: List[int] = [], **kwargs):
-        obj: Dict = self.set(pk=pk, linked_to=linked_to, linked_by=linked_by, **kwargs)
+    def cmd_patch(self, pk: int, linked_to: List[int] = [], linked_by: List[int] = [], **kwargs):
+        gn_resources_handler = GeonodeResourceHandler(self.gn_credentials)
+        a = gn_resources_handler.get(pk)
+
+        if not all( gn_resources_handler.get(pk) for pk in linked_to ):
+            raise ValueError("not all resources in patch (linked_to) available in geonode ...")
+        if not all( gn_resources_handler.get(pk) for pk in linked_by ):
+            raise ValueError("not all resources in patch (linked_by) available in geonode ...")
         
+        json_content = {
+            "linked_to": linked_to,
+            "linked_by": linked_by
+        }
+
+        obj: Dict = self.patch(pk=pk, json_content=json_content, **kwargs)
         if kwargs["json"]:
             print_json(obj)
         else:
             GeonodeLinkedResourcesHandler.__print_linked_resources_of_object__(obj)
 
-    def set(self, pk: int, linked_to: List[int] = [], linked_by: List[int] = [], **kwargs):
-
-        print(pk, linked_to, linked_by)
-        # TODO check if all pks to set are available else refuse ..
-
-        
+    def patch(self, pk: int, json_content:Dict, **kwargs):
+        endpoint = f"resources/{pk}/linked_resources"
+        breakpoint()
+        obj = self.http_patch(endpoint=endpoint, params=json_content)
+        return obj
 
     def cmd_add(self, pk: int, linked_to: List[int] = [], linked_by: List[int] = [], **kwargs):
         if len(linked_by) == 0 and len(linked_to) == 0:
@@ -49,7 +61,12 @@ class GeonodeLinkedResourcesHandler(GeonodeRest):
         linked_resource_obj["linked_to"] = linked_resource_obj["linked_to"].extend(linked_to)
         linked_resource_obj["linked_by"] = linked_resource_obj["linked_by"].extend(linked_by)
         
-        self.set(pk=pk, linked_to=list(linked_to), linked_by=list(linked_by), **kwargs)
+        json_content = {
+            "linked_to": list(linked_to),
+            "linked_by": list(linked_by)
+        }
+
+        self.patch(pk=pk, json_content=json_content, **kwargs)
 
 
     def cmd_delete(self, pk: int, linked_by: List[int], linked_to: List[int], **kwargs):
@@ -77,10 +94,12 @@ class GeonodeLinkedResourcesHandler(GeonodeRest):
         def not_to_delete(e,linked_to):
             return True if e not in linked_to else False
 
-        linked_to = filter(not_to_delete(linked_to), linked_resource_obj["linked_to"])
-        linked_by = filter(not_to_delete(linked_by), linked_resource_obj["linked_by"])
+        json_content = {
+            "linked_to": filter(not_to_delete(linked_to), linked_resource_obj["linked_to"]),
+            "linked_by": filter(not_to_delete(linked_by), linked_resource_obj["linked_by"])
+        }
 
-        self.set(pk=pk, linked_to=list(linked_to), linked_by=list(linked_by), **kwargs)
+        self.patch(pk=pk, json_content=json_content, **kwargs)
 
     def cmd_describe(self, pk: int, **kwargs) -> Dict:
         obj = self.get(pk,**kwargs)

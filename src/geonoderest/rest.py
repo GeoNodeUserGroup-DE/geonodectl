@@ -124,8 +124,8 @@ class GeonodeRest(object):
             r = requests.get(url, headers=self.header, verify=self.verify)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            logging.error(r.json())
-            raise SystemExit(err)
+            logging.error(err)
+            return None
         return r.json()
 
     @network_exception_handling
@@ -149,7 +149,8 @@ class GeonodeRest(object):
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            raise SystemExit(err)
+            logging.error(err)
+            return None
         return r.json()
 
     @network_exception_handling
@@ -171,8 +172,8 @@ class GeonodeRest(object):
             r = requests.patch(url, headers=self.header, json=data, verify=self.verify)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            logging.error(r.text)
-            raise SystemExit(err)
+            logging.error(err)
+            return None
         return r.json()
 
     @network_exception_handling
@@ -197,5 +198,6 @@ class GeonodeRest(object):
             if r.status_code in [204]:
                 return {}
         except requests.exceptions.HTTPError as err:
-            raise SystemExit(err)
+            logging.error(err)
+            return None
         return r.json()

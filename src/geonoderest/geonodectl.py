@@ -235,10 +235,10 @@ To use this tool you have to set the following environment variables before star
     )
 
 
-    # SET
+    # patch
     linked_resource_set_subparser = linked_resource_subparsers.add_parser(
-        "set",
-        help="set linked-resource for ether linked-to, linked-by or both. If used without --linked-to and --linked-by it will remove all linked resources",
+        "patch",
+        help="patch linked-resource for ether linked-to, linked-by or both. If used without --linked-to and --linked-by it will remove all linked resources",
     )
     linked_resource_set_subparser.add_argument(
         type=int, dest="pk", help="pk of dataset to describe ..."
