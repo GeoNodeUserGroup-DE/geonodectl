@@ -74,6 +74,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         blob = self.http_get_download(
             f"{geonode_base_url}/static/mapstore/configs/map.json"
         )
+        blob = blob.json()
 
         mapnik_layer = {
             "id": "mapnik__0",
