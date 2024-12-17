@@ -76,7 +76,6 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         )
         blob = blob.json()
 
-
         mapnik_layer = {
             "id": "mapnik__0",
             "name": "mapnik",
