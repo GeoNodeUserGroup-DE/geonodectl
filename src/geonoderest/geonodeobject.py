@@ -1,9 +1,10 @@
 from typing import List, Dict, Optional
 import json
+import logging
 
-from .geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
-from .rest import GeonodeRest
-from .cmdprint import (
+from geonoderest.geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
+from geonoderest.rest import GeonodeRest
+from geonoderest.cmdprint import (
     print_list_on_cmd,
     print_json,
     json_decode_error_handler,
@@ -40,6 +41,8 @@ class GeonodeObjectHandler(GeonodeRest):
 
         params = self.__handle_http_params__({}, kwargs)
         r = self.http_get(endpoint=endpoint, params=params)
+        if r is None:
+            return None
         return r[self.JSON_OBJECT_NAME]
 
     def __parse_delete_pk_string__(self, pk: str) -> List[int]:
@@ -75,12 +78,15 @@ class GeonodeObjectHandler(GeonodeRest):
 
     def cmd_delete(self, pk: str, **kwargs):
         for _pk in self.__parse_delete_pk_string__(pk):
-            self.delete(pk=_pk, **kwargs)
-            print(f"{self.JSON_OBJECT_NAME}: {_pk} deleted ...")
+            obj = self.delete(pk=_pk, **kwargs)
+            if obj is None:
+                logging.warning("delete failed ... ")
+                return
+            print(f"{self.JSON_OBJECT_NAME}: {pk} deleted ...")
 
     def delete(self, pk: int, **kwargs):
         """delete geonode resource object"""
-        self.http_delete(endpoint=f"resources/{pk}/delete")
+        return self.http_delete(endpoint=f"resources/{pk}/delete")
 
     def cmd_patch(
         self,
@@ -130,7 +136,7 @@ class GeonodeObjectHandler(GeonodeRest):
         json_content: Optional[Dict] = None,
         **kwargs,
     ):
-        obj = self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", data=json_content)
+        obj = self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", json=json_content)
         return obj
 
     def cmd_describe(self, pk: int, **kwargs):

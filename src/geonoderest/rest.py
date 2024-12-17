@@ -4,8 +4,9 @@ import urllib3
 import requests
 import logging
 
-from .geonodetypes import GeonodeHTTPFile
-from .apiconf import GeonodeApiConf
+from geonoderest.exceptions import GeoNodeRestException
+from geonoderest.geonodetypes import GeonodeHTTPFile
+from geonoderest.apiconf import GeonodeApiConf
 
 urllib3.disable_warnings()
 
@@ -23,6 +24,21 @@ class GeonodeRest(object):
         self.gn_credentials = env
 
     def __handle_http_params__(self, params: Dict, kwargs: Dict) -> Dict:
+        """
+        Internal method to handle pagination parameters.
+
+        Parameters
+        ----------
+        params : Dict
+            The dictionary of parameters to be updated.
+        kwargs : Dict
+            The dictionary of keyword arguments containing the pagination parameters.
+
+        Returns
+        -------
+        Dict
+            The updated dictionary of parameters.
+        """
         if "page_size" in kwargs:
             params["page_size"] = kwargs["page_size"]
         if "page" in kwargs:
@@ -37,21 +53,53 @@ class GeonodeRest(object):
 
     @staticmethod
     def network_exception_handling(func: NetworkExceptionHandlingTypes):
+        """
+        Decorator to catch network related exceptions.
+
+        This decorator is used to catch exceptions that could occur when making requests to the GeoNode API.
+        If any of the handled exceptions occur, a GeoNodeRestException is raised with a meaningful error message.
+
+        The handled exceptions are:
+        - requests.exceptions.ConnectionError
+        - urllib3.exceptions.MaxRetryError
+        - ConnectionRefusedError
+
+        The error message will give a hint about the cause of the exception and the potential solution.
+        """
+
         def inner(*args, **kwargs):
+            """
+            Inner function of the network exception handling decorator.
+
+            This function is wrapping the user's function to catch network related exceptions.
+            If any of the handled exceptions occur, a GeoNodeRestException is raised with a
+            meaningful error message.
+
+            Parameters
+            ----------
+            *args
+                The arguments to be passed to the function.
+            **kwargs
+                The keyword arguments to be passed to the function.
+
+            Returns
+            -------
+            The return value of the wrapped function.
+            """
             try:
                 return func(*args, **kwargs)
             except requests.exceptions.ConnectionError:
-                raise SystemExit(
+                raise GeoNodeRestException(
                     "connection error: Could not reach geonode api. please check if the endpoint up and available, "
                     "check also the env variable: GEONODE_API_URL ..."
                 )
             except urllib3.exceptions.MaxRetryError:
-                raise SystemExit(
+                raise GeoNodeRestException(
                     "max retries exceeded: Could not reach geonode api. please check if the endpoint up and available, "
                     "check also the env variable: GEONODE_API_URL ..."
                 )
             except ConnectionRefusedError:
-                raise SystemExit(
+                raise GeoNodeRestException(
                     "connection refused: Could not reach geonode api. please check if the endpoint up and available, "
                     "check also the env variable: GEONODE_API_URL ..."
                 )
@@ -75,23 +123,25 @@ class GeonodeRest(object):
         self,
         endpoint: str,
         files: Optional[List[GeonodeHTTPFile]] = None,
+        json: Dict = {},
         params: Dict = {},
         content_length: Optional[int] = None,
     ) -> Dict:
-        """http post to geonode endpoint
+        """
+        Execute http post on endpoint with params
 
         Args:
             endpoint (str): api endpoint
-            files (Optional[List[GeonodeHTTPFile]], optional): files to post. Defaults to None.
-            params (Dict, optional): parameter to post. Defaults to {}.
-            content_length (Optional[int], optional): optional content length
-                      sometimes its useful to set by yourself. Defaults to None.
+            files (List[GeonodeHTTPFile], optional): list of files to post.
+            json (Dict, optional): json data to post
+            params (Dict, optional): params dict provided with the post
+            content_length (Optional[int], optional): content-length header for upload
 
         Raises:
-            SystemExit: if http status is not 200
+            SystemExit: if bad http resonse raise SystemExit with logging
 
         Returns:
-            Dict: post response
+            Dict: returns response json
         """
         if content_length:
             self.header["content-length"] = content_length
@@ -99,12 +149,17 @@ class GeonodeRest(object):
 
         try:
             r = requests.post(
-                url, headers=self.header, files=files, json=params, verify=self.verify
+                url,
+                headers=self.header,
+                files=files,
+                json=json,
+                params=params,
+                verify=self.verify,
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            logging.error(r.json())
-            raise SystemExit(err)
+            logging.error(err)
+            return None
         return r.json()
 
     @network_exception_handling
@@ -126,22 +181,24 @@ class GeonodeRest(object):
         except requests.exceptions.HTTPError as err:
             logging.error(err)
             return None
-        return r.json()
+        return r
 
     @network_exception_handling
     def http_get(self, endpoint: str, params: Dict = {}) -> Dict:
-        """execute http delete on endpoint with params
+        """
+        Execute HTTP GET request on the specified endpoint with optional parameters.
 
         Args:
-            endpoint (str):  api endpoint
-            params (Dict, optional):params dict provided with the get
+            endpoint (str): The API endpoint to send the GET request to.
+            params (Dict, optional): A dictionary of query parameters to include in the request.
 
         Raises:
-            SystemExit: if bad http resonse raise SystemExit with logging
+            SystemExit: If a bad HTTP response is received, exits the program with logging.
 
         Returns:
-            Dict: returns response json
+            Dict: The JSON response from the server, or None if an error occurred.
         """
+
         url = self.url + endpoint
         try:
             r = requests.get(
@@ -154,22 +211,26 @@ class GeonodeRest(object):
         return r.json()
 
     @network_exception_handling
-    def http_patch(self, endpoint: str, data: Dict = {}) -> Dict:
-        """execute http patch on endpoint with params
+    def http_patch(self, endpoint: str, json: Dict = {}, params: Dict = {}) -> Dict:
+        """
+        Execute HTTP PATCH request on the specified endpoint with optional parameters.
 
         Args:
-            endpoint (str): api endpoint
-            data (Dict, optional):  params dict with data to patch
+            endpoint (str): The API endpoint to send the PATCH request to.
+            json (Dict, optional): A dictionary of JSON data to include in the request body.
+            params (Dict, optional): A dictionary of query parameters to include in the request.
 
         Raises:
-              SystemExit: if bad http resonse raise SystemExit with logging
+            SystemExit: If a bad HTTP response is received, exits the program with logging.
 
         Returns:
-            Dict: returns response json
+            Dict: The JSON response from the server, or None if an error occurred.
         """
         url = self.url + endpoint
         try:
-            r = requests.patch(url, headers=self.header, json=data, verify=self.verify)
+            r = requests.patch(
+                url, headers=self.header, json=json, params=params, verify=self.verify
+            )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             logging.error(err)
@@ -177,23 +238,27 @@ class GeonodeRest(object):
         return r.json()
 
     @network_exception_handling
-    def http_delete(self, endpoint: str, params: Dict = {}) -> Dict:
-        """execute http delete on endpoint with params
+    def http_delete(self, endpoint: str, json: Dict = {}, params: Dict = {}) -> Dict:
+        """
+        Execute HTTP DELETE request on the specified endpoint with optional parameters.
 
         Args:
-            endpoint (str): api endpoint
-            params (Dict, optional): params dict provided with the delete
+            endpoint (str): The API endpoint to send the DELETE request to.
+            json (Dict, optional): A dictionary of JSON data to include in the request body.
+            params (Dict, optional): A dictionary of query parameters to include in the request.
 
         Raises:
-            SystemExit: if bad http resonse raise SystemExit with logging
+            SystemExit: If a bad HTTP response is received, exits the program with logging.
 
         Returns:
-            Dict: returns response json
+            Dict: The JSON response from the server, or None if an error occurred.
         """
         url = self.url + endpoint
 
         try:
-            r = requests.delete(url, headers=self.header, verify=self.verify)
+            r = requests.delete(
+                url, headers=self.header, params=params, json=json, verify=self.verify
+            )
             r.raise_for_status()
             if r.status_code in [204]:
                 return {}

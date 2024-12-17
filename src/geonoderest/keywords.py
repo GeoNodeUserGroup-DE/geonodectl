@@ -1,6 +1,6 @@
 from typing import List
 
-from .geonodetypes import (
+from geonoderest.geonodetypes import (
     GeonodeCmdOutListKey,
     GeonodeCmdOutObjectKey,
 )

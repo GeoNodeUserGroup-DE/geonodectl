@@ -26,3 +26,10 @@ repository = "https://github.com/GeoNodeUserGroup-DE/geonodectl/"
 [project.scripts]
 geonodectl = "geonoderest.geonodectl:geonodectl"
 
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "src/geonoderest/tests/",
+
+]

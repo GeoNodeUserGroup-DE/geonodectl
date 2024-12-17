@@ -1,7 +1,7 @@
 from typing import Dict, List
 
-from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
-from .geonodeobject import GeonodeObjectHandler
+from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
+from geonoderest.geonodeobject import GeonodeObjectHandler
 
 
 class GeonodeThesauriKeywordLabelsRequestHandler(GeonodeObjectHandler):
@@ -26,4 +26,6 @@ class GeonodeThesauriKeywordLabelsRequestHandler(GeonodeObjectHandler):
             Dict: obj details
         """
         r = self.http_get(endpoint=f"{self.ENDPOINT_NAME}?keyword={pk}")
+        if r is None:
+            return None
         return r[self.SINGULAR_RESOURCE_NAME]

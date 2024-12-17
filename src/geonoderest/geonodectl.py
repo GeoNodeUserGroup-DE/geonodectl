@@ -188,78 +188,41 @@ To use this tool you have to set the following environment variables before star
         help="geonodectl linked-resources commands", dest="subcommand", required=True
     )
 
-
     # DELETE
     linked_resource_delete_subparser = linked_resource_subparsers.add_parser(
         "delete",
-        help="pks of resource to delete linked-resource from linked-to or linked-by or both",
+        help="pks of resource to delete linked-resource from linked-to",
     )
+    linked_resource_delete_subparser.add_argument(
+        type=int, dest="pk", help="pk of dataset to describe ..."
+    )
+
     linked_resource_delete_subparser.add_argument(
         "--linked-to",
         nargs="+",
         dest="linked_to",
         type=int,
         required=False,
-        help="space seperate list of integers of pks to delete as linked-to resources to the provided resource"
+        help="space seperate list of integers of pks to delete as linked-to (target) resources to the provided resource",
     )
-    linked_resource_delete_subparser.add_argument(
-        "--linked-by",
-        nargs="+",
-        dest="linked_from",
-        type=int,
-        required=False,
-        help="space seperate list of integers of pks to delete as linked-ny resources to the provided resource"
-    )
-
 
     # ADD
     linked_resource_add_subparser = linked_resource_subparsers.add_parser(
         "add",
-        help="pks of resources to add linked-resource to linked-to or linked-by or both",
+        help="pks of resources to add linked-resource as linked-to",
     )
     linked_resource_add_subparser.add_argument(
-        "--linked-to",
-        nargs="+",
-        dest="linked_to",
-        type=int,
-        required=False,
-        help="space seperate list of integers of pks to add as linked-to resources to the provided resource"
-    )
-    linked_resource_add_subparser.add_argument(
-        "--linked-by",
-        nargs="+",
-        dest="linked_from",
-        type=int,
-        required=False,
-        help="space seperate list of integers of pks to add as linked-by resources to the provided resource"
-    )
-
-
-    # patch
-    linked_resource_set_subparser = linked_resource_subparsers.add_parser(
-        "patch",
-        help="patch linked-resource for ether linked-to, linked-by or both. If used without --linked-to and --linked-by it will remove all linked resources",
-    )
-    linked_resource_set_subparser.add_argument(
         type=int, dest="pk", help="pk of dataset to describe ..."
     )
-    linked_resource_set_subparser.add_argument(
+
+    linked_resource_add_subparser.add_argument(
         "--linked-to",
         nargs="+",
         dest="linked_to",
         type=int,
         required=False,
-        help="space seperate list of integers of pks to set as linked-to resources to the provided resource"
+        help="space seperate list of integers of pks to add as linked-to resources to the provided resource",
     )
-    linked_resource_set_subparser.add_argument(
-        "--linked-by",
-        nargs="+",
-        dest="linked_from",
-        type=int,
-        required=False,
-        help="space seperate list of integers of pks to set as linked-by resources to the provided resource"
-    )
-
 
     # DESCRIBE
     linked_resource_describe_subparser = linked_resource_subparsers.add_parser(
@@ -342,7 +305,7 @@ To use this tool you have to set the following environment variables before star
         "--set",
         dest="fields",
         type=str,
-        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
+        help='patch metadata by providing a json string like: \'{"category":{"identifier": "farming"}}\'',
     )
 
     datasets_patch_mutually_exclusive_group.add_argument(
