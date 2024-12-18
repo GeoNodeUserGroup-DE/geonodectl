@@ -5,10 +5,10 @@ import uuid
 
 from typing import List, Dict, Optional
 
-from .cmdprint import print_json, json_decode_error_handler
-from .datasets import GeonodeDatasetsHandler
-from .resources import GeonodeResourceHandler
-from .geonodetypes import (
+from geonoderest.cmdprint import print_json, json_decode_error_handler
+from geonoderest.datasets import GeonodeDatasetsHandler
+from geonoderest.resources import GeonodeResourceHandler
+from geonoderest.geonodetypes import (
     GeonodeCmdOutListKey,
     GeonodeCmdOutDictKey,
 )
@@ -74,6 +74,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         blob = self.http_get_download(
             f"{geonode_base_url}/static/mapstore/configs/map.json"
         )
+        blob = blob.json()
 
         mapnik_layer = {
             "id": "mapnik__0",
@@ -222,7 +223,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         json_content: Optional[Dict] = None,
         maplayers: Optional[List[int]] = [],
         **kwargs,
-    ) -> Dict:
+    ) -> Optional[Dict]:
         """
         creates an (empty) map with the given title and optional maplayers
 
@@ -287,6 +288,8 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
         r = self.http_post(
             endpoint=self.ENDPOINT_NAME,
-            params=json_content,
+            json=json_content,
         )
+        if r is None:
+            return None
         return r[self.SINGULAR_RESOURCE_NAME]

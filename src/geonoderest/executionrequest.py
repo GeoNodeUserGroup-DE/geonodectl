@@ -1,9 +1,10 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
+import logging
 
-from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
-from .rest import GeonodeRest
+from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
+from geonoderest.rest import GeonodeRest
 
-from .cmdprint import print_list_on_cmd, print_json
+from geonoderest.cmdprint import print_list_on_cmd, print_json
 
 
 class GeonodeExecutionRequestHandler(GeonodeRest):
@@ -41,12 +42,15 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
     def cmd_list(self, **kwargs):
         """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
+        if obj is None:
+            logging.warning("getting list failed ...")
+            return None
         if kwargs["json"]:
             print_json(obj)
         else:
             print_list_on_cmd(obj, self.LIST_CMDOUT_HEADER)
 
-    def list(self, **kwargs) -> Dict:
+    def list(self, **kwargs) -> Optional[Dict]:
         """returns dict of execution requests from geonode
 
         Returns:
@@ -56,4 +60,6 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
 
         params = self.__handle_http_params__({}, kwargs)
         r = self.http_get(endpoint=endpoint, params=params)
+        if r is None:
+            return None
         return r[self.JSON_OBJECT_NAME]

@@ -1,4 +1,5 @@
 from typing import TypeAlias, Type, Tuple, Union, List
+from enum import Enum
 from dataclasses import dataclass
 from abc import abstractmethod
 import io

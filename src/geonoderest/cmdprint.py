@@ -51,6 +51,9 @@ def print_json(json_str: Union[str, dict]):
     Returns:
         None
     """
+    if json_str is None:
+        logging.warning("return from geonode api was broken, not output ...")
+        return None
     print(json.dumps(json_str, indent=2))
 
 

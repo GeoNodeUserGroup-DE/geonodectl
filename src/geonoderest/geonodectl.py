@@ -4,28 +4,28 @@ import logging
 import os
 import sys
 import argparse
-from typing import List, Union
+from typing import Union
 from argparse import RawTextHelpFormatter
 from pathlib import Path
 
-from .apiconf import GeonodeApiConf
-from .geonodeobject import GeonodeObjectHandler
-from .datasets import GeonodeDatasetsHandler
-from .resources import (
+from geonoderest.apiconf import GeonodeApiConf
+from geonoderest.geonodeobject import GeonodeObjectHandler
+from geonoderest.datasets import GeonodeDatasetsHandler
+from geonoderest.resources import (
     GeonodeResourceHandler,
     SUPPORTED_METADATA_TYPES,
     DEFAULT_METADATA_TYPE,
 )
-from .documents import GeonodeDocumentsHandler
-from .maps import GeonodeMapsHandler
-from .users import GeonodeUsersHandler
-from .geoapps import GeonodeGeoappsHandler
-from .uploads import GeonodeUploadsHandler
-from .executionrequest import GeonodeExecutionRequestHandler
-from .keywords import GeonodeKeywordsRequestHandler
-from .tkeywords import GeonodeThesauriKeywordsRequestHandler
-from .tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
-
+from geonoderest.documents import GeonodeDocumentsHandler
+from geonoderest.maps import GeonodeMapsHandler
+from geonoderest.users import GeonodeUsersHandler
+from geonoderest.geoapps import GeonodeGeoappsHandler
+from geonoderest.uploads import GeonodeUploadsHandler
+from geonoderest.executionrequest import GeonodeExecutionRequestHandler
+from geonoderest.keywords import GeonodeKeywordsRequestHandler
+from geonoderest.tkeywords import GeonodeThesauriKeywordsRequestHandler
+from geonoderest.tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
+from geonoderest.linkedresources import GeonodeLinkedResourcesHandler
 
 GEONODECTL_URL_ENV_VAR: str = "GEONODE_API_URL"
 GEONODECTL_BASIC_ENV_VAR: str = "GEONODE_API_BASIC_AUTH"
@@ -76,7 +76,7 @@ class kwargs_append_action(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
         try:
             d = dict(map(lambda x: x.split("="), values))
-        except ValueError as ex:
+        except ValueError as _:
             raise argparse.ArgumentError(
                 self,
                 f'Could not parse argument "{values}" as field_name1=new_value1 field_name2=new_value2 ... format',
@@ -90,7 +90,7 @@ def geonodectl():
         prog="geonodectl",
         description=f"""geonodectl is a cmd client for the geonodev4 rest-apiv2.
 To use this tool you have to set the following environment variables before starting:
-  
+
 {GEONODECTL_URL_ENV_VAR}: https://geonode.example.com/api/v2/ -- path to the v2 endpoint of your target geonode instance
 {GEONODECTL_BASIC_ENV_VAR}: YWRtaW46YWRtaW4= -- you can generate this string like: echo -n user:password | base64
 """,
@@ -177,6 +177,62 @@ To use this tool you have to set the following environment variables before star
         help="pk of resource to show metadata",
     )
 
+    ####################################
+    # LINKED RESOURCE ARGUMENT PARSING #
+    ####################################
+
+    linked_resources = subparsers.add_parser(
+        "linked-resources", help="handle linked resources for a resource"
+    )
+    linked_resource_subparsers = linked_resources.add_subparsers(
+        help="geonodectl linked-resources commands", dest="subcommand", required=True
+    )
+
+    # DELETE
+    linked_resource_delete_subparser = linked_resource_subparsers.add_parser(
+        "delete",
+        help="pks of resource to delete linked-resource from linked-to",
+    )
+    linked_resource_delete_subparser.add_argument(
+        type=int, dest="pk", help="pk of dataset to describe ..."
+    )
+
+    linked_resource_delete_subparser.add_argument(
+        "--linked-to",
+        nargs="+",
+        dest="linked_to",
+        type=int,
+        required=False,
+        help="space seperate list of integers of pks to delete as linked-to (target) resources to the provided resource",
+    )
+
+    # ADD
+    linked_resource_add_subparser = linked_resource_subparsers.add_parser(
+        "add",
+        help="pks of resources to add linked-resource as linked-to",
+    )
+    linked_resource_add_subparser.add_argument(
+        type=int, dest="pk", help="pk of dataset to describe ..."
+    )
+
+    linked_resource_add_subparser.add_argument(
+        "--linked-to",
+        nargs="+",
+        dest="linked_to",
+        type=int,
+        required=False,
+        help="space seperate list of integers of pks to add as linked-to resources to the provided resource",
+    )
+
+    # DESCRIBE
+    linked_resource_describe_subparser = linked_resource_subparsers.add_parser(
+        "describe",
+        help="list linked_resource of resource",
+    )
+    linked_resource_describe_subparser.add_argument(
+        type=int, dest="pk", help="pk of dataset to describe ..."
+    )
+
     ############################
     # DATASET ARGUMENT PARSING #
     ############################
@@ -249,7 +305,7 @@ To use this tool you have to set the following environment variables before star
         "--set",
         dest="fields",
         type=str,
-        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
+        help='patch metadata by providing a json string like: \'{"category":{"identifier": "farming"}}\'',
     )
 
     datasets_patch_mutually_exclusive_group.add_argument(
@@ -296,7 +352,8 @@ To use this tool you have to set the following environment variables before star
         action=kwargs_append_action,
         dest="filter",
         type=str,
-        help="filter document by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
+        help="filter document by key value pairs. E.g. --filter \
+          is_published=true owner.username=admin, or --filter title=test",
     )
     # UPLOAD
     documents_upload = documents_subparsers.add_parser(
@@ -315,7 +372,8 @@ To use this tool you have to set the following environment variables before star
         "--metadata-only",
         action="store_true",
         dest="metadata_only",
-        help="if set no landing page for the document will be generated, but file is downloadable through link",
+        help="if set no landing page for the document will be generated, \
+          but file is downloadable through link",
     )
 
     # PATCH
@@ -419,7 +477,8 @@ To use this tool you have to set the following environment variables before star
         "--set",
         dest="fields",
         type=str,
-        help='add metadata by providing a json string like: \'\'{ "category": {"identifier": "farming"}, "abstract": "test abstract" }\'\'',
+        help='add metadata by providing a json string like: \
+          \'\'{ "category": {"identifier": "farming"}, "abstract": "test abstract" }\'\'',
     )
 
     maps_create_mutually_exclusive_group.add_argument(
@@ -622,14 +681,17 @@ To use this tool you have to set the following environment variables before star
         "--json_path",
         dest="json_path",
         type=str,
-        help="add metadata (user credentials) by providing a path to a json file, like --set written in file ...(mutually exclusive [b])",
+        help="add metadata (user credentials) by providing a path to a \
+          json file, like --set written in file ...(mutually exclusive [b])",
     )
 
     user_create_mutually_exclusive_group.add_argument(
         "--set",
         dest="fields",
         type=str,
-        help='create user by providing a json string like: \'{"username":"test_user", "email":"test_email@gmail.com", "first_name": "test_first_name", "last_name":"test_last_name", "is_staff": true, "is_superuser": true}\' ... (mutually exclusive [c])',
+        help='create user by providing a json string like: \'{"username":"test_user", \
+        "email":"test_email@gmail.com", "first_name": "test_first_name", "last_name":"test_last_name",\
+        "is_staff": true, "is_superuser": true}\' ... (mutually exclusive [c])',
     )
 
     ###########################
@@ -740,9 +802,9 @@ To use this tool you have to set the following environment variables before star
         type=str, dest="pk", help="keyword of thesaurikeywords to describe ..."
     )
 
-    #####################################
+    ###########################################
     # THESAURI KEYWORD LABEL ARGUMENT PARSING #
-    #####################################
+    ###########################################
     thesaurikeywordlabels = subparsers.add_parser(
         "tkeywordlabels", help="thesaurikeywordlabel commands"
     )
@@ -797,6 +859,8 @@ To use this tool you have to set the following environment variables before star
     match args.command:
         case "resources" | "resource":
             g_obj = GeonodeResourceHandler(env=geonode_env)
+        case "linked_resources" | "linked-resources" | "linkedresources":
+            g_obj = GeonodeLinkedResourcesHandler(env=geonode_env)
         case "dataset" | "ds":
             g_obj = GeonodeDatasetsHandler(env=geonode_env)
         case "documents" | "doc" | "document":

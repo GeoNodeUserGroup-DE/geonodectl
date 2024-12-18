@@ -1,12 +1,13 @@
 import os
 from pathlib import Path
 from typing import List, Dict
+import logging
 
-from .resources import GeonodeResourceHandler
-from .geonodetypes import GeonodeHTTPFile
-from .cmdprint import show_list, print_json
-from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
-from .executionrequest import GeonodeExecutionRequestHandler
+from geonoderest.resources import GeonodeResourceHandler
+from geonoderest.geonodetypes import GeonodeHTTPFile
+from geonoderest.cmdprint import show_list, print_json
+from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 
 
 class GeonodeDatasetsHandler(GeonodeResourceHandler):
@@ -56,7 +57,9 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             env=self.gn_credentials
         )
         er = execution_request_handler.get(exec_id=str(r["execution_id"]), **kwargs)
-
+        if er is None:
+            logging.warning("upload failed ... ")
+            return
         if kwargs["json"] is True:
             print_json(er)
         else:
@@ -149,7 +152,7 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
                     ("zip_file", (dataset_path.name, open(dataset_path, "rb")))
                 )
 
-        params = {
+        json = {
             # layer permissions
             "permissions": '{ "users": {"AnonymousUser": ["view_resourcebase"]} , "groups":{}}',
             "mosaic": mosaic,
@@ -161,6 +164,6 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         return self.http_post(
             endpoint="uploads/upload",
             files=files,
-            params=params,
+            json=json,
             content_length=content_length,
         )

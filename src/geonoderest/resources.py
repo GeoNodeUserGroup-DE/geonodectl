@@ -1,8 +1,10 @@
 from typing import List
 import requests
+import logging
 
-from .geonodeobject import GeonodeObjectHandler
-from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from geonoderest.geonodeobject import GeonodeObjectHandler
+from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from geonoderest.exceptions import GeoNodeRestException
 
 SUPPORTED_METADATA_TYPES: List[str] = [
     "Atom",
@@ -36,8 +38,11 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
             pk (int): pk id of the resource to get the metadata from
             metadata_type (str, optional): metadatatype to get metadata in. Must be in SUPPORTED_METADATA_TYPES
         """
-        metadata = self.metadata(pk=pk, metadata_type=metadata_type, **kwargs)
-        print(metadata.text)
+        r = self.metadata(pk=pk, metadata_type=metadata_type, **kwargs)
+        if r is None:
+            logging.warning("metadata download failed ... ")
+            return None
+        print(r.text)
 
     def metadata(
         self, pk: int, metadata_type: str = DEFAULT_METADATA_TYPE, **kwargs
@@ -47,16 +52,13 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
         Args:
             pk (int): pk id of the resource to get the metadata from
             metadata_type (str, optional): metadatatype to get metadata in. Must be in SUPPORTED_METADATA_TYPES
-
+        Raises:
+            KeyError: if metadata_type is not in SUPPORTED_METADATA_TYPES
         Returns:
             response (object): requests response obj of metadata
         """
         r = self.http_get(endpoint=f"resources/{pk}")["resource"]
 
         link: str
-        try:
-            link = [m for m in r["links"] if m["name"] == metadata_type][0]["url"]
-        except KeyError:
-            SystemExit(f"Could not find requested metadata type: {metadata_type}")
-        metadata = self.http_get_download(link)
-        return metadata
+        link = [m for m in r["links"] if m["name"] == metadata_type][0]["url"]
+        return self.http_get_download(link)

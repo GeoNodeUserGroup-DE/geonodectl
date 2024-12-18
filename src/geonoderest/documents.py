@@ -2,11 +2,12 @@ import os
 import mimetypes
 from pathlib import Path
 from typing import List, Optional, Dict
+import logging
 
-from .geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
-from .cmdprint import show_list, print_json
-from .resources import GeonodeResourceHandler
-from .geonodetypes import GeonodeHTTPFile
+from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
+from geonoderest.cmdprint import show_list, print_json
+from geonoderest.resources import GeonodeResourceHandler
+from geonoderest.geonodetypes import GeonodeHTTPFile
 
 
 class GeonodeDocumentsHandler(GeonodeResourceHandler):
@@ -41,6 +42,10 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         r = self.upload(
             file_path=file_path, metadata_only=metadata_only, charset=charset, **kwargs
         )
+        if r is None:
+            logging.warning("upload failed ... ")
+            return
+
         list_items = [
             ["name", r["title"]],
             ["state", r["state"]],
@@ -61,7 +66,7 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         charset: str = "UTF-8",
         metadata_only: bool = False,
         **kwargs,
-    ) -> Dict:
+    ) -> Optional[Dict]:
         """upload a document to geonode
 
         Args:
@@ -73,14 +78,14 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
             FileNotFoundError: raises file not found if the given filepath is not accessable
 
         Returns:
-            Dict: returns json response from geonode as dict
+            Optional[Dict]: returns json response from geonode as dict
         """
 
         document_path: Path = file_path
         if not document_path.exists():
             raise FileNotFoundError
 
-        params = {
+        json = {
             # layer permissions
             "permissions": '{ "users": {"AnonymousUser": ["view_resourcebase"]} , "groups":{}}',
             "charset": charset,
@@ -102,7 +107,9 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         r = self.http_post(
             endpoint="documents",
             files=files,
-            params=params,
+            json=json,
             content_length=content_length,
-        )["document"]
-        return r
+        )
+        if r is None:
+            return None
+        return r["document"]

@@ -3,10 +3,10 @@ import sys
 import logging
 from typing import Dict, Optional
 
-from .resources import GeonodeResourceHandler
-from .geonodeobject import GeonodeObjectHandler
-from .geonodetypes import GeonodeCmdOutListKey
-from .cmdprint import (
+from geonoderest.resources import GeonodeResourceHandler
+from geonoderest.geonodeobject import GeonodeObjectHandler
+from geonoderest.geonodetypes import GeonodeCmdOutListKey
+from geonoderest.cmdprint import (
     print_list_on_cmd,
     print_json,
     json_decode_error_handler,
@@ -46,8 +46,9 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         obj = self.get(
             pk, user_resources=user_resources, user_groups=user_groups, **kwargs
         )
-        # in this case print as list of ressources
-        if user_resources is True:
+        if obj is None:
+            logging.warning("describe user failed ... ")
+        elif user_resources is True and obj is not None:
             print_list_on_cmd(
                 obj["resources"], GeonodeResourceHandler.LIST_CMDOUT_HEADER
             )
@@ -91,6 +92,8 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
                 endpoint=f"{self.ENDPOINT_NAME}/{pk}",
                 params=params,
             )
+            if r is None:
+                return None
             return r[self.SINGULAR_RESOURCE_NAME]
 
     def cmd_patch(
@@ -154,7 +157,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         # The JSON content is sent as part of the request parameters.
         # The response from the API is returned.
 
-        obj = self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", data=json_content)
+        obj = self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", json=json_content)
         return obj
 
     def cmd_create(
@@ -247,7 +250,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             }
         return self.http_post(
             endpoint=self.ENDPOINT_NAME,
-            params=json_content,
+            json=json_content,
         )
 
     def delete(self, pk: int, **kwargs):
