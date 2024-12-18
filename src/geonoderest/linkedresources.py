@@ -70,6 +70,7 @@ class GeonodeLinkedResourcesHandler(GeonodeRest):
                 headers=["link_type", "pk", "resource_type", "title"],
                 values=linked_to_values + linked_by_values,
             )
+        return {}
 
     def get(self, pk, **kwargs) -> Dict:
         endpoint = f"resources/{pk}/linked_resources"

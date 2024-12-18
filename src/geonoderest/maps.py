@@ -223,7 +223,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         json_content: Optional[Dict] = None,
         maplayers: Optional[List[int]] = [],
         **kwargs,
-    ) -> Dict:
+    ) -> Optional[Dict]:
         """
         creates an (empty) map with the given title and optional maplayers
 

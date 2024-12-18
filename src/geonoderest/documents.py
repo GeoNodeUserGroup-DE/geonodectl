@@ -66,7 +66,7 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         charset: str = "UTF-8",
         metadata_only: bool = False,
         **kwargs,
-    ) -> Dict:
+    ) -> Optional[Dict]:
         """upload a document to geonode
 
         Args:
@@ -78,7 +78,7 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
             FileNotFoundError: raises file not found if the given filepath is not accessable
 
         Returns:
-            Dict: returns json response from geonode as dict
+            Optional[Dict]: returns json response from geonode as dict
         """
 
         document_path: Path = file_path

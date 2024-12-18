@@ -1,4 +1,3 @@
-import pytest
 
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.apiconf import GeonodeApiConf

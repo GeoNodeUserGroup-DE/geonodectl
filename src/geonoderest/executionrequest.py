@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 import logging
 
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
@@ -50,7 +50,7 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
         else:
             print_list_on_cmd(obj, self.LIST_CMDOUT_HEADER)
 
-    def list(self, **kwargs) -> Dict:
+    def list(self, **kwargs) -> Optional[Dict]:
         """returns dict of execution requests from geonode
 
         Returns:

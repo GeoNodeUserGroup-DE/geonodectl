@@ -31,7 +31,7 @@ class GeonodeObjectHandler(GeonodeRest):
         else:
             print_list_on_cmd(obj, self.LIST_CMDOUT_HEADER)
 
-    def list(self, **kwargs) -> Dict:
+    def list(self, **kwargs) -> Optional[Dict]:
         """returns dict of datasets from geonode
 
         Returns:
@@ -143,7 +143,7 @@ class GeonodeObjectHandler(GeonodeRest):
         obj = self.get(pk=pk, **kwargs)
         print_json(obj)
 
-    def get(self, pk: int, **kwargs) -> Dict:
+    def get(self, pk: int, **kwargs) -> Optional[Dict]:
         """get details for a given pk
 
         Args:

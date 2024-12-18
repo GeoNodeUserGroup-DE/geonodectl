@@ -10,12 +10,11 @@ from geonoderest.apiconf import GeonodeApiConf
 
 urllib3.disable_warnings()
 
-
 NetworkExceptionHandlingTypes: TypeAlias = (
-    Callable[["GeonodeRest", str, Dict[Any, Any]], Dict[Any, Any]]
-    | Callable[["GeonodeRest", str], Dict[Any, Any]]
-)
-
+    Callable[["GeonodeRest", str, Dict, Dict, Optional[List[GeonodeHTTPFile]],Optional[int]], Optional[Dict]] |  # http_post
+    Callable[["GeonodeRest", str, Dict], Optional[Dict] | Optional[requests.Response] ] | # http_get_download, http_get
+    Callable[["GeonodeRest", str,Dict,Dict], Optional[Dict]]
+) 
 
 class GeonodeRest(object):
     DEFAULTS = {"page_size": 100, "page": 1}
@@ -122,11 +121,11 @@ class GeonodeRest(object):
     def http_post(
         self,
         endpoint: str,
-        files: Optional[List[GeonodeHTTPFile]] = None,
         json: Dict = {},
         params: Dict = {},
+        files: Optional[List[GeonodeHTTPFile]] = None,
         content_length: Optional[int] = None,
-    ) -> Dict:
+    ) -> Optional[Dict]:
         """
         Execute http post on endpoint with params
 
@@ -163,7 +162,7 @@ class GeonodeRest(object):
         return r.json()
 
     @network_exception_handling
-    def http_get_download(self, url: str) -> Dict:
+    def http_get_download(self, url: str, params: Dict = {}) -> Optional[requests.Response]:
         """raw get url
 
         Args:
@@ -176,7 +175,7 @@ class GeonodeRest(object):
             object: returns downloaded data
         """
         try:
-            r = requests.get(url, headers=self.header, verify=self.verify)
+            r = requests.get(url, headers=self.header, params=params, verify=self.verify)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             logging.error(err)
@@ -184,7 +183,7 @@ class GeonodeRest(object):
         return r
 
     @network_exception_handling
-    def http_get(self, endpoint: str, params: Dict = {}) -> Dict:
+    def http_get(self, endpoint: str, params: Dict = {}) -> Optional[Dict]:
         """
         Execute HTTP GET request on the specified endpoint with optional parameters.
 
@@ -211,7 +210,7 @@ class GeonodeRest(object):
         return r.json()
 
     @network_exception_handling
-    def http_patch(self, endpoint: str, json: Dict = {}, params: Dict = {}) -> Dict:
+    def http_patch(self, endpoint: str, json: Dict = {}, params: Dict = {}) -> Optional[Dict]:
         """
         Execute HTTP PATCH request on the specified endpoint with optional parameters.
 
@@ -238,7 +237,7 @@ class GeonodeRest(object):
         return r.json()
 
     @network_exception_handling
-    def http_delete(self, endpoint: str, json: Dict = {}, params: Dict = {}) -> Dict:
+    def http_delete(self, endpoint: str, json: Dict = {}, params: Dict = {}) -> Optional[Dict]:
         """
         Execute HTTP DELETE request on the specified endpoint with optional parameters.
 

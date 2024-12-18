@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import argparse
-from typing import List, Union
+from typing import Union
 from argparse import RawTextHelpFormatter
 from pathlib import Path
 
@@ -76,7 +76,7 @@ class kwargs_append_action(argparse.Action):
     def __call__(self, parser, args, values, option_string=None):
         try:
             d = dict(map(lambda x: x.split("="), values))
-        except ValueError as ex:
+        except ValueError as _:
             raise argparse.ArgumentError(
                 self,
                 f'Could not parse argument "{values}" as field_name1=new_value1 field_name2=new_value2 ... format',
@@ -90,7 +90,7 @@ def geonodectl():
         prog="geonodectl",
         description=f"""geonodectl is a cmd client for the geonodev4 rest-apiv2.
 To use this tool you have to set the following environment variables before starting:
-  
+
 {GEONODECTL_URL_ENV_VAR}: https://geonode.example.com/api/v2/ -- path to the v2 endpoint of your target geonode instance
 {GEONODECTL_BASIC_ENV_VAR}: YWRtaW46YWRtaW4= -- you can generate this string like: echo -n user:password | base64
 """,
@@ -352,7 +352,8 @@ To use this tool you have to set the following environment variables before star
         action=kwargs_append_action,
         dest="filter",
         type=str,
-        help="filter document by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
+        help="filter document by key value pairs. E.g. --filter \
+          is_published=true owner.username=admin, or --filter title=test",
     )
     # UPLOAD
     documents_upload = documents_subparsers.add_parser(
@@ -371,7 +372,8 @@ To use this tool you have to set the following environment variables before star
         "--metadata-only",
         action="store_true",
         dest="metadata_only",
-        help="if set no landing page for the document will be generated, but file is downloadable through link",
+        help="if set no landing page for the document will be generated, \
+          but file is downloadable through link",
     )
 
     # PATCH
@@ -475,7 +477,8 @@ To use this tool you have to set the following environment variables before star
         "--set",
         dest="fields",
         type=str,
-        help='add metadata by providing a json string like: \'\'{ "category": {"identifier": "farming"}, "abstract": "test abstract" }\'\'',
+        help='add metadata by providing a json string like: \
+          \'\'{ "category": {"identifier": "farming"}, "abstract": "test abstract" }\'\'',
     )
 
     maps_create_mutually_exclusive_group.add_argument(
@@ -678,14 +681,17 @@ To use this tool you have to set the following environment variables before star
         "--json_path",
         dest="json_path",
         type=str,
-        help="add metadata (user credentials) by providing a path to a json file, like --set written in file ...(mutually exclusive [b])",
+        help="add metadata (user credentials) by providing a path to a \
+          json file, like --set written in file ...(mutually exclusive [b])",
     )
 
     user_create_mutually_exclusive_group.add_argument(
         "--set",
         dest="fields",
         type=str,
-        help='create user by providing a json string like: \'{"username":"test_user", "email":"test_email@gmail.com", "first_name": "test_first_name", "last_name":"test_last_name", "is_staff": true, "is_superuser": true}\' ... (mutually exclusive [c])',
+        help='create user by providing a json string like: \'{"username":"test_user", \
+        "email":"test_email@gmail.com", "first_name": "test_first_name", "last_name":"test_last_name",\
+        "is_staff": true, "is_superuser": true}\' ... (mutually exclusive [c])',
     )
 
     ###########################

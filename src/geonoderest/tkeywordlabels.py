@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
 from geonoderest.geonodeobject import GeonodeObjectHandler
@@ -15,7 +15,7 @@ class GeonodeThesauriKeywordLabelsRequestHandler(GeonodeObjectHandler):
         GeonodeCmdOutListKey(key="label"),
     ]
 
-    def get(self, pk: int, **kwargs) -> Dict:
+    def get(self, pk: int, **kwargs) -> Optional[Dict]:
         """
         get details for a given keyword (identifier)
 

@@ -30,4 +30,4 @@ jobs:
           python -m pip install --upgrade pip mypy==1.10.0
           pip install -e .
       - name: Test with mypy
-        run: "mypy -p src.geonoderest --check-untyped-defs"
+        run: "mypy -p src.geonoderest --check-untyped-defs --disable-error-code=import-untyped"
