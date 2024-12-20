@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = 'geonodectl'
-version="0.2.0"
+version="0.2.1"
 description="a commandline interface tool for Geonode Rest API v2"
 authors = [{ name = "marcel wallschlaeger", email="marcel.wallschlaeger@zalf.de" }]
 readme = "README.md"
@@ -30,6 +30,6 @@ geonodectl = "geonoderest.geonodectl:geonodectl"
 minversion = "6.0"
 addopts = "-ra -q"
 testpaths = [
-    "src/geonoderest/tests/",
+    "src/geonoderest/",
 
 ]

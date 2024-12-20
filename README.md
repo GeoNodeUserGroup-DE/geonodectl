@@ -7,7 +7,7 @@
 first install the project with:
 
 ```
-pip install  -e 'git+https://github.com/GeoNodeUserGroup-DE/geonodectl.git@main#egg=geonodectl'
+pip install  -e 'git+https://github.com/GeoNodeUserGroup-DE/geonodectl.git@v0.2.1#egg=geonodectl'
 ```
 
 Additionally to package install, **geonodectl** requires to set two environment variables to connect to a geonode instance like:
