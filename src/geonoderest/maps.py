@@ -154,12 +154,13 @@ class GeonodeMapsHandler(GeonodeObjectHandler):
         return blob
 
     def __build_blob_maplayer__(
-        self, maplayer_uuid: str, 
-        ds_title: str, 
-        alternate: str, 
-        dataset: Dict, 
-        hidden: bool = True, 
-        visibility: bool = True
+        self,
+        maplayer_uuid: str,
+        ds_title: str,
+        alternate: str,
+        dataset: Dict,
+        hidden: bool = True,
+        visibility: bool = True,
     ):
         """
         Builds a blob layer with provided map layer UUID, dataset title, name, and dataset information.
@@ -261,14 +262,19 @@ class GeonodeMapsHandler(GeonodeObjectHandler):
 
                 hidden = True
                 visibility = True
-                if dataset["subtype"] == 'tabular':
+                if dataset["subtype"] == "tabular":
                     visibility = False
                     hidden = False
 
                 # append map.blob.layer to blob data
                 blob["map"]["layers"].append(
                     self.__build_blob_maplayer__(
-                        maplayer_uuid, dataset["title"], dataset["alternate"], dataset, hidden=hidden, visibility=visibility
+                        maplayer_uuid,
+                        dataset["title"],
+                        dataset["alternate"],
+                        dataset,
+                        hidden=hidden,
+                        visibility=visibility,
                     )
                 )
 
@@ -304,7 +310,6 @@ class GeonodeMapsHandler(GeonodeObjectHandler):
         if r is None:
             return None
         return r[self.SINGULAR_RESOURCE_NAME]
-
 
     # def patch(
     #     self,
