@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 
 from geonoderest.cmdprint import print_json, json_decode_error_handler
 from geonoderest.datasets import GeonodeDatasetsHandler
-from geonoderest.resources import GeonodeResourceHandler
+from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import (
     GeonodeCmdOutListKey,
     GeonodeCmdOutDictKey,
@@ -17,7 +17,7 @@ OGC_WFS_LINK_TYPE = "OGC:WFS"
 OGC_WCS_LINK_TYPE = "OGC:WCS"
 
 
-class GeonodeMapsHandler(GeonodeResourceHandler):
+class GeonodeMapsHandler(GeonodeObjectHandler):
     ENDPOINT_NAME = JSON_OBJECT_NAME = "maps"
     SINGULAR_RESOURCE_NAME = "map"
 
@@ -154,7 +154,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         return blob
 
     def __build_blob_maplayer__(
-        self, maplayer_uuid: str, ds_title: str, alternate: str, dataset: Dict
+        self, maplayer_uuid: str, 
+        ds_title: str, 
+        alternate: str, 
+        dataset: Dict, 
+        hidden: bool = True, 
+        visibility: bool = True
     ):
         """
         Builds a blob layer with provided map layer UUID, dataset title, name, and dataset information.
@@ -194,12 +199,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             "type": ptype,
             "style": alternate,
             "title": ds_title,
-            "hidden": False,
+            "hidden": hidden,
             "search": {"url": wfs_url, "type": "wfs"},
             "expanded": False,
             "dimensions": [],
             "singleTile": False,
-            "visibility": True,
+            "visibility": visibility,
             "featureInfo": {
                 "format": "TEMPLATE",
                 "template": '<div style="overflow-x:hidden"><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">SITE_ID:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'SITE_ID\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">STAT_NUM:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'STAT_NUM\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">NAME:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'NAME\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">FAO_SOIL:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'FAO_SOIL\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">COUNTRY:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'COUNTRY\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">LOCALMSSG:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'LOCALMSSG\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">TOP_DEPTH_GW:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'TOP_DEPTH_GW\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">BOT_DEPTH_GW:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'BOT_DEPTH_GW\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">SITEDESCRIP:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'SITEDESCRIP\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">SAMPLEDATE:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'SAMPLEDATE\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">ANNRAIN:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'ANNRAIN\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">AVE_JAN_TEMP:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'AVE_JAN_TEMP\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">AVE_JUL_TEMP:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'AVE_JUL_TEMP\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">NUMBER_HOR:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'NUMBER_HOR\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">X_ETRS89:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'X_ETRS89\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">Y_ETRS89:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'Y_ETRS89\']}</div></div><div class="row"><div class="col-xs-6" style="font-weight: bold; word-wrap: break-word;">ZONE:</div>                             <div class="col-xs-6" style="word-wrap: break-word;">${properties[\'ZONE\']}</div></div></div>',
@@ -254,10 +259,16 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                 # uuid to connect blob layer with api.maplayer
                 maplayer_uuid = str(uuid.uuid4())
 
+                hidden = True
+                visibility = True
+                if dataset["subtype"] == 'tabular':
+                    visibility = False
+                    hidden = False
+
                 # append map.blob.layer to blob data
                 blob["map"]["layers"].append(
                     self.__build_blob_maplayer__(
-                        maplayer_uuid, dataset["title"], dataset["alternate"], dataset
+                        maplayer_uuid, dataset["title"], dataset["alternate"], dataset, hidden=hidden, visibility=visibility
                     )
                 )
 
@@ -269,7 +280,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                         # "dataset": dataset,
                         "name": dataset["alternate"],
                         "order": order,
-                        "visibility": True,
+                        "visibility": visibility,
                         "opacity": 1.0,
                     }
                 )
@@ -293,3 +304,13 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         if r is None:
             return None
         return r[self.SINGULAR_RESOURCE_NAME]
+
+
+    # def patch(
+    #     self,
+    #     pk: int,
+    #     json_content: Optional[Dict] = None,
+    #     **kwargs,
+    # ):
+    #     obj = self.http_patch(endpoint=f"resources/{pk}/", json=json_content)
+    #     return obj
