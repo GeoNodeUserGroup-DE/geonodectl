@@ -33,6 +33,8 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         charset: str = "UTF-8",
         time: bool = False,
         mosaic: bool = False,
+        overwrite_existing_layer: bool = False,
+        skip_existing_layers: bool = False,
         **kwargs,
     ):
         """upload data and show them on the cmdline
@@ -48,6 +50,8 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             charset=charset,
             time=time,
             mosaic=mosaic,
+            overwrite_existing_layer=overwrite_existing_layer,
+            skip_existing_layers=skip_existing_layers,
             **kwargs,
         )
         if "execution_id" not in r:
@@ -78,6 +82,8 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         charset: str = "UTF-8",
         time: bool = False,
         mosaic: bool = False,
+        overwrite_existing_layer: bool = False,
+        skip_existing_layers: bool = False,
         **kwargs,
     ) -> Dict:
         """Upload dataset to geonode.
@@ -159,11 +165,13 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             "time": str(time),
             "charset": charset,
             "non_interactive": True,
+            "overwrite_existing_layer": overwrite_existing_layer,
+            "skip_existing_layers": skip_existing_layers,
         }
 
         return self.http_post(
             endpoint="uploads/upload",
             files=files,
-            json=json,
+            data=json,
             content_length=content_length,
         )
