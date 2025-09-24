@@ -284,14 +284,24 @@ To use this tool you have to set the following environment variables before star
         default=DEFAULT_CHARSET,
         help="uploads dataset as timeseries",
     )
-
     datasets_upload.add_argument(
         "--mosaic",
         action="store_true",
         dest="mosaic",
         help="declare dataset upload as mosaic",
     )
-
+    datasets_upload.add_argument(
+        "--overwrite-existing-layer",
+        action="store_true",
+        dest="overwrite_existing_layer",
+        help="set overwrite existing layer for upload",
+    )
+    datasets_upload.add_argument(
+        "--skip-existing-layer",
+        action="store_true",
+        dest="skip_existing_layers",
+        help="set skip existing layer for upload",
+    )
     # PATCH
     datasets_patch = datasets_subparsers.add_parser(
         "patch", help="patch datasets metadata"

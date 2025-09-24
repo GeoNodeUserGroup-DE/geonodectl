@@ -136,6 +136,7 @@ class GeonodeRest(object):
         endpoint: str,
         json: Dict = {},
         params: Dict = {},
+        data: Dict = {},
         files: Optional[List[GeonodeHTTPFile]] = None,
         content_length: Optional[int] = None,
     ) -> Optional[Dict]:
@@ -158,13 +159,13 @@ class GeonodeRest(object):
         if content_length:
             self.header["content-length"] = content_length
         url = self.url + endpoint
-
         try:
             r = requests.post(
                 url,
                 headers=self.header,
                 files=files,
                 json=json,
+                data=data,
                 params=params,
                 verify=self.verify,
             )
