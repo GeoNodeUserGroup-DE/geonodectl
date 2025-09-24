@@ -11,17 +11,6 @@ from geonoderest.geonodetypes import GeonodeCmdOutListKey
 class GeonodeAttributeHandler(GeonodeRest):
     """docstring for GeonodeAttributeHandler"""
 
-    ENDPOINT_NAME = JSON_OBJECT_NAME = "attributes"
-    SINGULAR_RESOURCE_NAME = "attribute"
-    JSON_OBJECT_NAME = "attributes"
-
-    LIST_CMDOUT_HEADER = [
-        GeonodeCmdOutListKey(key="pk"),
-        #    GeonodeCmdOutListKey(key="attribute"),
-        #    GeonodeCmdOutListKey(key="attribute_label"),
-        #    GeonodeCmdOutListKey(key="attribute_type"),
-    ]
-
     def get(self, pk, **kwargs) -> Dict:
         """
         Get the attributes for a dataset.
