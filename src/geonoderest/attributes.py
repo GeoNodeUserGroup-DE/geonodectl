@@ -17,11 +17,10 @@ class GeonodeAttributeHandler(GeonodeRest):
 
     LIST_CMDOUT_HEADER = [
         GeonodeCmdOutListKey(key="pk"),
-    #    GeonodeCmdOutListKey(key="attribute"),
-    #    GeonodeCmdOutListKey(key="attribute_label"),
-    #    GeonodeCmdOutListKey(key="attribute_type"),
+        #    GeonodeCmdOutListKey(key="attribute"),
+        #    GeonodeCmdOutListKey(key="attribute_label"),
+        #    GeonodeCmdOutListKey(key="attribute_type"),
     ]
-
 
     def get(self, pk, **kwargs) -> Dict:
         """
@@ -31,14 +30,13 @@ class GeonodeAttributeHandler(GeonodeRest):
 
         return self.http_get(endpoint=endpoint)
 
-
     def cmd_describe(self, pk: int, **kwargs) -> Dict:
         """
-         Describe the attributes of a dataset.
-         
-         :param pk: primary key of the dataset
-         :param kwargs: additional keyword arguments
-         :return: dictionary containing the attributes of the dataset
+        Describe the attributes of a dataset.
+
+        :param pk: primary key of the dataset
+        :param kwargs: additional keyword arguments
+        :return: dictionary containing the attributes of the dataset
         """
 
         obj = self.get(pk, **kwargs)
@@ -47,11 +45,23 @@ class GeonodeAttributeHandler(GeonodeRest):
         else:
 
             attributes = [
-                [attr["pk"], attr["attribute"], attr["attribute_label"], attr['description'], attr["attribute_type"]]
+                [
+                    attr["pk"],
+                    attr["attribute"],
+                    attr["attribute_label"],
+                    attr["description"],
+                    attr["attribute_type"],
+                ]
                 for attr in obj["attributes"]
             ]
             show_list(
-                headers=["pk", "attribute", "attribute_label", 'description', "attribute_type"],
+                headers=[
+                    "pk",
+                    "attribute",
+                    "attribute_label",
+                    "description",
+                    "attribute_type",
+                ],
                 values=attributes,
             )
         return {}

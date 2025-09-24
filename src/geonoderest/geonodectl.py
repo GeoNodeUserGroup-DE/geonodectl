@@ -234,7 +234,6 @@ To use this tool you have to set the following environment variables before star
         type=int, dest="pk", help="pk of dataset to describe ..."
     )
 
-
     ####################################
     # ATTRIBUTE_TABLE ARGUMENT PARSING #
     ####################################
@@ -243,14 +242,16 @@ To use this tool you have to set the following environment variables before star
         "attributes",
         description="valid subcommands:",
         help="attribute commands",
-        aliases=("attr","attributes"),
+        aliases=("attr", "attributes"),
     )
     attributes_subparsers = attributes.add_subparsers(
         help="geonodectl attribute commands", dest="subcommand", required=True
     )
 
     # DESCRIBE
-    attributes_describe = attributes_subparsers.add_parser("describe", help="describe attribute table")
+    attributes_describe = attributes_subparsers.add_parser(
+        "describe", help="describe attribute table"
+    )
     attributes_describe.add_argument(
         type=int, dest="pk", help="pk of attribute to describe ..."
     )
