@@ -26,6 +26,7 @@ from geonoderest.keywords import GeonodeKeywordsRequestHandler
 from geonoderest.tkeywords import GeonodeThesauriKeywordsRequestHandler
 from geonoderest.tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
 from geonoderest.linkedresources import GeonodeLinkedResourcesHandler
+from geonoderest.attributes import GeonodeAttributeHandler
 
 GEONODECTL_URL_ENV_VAR: str = "GEONODE_API_URL"
 GEONODECTL_BASIC_ENV_VAR: str = "GEONODE_API_BASIC_AUTH"
@@ -231,6 +232,28 @@ To use this tool you have to set the following environment variables before star
     )
     linked_resource_describe_subparser.add_argument(
         type=int, dest="pk", help="pk of dataset to describe ..."
+    )
+
+    ####################################
+    # ATTRIBUTE_TABLE ARGUMENT PARSING #
+    ####################################
+
+    attributes = subparsers.add_parser(
+        "attributes",
+        description="valid subcommands:",
+        help="attribute commands",
+        aliases=("attr", "attributes"),
+    )
+    attributes_subparsers = attributes.add_subparsers(
+        help="geonodectl attribute commands", dest="subcommand", required=True
+    )
+
+    # DESCRIBE
+    attributes_describe = attributes_subparsers.add_parser(
+        "describe", help="describe attribute table"
+    )
+    attributes_describe.add_argument(
+        type=int, dest="pk", help="pk of attribute to describe ..."
     )
 
     ############################
@@ -871,6 +894,8 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeResourceHandler(env=geonode_env)
         case "linked_resources" | "linked-resources" | "linkedresources":
             g_obj = GeonodeLinkedResourcesHandler(env=geonode_env)
+        case "attr" | "attribute" | "attributes":
+            g_obj = GeonodeAttributeHandler(env=geonode_env)
         case "dataset" | "ds":
             g_obj = GeonodeDatasetsHandler(env=geonode_env)
         case "documents" | "doc" | "document":
