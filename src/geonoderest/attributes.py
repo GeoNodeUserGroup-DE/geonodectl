@@ -10,7 +10,6 @@ from geonoderest.geonodetypes import GeonodeCmdOutListKey
 
 class GeonodeAttributeHandler(GeonodeRest):
     """docstring for GeonodeAttributeHandler"""
-    
 
     def get(self, pk, **kwargs) -> Dict:
         """
