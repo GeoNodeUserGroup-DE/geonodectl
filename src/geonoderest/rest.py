@@ -61,6 +61,12 @@ class GeonodeRest(object):
                 field = "filter{" + field + "}"
                 params[field] = value
 
+        if "search" in kwargs and kwargs["search"] is not None:
+            params["search"] = kwargs["search"]
+
+        if "ordering" in kwargs and kwargs["ordering"] is not None:
+            params["sort_by"] = kwargs["ordering"]
+
         return params
 
     @staticmethod
@@ -160,6 +166,9 @@ class GeonodeRest(object):
             self.header["content-length"] = content_length
         url = self.url + endpoint
         try:
+            logging.debug(
+                f"POST URL: {url}, headers: {self.header}, params: {params}, json: {json}, data: {data}"
+            )
             r = requests.post(
                 url,
                 headers=self.header,
@@ -191,6 +200,7 @@ class GeonodeRest(object):
             object: returns downloaded data
         """
         try:
+            logging.debug(f"GET URL: {url}, headers: {self.header}, params: {params}")
             r = requests.get(
                 url, headers=self.header, params=params, verify=self.verify
             )
@@ -218,6 +228,7 @@ class GeonodeRest(object):
 
         url = self.url + endpoint
         try:
+            logging.debug(f"GET URL: {url}, headers: {self.header}, params: {params}")
             r = requests.get(
                 url, headers=self.header, params=params, verify=self.verify
             )
@@ -247,6 +258,9 @@ class GeonodeRest(object):
         """
         url = self.url + endpoint
         try:
+            logging.debug(
+                f"PATCH URL: {url}, headers: {self.header}, params: {params}, json: {json}"
+            )
             r = requests.patch(
                 url, headers=self.header, json=json, params=params, verify=self.verify
             )
@@ -277,6 +291,9 @@ class GeonodeRest(object):
         url = self.url + endpoint
 
         try:
+            logging.debug(
+                f"DELETE URL: {url}, headers: {self.header}, params: {params}, json: {json}"
+            )
             r = requests.delete(
                 url, headers=self.header, params=params, json=json, verify=self.verify
             )
