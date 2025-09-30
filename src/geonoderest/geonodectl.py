@@ -163,7 +163,7 @@ To use this tool you have to set the following environment variables before star
         dest="ordering",
         default="date_updated",
         type=str,
-        help="Which field to use when ordering the results. --ordering title",
+        help="Which field to use when ordering the results. --ordering title (default: date_updated)",
     )
     resource_list.add_argument(
         "--search",
@@ -307,7 +307,7 @@ To use this tool you have to set the following environment variables before star
         dest="ordering",
         default="date_updated",
         type=str,
-        help="Which field to use when ordering the results. --ordering title",
+        help="Which field to use when ordering the results. --ordering title (default: date_updated)",
     )
     datasets_list.add_argument(
         "--search",
@@ -429,7 +429,7 @@ To use this tool you have to set the following environment variables before star
         dest="ordering",
         default="date_updated",
         type=str,
-        help="Which field to use when ordering the results. --ordering title",
+        help="Which field to use when ordering the results. --ordering title (default: date_updated)",
     )
     documents_list.add_argument(
         "--search",
@@ -522,7 +522,7 @@ To use this tool you have to set the following environment variables before star
         dest="ordering",
         default="date_updated",
         type=str,
-        help="Which field to use when ordering the results. --ordering title",
+        help="Which field to use when ordering the results. --ordering title (default: date_updated)",
     )
 
     maps_list.add_argument(
@@ -621,7 +621,7 @@ To use this tool you have to set the following environment variables before star
         dest="ordering",
         default="date_updated",
         type=str,
-        help="Which field to use when ordering the results. --ordering title",
+        help="Which field to use when ordering the results. --ordering title (default: date_updated)",
     )
     geoapps_list.add_argument(
         "--search",
@@ -735,9 +735,9 @@ To use this tool you have to set the following environment variables before star
     users_list.add_argument(
         "--ordering",
         dest="ordering",
-        default="date_updated",
+        default="pk",
         type=str,
-        help="Which field to use when ordering the results. --ordering username",
+        help="Which field to use when ordering the results. --ordering username (default: pk)",
     )
     users_list.add_argument(
         "--search",
@@ -882,9 +882,9 @@ To use this tool you have to set the following environment variables before star
     executionrequest_list.add_argument(
         "--ordering",
         dest="ordering",
-        default="date_updated",
+        default="created",
         type=str,
-        help="Which field to use when ordering the results. --ordering title",
+        help="Which field to use when ordering the results. --ordering title (default: created)",
     )
     executionrequest_list.add_argument(
         "--search",
@@ -923,9 +923,9 @@ To use this tool you have to set the following environment variables before star
     keywords_list.add_argument(
         "--ordering",
         dest="ordering",
-        default="date_updated",
+        default="id",
         type=str,
-        help="Which field to use when ordering the results. --ordering title",
+        help="Which field to use when ordering the results. --ordering name (default: id)",
     )
     keywords_list.add_argument(
         "--search",
@@ -969,9 +969,9 @@ To use this tool you have to set the following environment variables before star
     thesaurikeywords_list.add_argument(
         "--ordering",
         dest="ordering",
-        default="date_updated",
+        default="keyword",
         type=str,
-        help="Which field to use when ordering the results. --ordering title",
+        help="Which field to use when ordering the results. --ordering keyword (default: keyword)",
     )
     thesaurikeywords_list.add_argument(
         "--search",
@@ -1017,9 +1017,9 @@ To use this tool you have to set the following environment variables before star
     thesaurikeywordlabels_list.add_argument(
         "--ordering",
         dest="ordering",
-        default="date_updated",
+        default="keyword",
         type=str,
-        help="Which field to use when ordering the results. --ordering title",
+        help="Which field to use when ordering the results. --ordering keyword (default: keyword)",
     )
     thesaurikeywordlabels_list.add_argument(
         "--search",
