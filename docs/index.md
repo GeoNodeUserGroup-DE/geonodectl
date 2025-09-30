@@ -51,8 +51,6 @@ echo -n user:password | base64
 
 ## Usage
 
-* [exmaple docs](docs/example.md) example to upload and edit a dataset with geonodectl
-
 Get help and see available commands:
 ```bash
 geonodectl --help
