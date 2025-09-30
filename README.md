@@ -135,3 +135,24 @@ check if deleted:
 ```
 
 Inside the `json-examples` folder you can find examples on howto, e.g. patch a dataset to define certain fields.
+
+## Contribution
+
+### Create an Issue
+
+You found a bug :lady_beetle:? 
+You have an idea how to improve :bulb:?
+Feel free to [create an issue](https://github.com/GeoNodeUserGroup-DE/geonodectl/issues/new/choose)!
+
+
+### Code contribution
+
+There is a pre-commit hook configuration so please ensure you install it into your local working copy via
+
+```
+pip install .[test]
+pre-commit install
+pre-commit install-hooks
+```
+
+before commit to the project. Thanks!
