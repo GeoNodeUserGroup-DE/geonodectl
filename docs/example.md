@@ -1,0 +1,119 @@
+## How to use
+
+geonodectl has currently the following capabilities:
+```
+geonodectl --help
+usage: geonodectl [-h] [--not-verify-ssl] [--raw] [--page-size PAGE_SIZE] [--page PAGE]
+                  {resources,resource,dataset,ds,documents,doc,document,maps,geoapps,apps,users,user,uploads,executionrequest,tkeywords,tkeywordlabels}
+                  ...
+
+geonodectl is a cmd client for the geonodev4 rest-apiv2.
+To use this tool you have to set the following environment variables before starting:
+  
+GEONODE_API_URL: https://geonode.example.com/api/v2/ -- path to the v2 endpoint of your target geonode instance
+GEONODE_API_BASIC_AUTH: YWRtaW46YWRtaW4= -- you can generate this string like: echo -n user:password | base64
+
+positional arguments:
+  {resources,resource,dataset,ds,documents,doc,document,maps,geoapps,apps,users,user,uploads,executionrequest,tkeywords,tkeywordlabels}
+                        geonodectl commands
+    resources (resource)
+                        resource commands
+    dataset (ds)        dataset commands
+    documents (doc,document)
+                        document commands
+    maps                maps commands
+    geoapps (apps)      geoapps commands
+    users (user)        user | users commands
+    uploads             uploads commands
+    executionrequest    executionrequest commands
+    tkeywords           thesaurikeyword commands
+    tkeywordlabels      thesaurikeywordlabel commands
+
+options:
+  -h, --help            show this help message and exit
+  --not-verify-ssl      allow to request domains with unsecure ssl certificates ...
+  --raw, --json         return output as raw response json as it comes from the rest API
+  --page-size PAGE_SIZE
+                        Number of results to return per page
+  --page PAGE            A page number within the paginated result set
+
+```
+
+Currently not all features of the API are implemented. Here is a list of what you can do with geonodectl:
+| geonode resource | capabilities |
+|------------------|--------------|
+| resource         | list, delete, download metadata |
+| dataset          | list, delete, patch, describe, upload |
+| documents        | list, delete, patch, describe, upload |
+| maps             | list, delete, patch, describe, create |
+| geoapps          | list, delete, patch, describe |
+| users            | list, delete, patch, describe, create |
+| uploads          | list, describe |
+| executionrequest | list, describe |
+| keywords         | list, describe |
+| tkeywords        | list, describe | 
+| tkeywordlabels   | list, describe |
+
+This project is WIP, so feel free to add more capabilities.
+
+
+Now, here is how you can upload a shape file using geonodectl:
+```
+❯ ./geonodectl ds upload -f ~/data/geolocation.shp -t example-shape
+| key     | value                                       |
+|---------|---------------------------------------------|
+| title   | example-shape                               |
+| success | True                                        |
+| status  | finished                                    |
+| bbox    | 13.1832819,52.4059715,13.5891838,52.5867805 |
+| crs     | {'type': 'name', 'properties': 'EPSG:4326'} |
+| url     | /catalogue/#/dataset/36                     |
+```
+
+show all datasets:
+```
+❯ ./geonodectl dataset list
+|   pk | title                       | owner.username   | date                        | is_approved   | is_published   | state     | detail_url                                              |
+|------|-----------------------------|------------------|-----------------------------|---------------|----------------|-----------|---------------------------------------------------------|
+|   36 | example-shape               | admin            | 2023-02-06T14:52:31.991113Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/36 |
+|   35 | gps_mastertable_prieros2015 | thomas           | 2023-02-06T14:16:45.375526Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/35 |
+|   34 | layer                       | thomas           | 2023-02-06T10:08:12.182176Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/34 |
+|   33 | a__30                       | admin            | 2023-02-03T13:18:27.715898Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/33 |
+|   28 | test                        | admin            | 2023-02-03T11:30:00.609472Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/28 |
+|   13 | geolocation3                | mwall            | 2023-02-02T12:15:25.477127Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/13 |
+|   12 | geolocation2                | mwall            | 2023-02-02T11:53:19.231994Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/12 |
+|   11 | geolocation1                | mwall            | 2023-02-02T11:51:28.975906Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/11 |
+|    6 | geolocation0                | mwall            | 2023-02-02T11:03:06.859857Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/6  |
+|    5 | arh                         | admin            | 2023-01-31T09:11:00Z        | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/5  |
+|    4 | data_00                     | admin            | 2023-01-25T15:56:05.026049Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/4  |
+|    3 | geolocation                 | admin            | 2023-01-25T15:23:44.439151Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/3  |
+|    2 | data_0                      | admin            | 2023-01-25T15:01:51.042680Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/2  |
+|    1 | wheaterdata 2004            | admin            | 2023-01-23T10:19:00Z        | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/1  |
+```
+
+patch dataset:
+```
+geonodectl ds patch 36  --set '{"category":{"identifier":"biota"}}'
+...
+```
+
+patch dataset from jsonb:
+```
+geonodectl ds patch 36  --json_path 'path_to/your_json_with_attributes_to_patch.json'
+```
+
+delete dataset:
+```
+❯ ./geonodectl ds delete 36
+deleted ...
+```
+
+check if deleted:
+```
+./geonodectl ds list
+|   pk | title                       | owner.username   | date                        | is_approved   | is_published   | state     | detail_url                                              |
+|------|-----------------------------|------------------|-----------------------------|---------------|----------------|-----------|---------------------------------------------------------|
+|   35 | gps_mastertable_prieros2015 | thomas           | 2023-02-06T14:16:45.375526Z | True          | True           | PROCESSED | https://geonode.corki.bonares.de/catalogue/#/dataset/35 |
+```
+
+Inside the `json-examples` folder you can find examples on howto, e.g. patch a dataset to define certain fields.
