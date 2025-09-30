@@ -134,7 +134,8 @@ To use this tool you have to set the following environment variables before star
     )
 
     parser.add_argument(
-        "-v","--verbose",
+        "-v",
+        "--verbose",
         dest="verbose",
         action="store_true",
         default=False,
@@ -315,7 +316,7 @@ To use this tool you have to set the following environment variables before star
         required=False,
         help="A search term to filter the results by. --search water",
     )
-    
+
     # UPLOAD
     datasets_upload = datasets_subparsers.add_parser(
         "upload", help="upload new datasets"
@@ -437,7 +438,7 @@ To use this tool you have to set the following environment variables before star
         required=False,
         help="A search term to filter the results by. --search water",
     )
-    
+
     # UPLOAD
     documents_upload = documents_subparsers.add_parser(
         "upload", help="upload new datasets"
@@ -523,7 +524,7 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help="Which field to use when ordering the results. --ordering title",
     )
-    
+
     maps_list.add_argument(
         "--search",
         dest="search",
@@ -531,6 +532,7 @@ To use this tool you have to set the following environment variables before star
         required=False,
         help="A search term to filter the results by. --search water",
     )
+
     # PATCH
     maps_patch = maps_subparsers.add_parser("patch", help="patch maps metadata")
     maps_patch.add_argument(type=int, dest="pk", help="pk of map to patch")

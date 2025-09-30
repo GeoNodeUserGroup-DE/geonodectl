@@ -27,7 +27,6 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip mypy==1.10.0
-          pip install -e .
+          python -m pip install .[test]
       - name: Test with mypy
         run: "mypy -p src.geonoderest --check-untyped-defs --disable-error-code=import-untyped"

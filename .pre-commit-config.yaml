@@ -9,16 +9,30 @@ repos:
         entry: black
         language: system
         types: [python]
-        args: ["src/"]
+        args: ["--check", "src/"]
       - id: mypy
         name: mypy
         entry: mypy
         language: system
         types: [python]
-        args: ["src/"]
-      - id: flake8
-        name: flake8
+        args: ["--check-untyped-defs", "--disable-error-code=import-untyped"]
+      - id: flake8-syntax
+        name: flake8-syntax
         entry: flake8
         language: system
         types: [python]
-        args: ["src/"]
+        args:
+          ["--count", "--select=E9,F63,F7,F82", "--show-source", "--statistics"]
+      - id: flake8-line-length
+        name: flake8-line-length
+        entry: flake8
+        language: system
+        types: [python]
+        args:
+          [
+            "--count",
+            "--exit-zero",
+            "--max-complexity=10",
+            "--max-line-length=127",
+            "--statistics",
+          ]

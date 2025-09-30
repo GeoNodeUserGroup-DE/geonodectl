@@ -166,7 +166,9 @@ class GeonodeRest(object):
             self.header["content-length"] = content_length
         url = self.url + endpoint
         try:
-            logging.debug(f"POST URL: {url}, headers: {self.header}, params: {params}, json: {json}, data: {data}")
+            logging.debug(
+                f"POST URL: {url}, headers: {self.header}, params: {params}, json: {json}, data: {data}"
+            )
             r = requests.post(
                 url,
                 headers=self.header,
@@ -256,7 +258,9 @@ class GeonodeRest(object):
         """
         url = self.url + endpoint
         try:
-            logging.debug(f"PATCH URL: {url}, headers: {self.header}, params: {params}, json: {json}")
+            logging.debug(
+                f"PATCH URL: {url}, headers: {self.header}, params: {params}, json: {json}"
+            )
             r = requests.patch(
                 url, headers=self.header, json=json, params=params, verify=self.verify
             )
@@ -287,7 +291,9 @@ class GeonodeRest(object):
         url = self.url + endpoint
 
         try:
-            logging.debug(f"DELETE URL: {url}, headers: {self.header}, params: {params}, json: {json}")
+            logging.debug(
+                f"DELETE URL: {url}, headers: {self.header}, params: {params}, json: {json}"
+            )
             r = requests.delete(
                 url, headers=self.header, params=params, json=json, verify=self.verify
             )
