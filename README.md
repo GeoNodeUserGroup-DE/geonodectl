@@ -1,13 +1,13 @@
 # geonodectl
 
-**geonodectl** is a commandline interface tool for [geonode](https://github.com/GeoNode/geonode). It uses the [geonode apiv2](https://docs.geonode.org/en/master/devel/api/V2/index.html) to interact with a geonode installation.
+**geonodectl** is a commandline interface tool for [geonode](https://github.com/GeoNode/geonode). It uses the [geonode apiv2](https://docs.geonode.org/en/4.4.x/devel/api/V2/index.html) to interact with a geonode installation.
 
 ## Install Guide
 
 first install the project with:
 
 ```
-pip install  -e 'git+https://github.com/GeoNodeUserGroup-DE/geonodectl.git@v0.2.1#egg=geonodectl'
+pip install geonodectl
 ```
 
 Additionally to package install, **geonodectl** requires to set two environment variables to connect to a geonode instance like:
