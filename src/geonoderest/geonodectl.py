@@ -86,7 +86,6 @@ class kwargs_append_action(argparse.Action):
 
 
 def geonodectl():
-    logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(
         prog="geonodectl",
         description=f"""geonodectl is a cmd client for the geonodev4 rest-apiv2.
@@ -134,6 +133,14 @@ To use this tool you have to set the following environment variables before star
         help=" A page number within the paginated result set",
     )
 
+    parser.add_argument(
+        "-v","--verbose",
+        dest="verbose",
+        action="store_true",
+        default=False,
+        help="Enable verbose output",
+    )
+
     subparsers = parser.add_subparsers(
         help="geonodectl commands", dest="command", required=True
     )
@@ -149,7 +156,21 @@ To use this tool you have to set the following environment variables before star
     )
 
     # LIST
-    resource_subparsers.add_parser("list", help="list resource")
+    resource_list = resource_subparsers.add_parser("list", help="list resource")
+    resource_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title",
+    )
+    resource_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search uuid",
+    )
 
     # DELETE
     resource_delete = resource_subparsers.add_parser("delete", help="delete resource")
@@ -280,7 +301,21 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help="filter datasets by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
     )
-
+    datasets_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title",
+    )
+    datasets_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search water",
+    )
+    
     # UPLOAD
     datasets_upload = datasets_subparsers.add_parser(
         "upload", help="upload new datasets"
@@ -388,6 +423,21 @@ To use this tool you have to set the following environment variables before star
         help="filter document by key value pairs. E.g. --filter \
           is_published=true owner.username=admin, or --filter title=test",
     )
+    documents_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title",
+    )
+    documents_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search water",
+    )
+    
     # UPLOAD
     documents_upload = documents_subparsers.add_parser(
         "upload", help="upload new datasets"
@@ -465,6 +515,21 @@ To use this tool you have to set the following environment variables before star
         dest="filter",
         type=str,
         help="filter maps by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
+    )
+    maps_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title",
+    )
+    
+    maps_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search water",
     )
     # PATCH
     maps_patch = maps_subparsers.add_parser("patch", help="patch maps metadata")
@@ -549,6 +614,21 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help="filter geoapps by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
     )
+    geoapps_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title",
+    )
+    geoapps_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search water",
+    )
+
     # PATCH
     geoapps_patch = geoapps_subparsers.add_parser(
         "patch", help="patch geoapps metadata"
@@ -650,6 +730,21 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help="filter users by key value pairs. E.g. --filter last_name=svenson or --filter username=svenson",
     )
+    users_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering username",
+    )
+    users_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search sven",
+    )
+
     # DELETE
     users_delete = users_subparsers.add_parser("delete", help="delete existing user")
     users_delete.add_argument(
@@ -745,6 +840,20 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help="filter uploads by key value pairs. E.g. --filter title=test",
     )
+    uploads_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title",
+    )
+    uploads_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search uuid",
+    )
 
     #####################################
     # EXECUTIONREQUEST ARGUMENT PARSING #
@@ -768,6 +877,21 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help="filter execution requests by key value pairs. E.g. --filter status=ready",
     )
+    executionrequest_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title",
+    )
+    executionrequest_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search uuid",
+    )
+
     # DESCRIBE
     executionrequest_describe = executionrequest_subparsers.add_parser(
         "describe", help="get executionrequest details"
@@ -793,6 +917,20 @@ To use this tool you have to set the following environment variables before star
         dest="filter",
         type=str,
         help="filter keywords requests by key value pairs. E.g. --filter name=soil",
+    )
+    keywords_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title",
+    )
+    keywords_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search uuid",
     )
 
     # DESCRIBE
@@ -826,6 +964,21 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help="filter thesaurikeywords requests by key value pairs. E.g. --filter alt_label=soil",
     )
+    thesaurikeywords_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title",
+    )
+    thesaurikeywords_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search uuid",
+    )
+
     # DESCRIBE
     thesaurikeywords_describe = thesaurikeywords_subparsers.add_parser(
         "describe", help="get thesaurikeyword details"
@@ -859,6 +1012,21 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help="filter thesaurikeywordlabels requests by key value pairs. E.g. --filter lang=de label=Abbau",
     )
+    thesaurikeywordlabels_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="date_updated",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title",
+    )
+    thesaurikeywordlabels_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search uuid",
+    )
+
     # DESCRIBE
     hesaurikeywordlabels_describe = thesaurikeywordlabels_subparsers.add_parser(
         "describe", help="get thesaurikeywordlabels details"
@@ -867,12 +1035,18 @@ To use this tool you have to set the following environment variables before star
     hesaurikeywordlabels_describe.add_argument(
         type=str, dest="pk", help="keyword of thesaurikeywordlabels to describe ..."
     )
+    args = parser.parse_args()
 
     #####################
     # END OF ARGPARSING #
     #####################
 
-    args = parser.parse_args()
+    # configure logging
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG, force=True)
+        logging.debug("Verbose mode enabled")
+    else:
+        logging.basicConfig(level=logging.INFO, force=True)
     try:
         url = os.environ[GEONODECTL_URL_ENV_VAR]
         basic = os.environ[GEONODECTL_BASIC_ENV_VAR]
