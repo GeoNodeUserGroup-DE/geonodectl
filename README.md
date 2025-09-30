@@ -1,13 +1,13 @@
 # geonodectl
 
-**geonodectl** is a commandline interface tool for [geonode](https://github.com/GeoNode/geonode). It uses the [geonode apiv2](https://docs.geonode.org/en/master/devel/api/V2/index.html) to interact with a geonode installation.
+**geonodectl** is a commandline interface tool for [geonode](https://github.com/GeoNode/geonode). It uses the [geonode apiv2](https://docs.geonode.org/en/4.4.x/devel/api/V2/index.html) to interact with a geonode installation.
 
 ## Install Guide
 
 first install the project with:
 
 ```
-pip install  -e 'git+https://github.com/GeoNodeUserGroup-DE/geonodectl.git@v0.2.1#egg=geonodectl'
+pip install geonodectl
 ```
 
 Additionally to package install, **geonodectl** requires to set two environment variables to connect to a geonode instance like:
@@ -135,3 +135,24 @@ check if deleted:
 ```
 
 Inside the `json-examples` folder you can find examples on howto, e.g. patch a dataset to define certain fields.
+
+## Contribution
+
+### Create an Issue
+
+You found a bug :lady_beetle:? 
+You have an idea how to improve :bulb:?
+Feel free to [create an issue](https://github.com/GeoNodeUserGroup-DE/geonodectl/issues/new/choose)!
+
+
+### Code contribution
+
+There is a pre-commit hook configuration so please ensure you install it into your local working copy via
+
+```
+pip install .[test]
+pre-commit install
+pre-commit install-hooks
+```
+
+before commit to the project. Thanks!
