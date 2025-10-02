@@ -278,10 +278,31 @@ To use this tool you have to set the following environment variables before star
         type=int, dest="pk", help="pk of attribute to describe ..."
     )
 
+    # PATCH
+    attributes_patch = attributes_subparsers.add_parser(
+        "patch", help="patch attributes parameter values"
+    )
+    attributes_patch.add_argument(type=int, dest="pk", help="pk of dataset to patch")
+    attributes_patch_mutually_exclusive_group = (
+        attributes_patch.add_mutually_exclusive_group()
+    )
+    attributes_patch_mutually_exclusive_group.add_argument(
+        "--set",
+        dest="fields",
+        type=str,
+        # TODO change example
+        help='patch parameters by providing a json string like: \'{"category":{"identifier": "farming"}}\'',
+    )
+    attributes_patch_mutually_exclusive_group.add_argument(
+        "--json_path",
+        dest="json_path",
+        type=str,
+        help="patch parameters by providing a path to a json file",
+    )
+
     ############################
     # DATASET ARGUMENT PARSING #
     ############################
-
     datasets = subparsers.add_parser(
         "dataset",
         description="valid subcommands:",
@@ -361,6 +382,7 @@ To use this tool you have to set the following environment variables before star
         dest="skip_existing_layers",
         help="set skip existing layer for upload",
     )
+
     # PATCH
     datasets_patch = datasets_subparsers.add_parser(
         "patch", help="patch datasets metadata"
