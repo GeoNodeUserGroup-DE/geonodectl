@@ -36,3 +36,9 @@ repos:
             "--max-line-length=127",
             "--statistics",
           ]
+
+      - id: unittest
+        name: unittest
+        entry: python3 -m unittest discover -s tests
+        language: system
+        types: [python]
