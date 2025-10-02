@@ -78,9 +78,6 @@ class GeonodeAttributeHandler(GeonodeRest):
                 except json.decoder.JSONDecodeError as E:
                     json_decode_error_handler(str(file), E)
 
-                if json_content is not None and "attribute_set" in json_content:
-                    json_content.pop("attribute_set", None)
-
         elif fields:
             try:
                 json_content = json.loads(fields)
@@ -92,6 +89,9 @@ class GeonodeAttributeHandler(GeonodeRest):
                 "At least one of 'fields' or 'json_path' must be provided."
             )
 
+        if json_content is None:
+            raise ValueError("No JSON content provided ...")
+
         obj = self.patch(pk=pk, json_content=json_content, **kwargs)
         print_json(obj)
 
@@ -102,7 +102,7 @@ class GeonodeAttributeHandler(GeonodeRest):
         **kwargs,
     ) -> Dict:
         """
-        Sends a PATCH request to update a dataset.
+        Sends a PATCH request to update attributes of a dataset. Only the 'attribute'/'attributes_set' field is processed.
 
         Args:
             pk (int): Primary key of the dataset.
@@ -116,10 +116,13 @@ class GeonodeAttributeHandler(GeonodeRest):
             Exception: If the PATCH request fails.
         """
         endpoint = f"datasets/{pk}/"
-        try:
-            obj = self.http_patch(endpoint=endpoint, json=json_content, **kwargs)
-            return obj
-        except Exception as e:
-            print(f"Failed to patch dataset {pk}: {e}")
-            raise
 
+        attributes = None
+        if json_content is not None and "attribute_set" in json_content:
+            attributes = {"attribute": json_content.pop("attribute_set")}
+
+        elif json_content is not None and "attribute" in json_content:
+            attributes = {"attribute": json_content.pop("attribute")}
+
+        obj = self.http_patch(endpoint, json_content=attributes, **kwargs)
+        return obj

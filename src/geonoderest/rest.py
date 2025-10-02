@@ -240,7 +240,7 @@ class GeonodeRest(object):
 
     @network_exception_handling
     def http_patch(
-        self, endpoint: str, json: Dict = {}, params: Dict = {}
+        self, endpoint: str, json_content: Dict = {}, params: Dict = {}, **kwargs
     ) -> Optional[Dict]:
         """
         Execute HTTP PATCH request on the specified endpoint with optional parameters.
@@ -259,10 +259,14 @@ class GeonodeRest(object):
         url = self.url + endpoint
         try:
             logging.debug(
-                f"PATCH URL: {url}, headers: {self.header}, params: {params}, json: {json}"
+                f"PATCH URL: {url}, headers: {self.header}, params: {params}, json: {json_content}"
             )
             r = requests.patch(
-                url, headers=self.header, json=json, params=params, verify=self.verify
+                url,
+                headers=self.header,
+                json=json_content,
+                params=params,
+                verify=self.verify,
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:

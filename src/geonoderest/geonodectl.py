@@ -277,7 +277,7 @@ To use this tool you have to set the following environment variables before star
     attributes_describe.add_argument(
         type=int, dest="pk", help="pk of attribute to describe ..."
     )
-    
+
     # PATCH
     attributes_patch = attributes_subparsers.add_parser(
         "patch", help="patch attributes parameter values"
@@ -299,7 +299,7 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help="patch parameters by providing a path to a json file",
     )
-    
+
     ############################
     # DATASET ARGUMENT PARSING #
     ############################

@@ -113,15 +113,11 @@ class GeonodeObjectHandler(GeonodeRest):
                 except json.decoder.JSONDecodeError as E:
                     json_decode_error_handler(str(file), E)
 
-                if json_content is not None and "attribute_set" in json_content:
-                    json_content.pop("attribute_set", None)
-
         elif fields:
             try:
                 json_content = json.loads(fields)
             except json.decoder.JSONDecodeError as E:
                 json_decode_error_handler(fields, E)
-
         else:
             raise ValueError(
                 "At least one of 'fields' or 'json_path' must be provided."
