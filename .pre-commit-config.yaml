@@ -36,3 +36,9 @@ repos:
             "--max-line-length=127",
             "--statistics",
           ]
+
+      - id: unittest
+        name: unittest
+        entry: bash -c "pip install . && python3 -m unittest discover -s tests"
+        language: system
+        types: [python]
