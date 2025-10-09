@@ -176,19 +176,18 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             content_length=content_length,
         )
 
+    def patch(
+        self,
+        pk: int,
+        json_content: Optional[Dict] = None,
+        **kwargs,
+    ):
+        # remove attribute fields if present
+        if json_content is not None and "attribute" in json_content:
+            json_content.pop("attribute", None)
+        if json_content is not None and "attribute_set" in json_content:
+            json_content.pop("attribute_set", None)
 
-def patch(
-    self,
-    pk: int,
-    json_content: Optional[Dict] = None,
-    **kwargs,
-):
-    # remove attribute fields if present
-    if json_content is not None and "attribute" in json_content:
-        json_content.pop("attribute", None)
-    if json_content is not None and "attribute_set" in json_content:
-        json_content.pop("attribute_set", None)
-
-    return super(GeonodeResourceHandler, self).patch(
-        pk=pk, json_content=json_content, **kwargs
-    )
+        return super(GeonodeResourceHandler, self).patch(
+            pk=pk, json_content=json_content, **kwargs
+        )

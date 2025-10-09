@@ -157,7 +157,9 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         # The JSON content is sent as part of the request parameters.
         # The response from the API is returned.
 
-        obj = self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", json=json_content)
+        obj = self.http_patch(
+            endpoint=f"{self.ENDPOINT_NAME}/{pk}/", json_content=json_content
+        )
         return obj
 
     def cmd_create(
