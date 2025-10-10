@@ -132,7 +132,9 @@ class GeonodeObjectHandler(GeonodeRest):
         json_content: Optional[Dict] = None,
         **kwargs,
     ):
-        obj = self.http_patch(endpoint=f"{self.ENDPOINT_NAME}/{pk}/", json=json_content)
+        obj = self.http_patch(
+            endpoint=f"{self.ENDPOINT_NAME}/{pk}/", json_content=json_content
+        )
         return obj
 
     def cmd_describe(self, pk: int, **kwargs):

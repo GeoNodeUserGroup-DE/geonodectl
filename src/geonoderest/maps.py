@@ -310,12 +310,3 @@ class GeonodeMapsHandler(GeonodeObjectHandler):
         if r is None:
             return None
         return r[self.SINGULAR_RESOURCE_NAME]
-
-    # def patch(
-    #     self,
-    #     pk: int,
-    #     json_content: Optional[Dict] = None,
-    #     **kwargs,
-    # ):
-    #     obj = self.http_patch(endpoint=f"resources/{pk}/", json=json_content)
-    #     return obj

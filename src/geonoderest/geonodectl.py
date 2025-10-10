@@ -1084,7 +1084,6 @@ To use this tool you have to set the following environment variables before star
         raise NameError(
             f"provided geonode url: {url} not ends with 'api/v2/'. Please make sure to provide full rest v2api url ..."
         )
-
     geonode_env = GeonodeApiConf(url=url, auth_basic=basic, verify=args.ssl_verify)
     g_obj: Union[GeonodeObjectHandler, GeonodeExecutionRequestHandler]
     match args.command:
