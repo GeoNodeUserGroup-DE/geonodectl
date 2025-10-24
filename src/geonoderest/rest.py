@@ -180,6 +180,8 @@ class GeonodeRest(object):
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
+            if r is not None:
+                logging.error(f"POST error response: {r.text}")
             logging.error(err)
             return None
         return r.json()
@@ -206,6 +208,8 @@ class GeonodeRest(object):
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
+            if r is not None:
+                logging.error(f"GET error response: {r.text}")
             logging.error(err)
             return None
         return r
@@ -234,6 +238,8 @@ class GeonodeRest(object):
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
+            if r is not None:
+                logging.error(f"GET error response: {r.text}")
             logging.error(err)
             return None
         return r.json()
@@ -270,6 +276,8 @@ class GeonodeRest(object):
             )
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
+            if r is not None:
+                logging.error(f"PATCH error response: {r.text}")
             logging.error(err)
             return None
         return r.json()
@@ -305,6 +313,8 @@ class GeonodeRest(object):
             if r.status_code in [204]:
                 return {}
         except requests.exceptions.HTTPError as err:
+            if r is not None:
+                logging.error(f"DELETE error response: {r.text}")
             logging.error(err)
             return None
         return r.json()
