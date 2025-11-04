@@ -82,7 +82,8 @@ class GeonodeObjectHandler(GeonodeRest):
             obj = self.delete(pk=_pk, **kwargs)
             if obj is None:
                 logging.warning(f"deleting {_pk} failed ... ")
-            print(f"{self.JSON_OBJECT_NAME}: {_pk} deleted ...")
+            else:
+                print(f"{self.JSON_OBJECT_NAME}: {_pk} deleted ...")
 
     def delete(self, pk: int, **kwargs):
         """delete geonode resource object"""
