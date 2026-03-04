@@ -1,5 +1,6 @@
 from typing import List, Dict, Optional, TypeAlias, Callable, Any
 
+import json
 import urllib3
 import requests
 import logging
@@ -136,6 +137,55 @@ class GeonodeRest(object):
     def verify(self):
         return self.gn_credentials.verify
 
+    def _format_error_payload(self, response: Optional[requests.Response]) -> str:
+        if response is None:
+            return ""
+
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
+
+        if isinstance(payload, dict):
+            if "detail" in payload and isinstance(payload["detail"], (str, int, float)):
+                return str(payload["detail"])
+            if "errors" in payload:
+                return json.dumps(payload["errors"], ensure_ascii=False)
+            return json.dumps(payload, ensure_ascii=False)
+
+        if isinstance(payload, list):
+            return json.dumps(payload, ensure_ascii=False)
+
+        if response.text:
+            return response.text.strip()
+
+        return ""
+
+    def _raise_http_exception(
+        self,
+        method: str,
+        url: str,
+        response: Optional[requests.Response],
+        err: requests.exceptions.HTTPError,
+    ) -> None:
+        status_part = ""
+        detail_part = ""
+        final_url = url
+
+        if response is not None:
+            status_code = getattr(response, "status_code", None)
+            reason = getattr(response, "reason", "")
+            if status_code is not None:
+                status_part = f" with status {status_code} {reason}".rstrip()
+            detail = self._format_error_payload(response)
+            if detail:
+                detail_part = f": {detail}"
+            final_url = getattr(response, "url", url)
+
+        message = f"{method} {final_url}{status_part}{detail_part}".strip()
+        logging.error(message)
+        raise GeoNodeRestException(message) from err
+
     @network_exception_handling
     def http_post(
         self,
@@ -165,11 +215,12 @@ class GeonodeRest(object):
         if content_length:
             self.header["content-length"] = content_length
         url = self.url + endpoint
+        logging.debug(
+            f"POST URL: {url}, headers: {self.header}, params: {params}, json: {json}, data: {data}"
+        )
+        response: Optional[requests.Response] = None
         try:
-            logging.debug(
-                f"POST URL: {url}, headers: {self.header}, params: {params}, json: {json}, data: {data}"
-            )
-            r = requests.post(
+            response = requests.post(
                 url,
                 headers=self.header,
                 files=files,
@@ -178,13 +229,11 @@ class GeonodeRest(object):
                 params=params,
                 verify=self.verify,
             )
-            r.raise_for_status()
+            response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            if r is not None:
-                logging.error(f"POST error response: {r.text}")
-            logging.error(err)
+            self._raise_http_exception("POST", url, response, err)
             return None
-        return r.json()
+        return response.json()
 
     @network_exception_handling
     def http_get_download(
@@ -201,18 +250,17 @@ class GeonodeRest(object):
         Returns:
             object: returns downloaded data
         """
+        logging.debug(f"GET URL: {url}, headers: {self.header}, params: {params}")
+        response: Optional[requests.Response] = None
         try:
-            logging.debug(f"GET URL: {url}, headers: {self.header}, params: {params}")
-            r = requests.get(
+            response = requests.get(
                 url, headers=self.header, params=params, verify=self.verify
             )
-            r.raise_for_status()
+            response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            if r is not None:
-                logging.error(f"GET error response: {r.text}")
-            logging.error(err)
-            return None
-        return r
+            self._raise_http_exception("GET", url, response, err)
+        assert response is not None
+        return response
 
     @network_exception_handling
     def http_get(self, endpoint: str, params: Dict = {}) -> Optional[Dict]:
@@ -231,18 +279,17 @@ class GeonodeRest(object):
         """
 
         url = self.url + endpoint
+        logging.debug(f"GET URL: {url}, headers: {self.header}, params: {params}")
+        response: Optional[requests.Response] = None
         try:
-            logging.debug(f"GET URL: {url}, headers: {self.header}, params: {params}")
-            r = requests.get(
+            response = requests.get(
                 url, headers=self.header, params=params, verify=self.verify
             )
-            r.raise_for_status()
+            response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            if r is not None:
-                logging.error(f"GET error response: {r.text}")
-            logging.error(err)
-            return None
-        return r.json()
+            self._raise_http_exception("GET", url, response, err)
+        assert response is not None
+        return response.json()
 
     @network_exception_handling
     def http_patch(
@@ -263,24 +310,23 @@ class GeonodeRest(object):
             Dict: The JSON response from the server, or None if an error occurred.
         """
         url = self.url + endpoint
+        logging.debug(
+            f"PATCH URL: {url}, headers: {self.header}, params: {params}, json: {json_content}"
+        )
+        response: Optional[requests.Response] = None
         try:
-            logging.debug(
-                f"PATCH URL: {url}, headers: {self.header}, params: {params}, json: {json_content}"
-            )
-            r = requests.patch(
+            response = requests.patch(
                 url,
                 headers=self.header,
                 json=json_content,
                 params=params,
                 verify=self.verify,
             )
-            r.raise_for_status()
+            response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            if r is not None:
-                logging.error(f"PATCH error response: {r.text}")
-            logging.error(err)
-            return None
-        return r.json()
+            self._raise_http_exception("PATCH", url, response, err)
+        assert response is not None
+        return response.json()
 
     @network_exception_handling
     def http_delete(
@@ -302,19 +348,18 @@ class GeonodeRest(object):
         """
         url = self.url + endpoint
 
+        logging.debug(
+            f"DELETE URL: {url}, headers: {self.header}, params: {params}, json: {json}"
+        )
+        response: Optional[requests.Response] = None
         try:
-            logging.debug(
-                f"DELETE URL: {url}, headers: {self.header}, params: {params}, json: {json}"
-            )
-            r = requests.delete(
+            response = requests.delete(
                 url, headers=self.header, params=params, json=json, verify=self.verify
             )
-            r.raise_for_status()
-            if r.status_code in [204]:
+            response.raise_for_status()
+            if response.status_code in [204]:
                 return {}
         except requests.exceptions.HTTPError as err:
-            if r is not None:
-                logging.error(f"DELETE error response: {r.text}")
-            logging.error(err)
-            return None
-        return r.json()
+            self._raise_http_exception("DELETE", url, response, err)
+        assert response is not None
+        return response.json()

@@ -9,6 +9,7 @@ from argparse import RawTextHelpFormatter
 from pathlib import Path
 
 from geonoderest.apiconf import GeonodeApiConf
+from geonoderest.exceptions import GeoNodeRestException
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.datasets import GeonodeDatasetsHandler
 from geonoderest.resources import (
@@ -1117,7 +1118,13 @@ To use this tool you have to set the following environment variables before star
         case _:
             raise NotImplemented
     g_obj_func = getattr(g_obj, "cmd_" + args.subcommand)
-    g_obj_func(**args.__dict__)
+    try:
+        g_obj_func(**args.__dict__)
+    except GeoNodeRestException as exc:
+        logging.error(exc)
+        if args.verbose:
+            raise
+        sys.exit(1)
 
 
 if __name__ == "__main__":
