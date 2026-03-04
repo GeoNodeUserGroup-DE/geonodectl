@@ -87,7 +87,7 @@ class GeonodeObjectHandler(GeonodeRest):
 
     def delete(self, pk: int, **kwargs):
         """delete geonode resource object"""
-        return self.http_delete(endpoint=f"resources/{pk}/delete")
+        return self.http_delete(endpoint=f"{self.ENDPOINT_NAME}/{pk}/")
 
     def cmd_patch(
         self,
