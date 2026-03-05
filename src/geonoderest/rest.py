@@ -190,11 +190,12 @@ class GeonodeRest(object):
     def http_post(
         self,
         endpoint: str,
-        json: Dict = {},
-        params: Dict = {},
-        data: Dict = {},
+        json: Optional[Dict] = None,
+        params: Optional[Dict] = None,
+        data: Optional[Dict] = None,
         files: Optional[List[GeonodeHTTPFile]] = None,
         content_length: Optional[int] = None,
+        timeout: int = 60,
     ) -> Optional[Dict]:
         """
         Execute http post on endpoint with params
@@ -225,9 +226,10 @@ class GeonodeRest(object):
                 headers=self.header,
                 files=files,
                 json=json,
-                data=data,
-                params=params,
+                data=data or {},
+                params=params or {},
                 verify=self.verify,
+                timeout=timeout,
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
@@ -237,7 +239,7 @@ class GeonodeRest(object):
 
     @network_exception_handling
     def http_get_download(
-        self, url: str, params: Dict = {}
+        self, url: str, params: Optional[Dict] = None, timeout: int = 60
     ) -> Optional[requests.Response]:
         """raw get url
 
@@ -254,7 +256,11 @@ class GeonodeRest(object):
         response: Optional[requests.Response] = None
         try:
             response = requests.get(
-                url, headers=self.header, params=params, verify=self.verify
+                url,
+                headers=self.header,
+                params=params or {},
+                verify=self.verify,
+                timeout=timeout,
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
@@ -263,7 +269,9 @@ class GeonodeRest(object):
         return response
 
     @network_exception_handling
-    def http_get(self, endpoint: str, params: Dict = {}) -> Optional[Dict]:
+    def http_get(
+        self, endpoint: str, params: Optional[Dict] = None, timeout: int = 60
+    ) -> Optional[Dict]:
         """
         Execute HTTP GET request on the specified endpoint with optional parameters.
 
@@ -283,7 +291,11 @@ class GeonodeRest(object):
         response: Optional[requests.Response] = None
         try:
             response = requests.get(
-                url, headers=self.header, params=params, verify=self.verify
+                url,
+                headers=self.header,
+                params=params or {},
+                verify=self.verify,
+                timeout=timeout,
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
@@ -293,7 +305,12 @@ class GeonodeRest(object):
 
     @network_exception_handling
     def http_patch(
-        self, endpoint: str, json_content: Dict = {}, params: Dict = {}, **kwargs
+        self,
+        endpoint: str,
+        json_content: Optional[Dict] = None,
+        params: Optional[Dict] = None,
+        timeout: int = 60,
+        **kwargs,
     ) -> Optional[Dict]:
         """
         Execute HTTP PATCH request on the specified endpoint with optional parameters.
@@ -319,8 +336,9 @@ class GeonodeRest(object):
                 url,
                 headers=self.header,
                 json=json_content,
-                params=params,
+                params=params or {},
                 verify=self.verify,
+                timeout=timeout,
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
@@ -330,7 +348,11 @@ class GeonodeRest(object):
 
     @network_exception_handling
     def http_delete(
-        self, endpoint: str, json: Dict = {}, params: Dict = {}
+        self,
+        endpoint: str,
+        json: Optional[Dict] = None,
+        params: Optional[Dict] = None,
+        timeout: int = 60,
     ) -> Optional[Dict]:
         """
         Execute HTTP DELETE request on the specified endpoint with optional parameters.
@@ -354,7 +376,12 @@ class GeonodeRest(object):
         response: Optional[requests.Response] = None
         try:
             response = requests.delete(
-                url, headers=self.header, params=params, json=json, verify=self.verify
+                url,
+                headers=self.header,
+                params=params or {},
+                json=json,
+                verify=self.verify,
+                timeout=timeout,
             )
             response.raise_for_status()
             if response.status_code in [204]:

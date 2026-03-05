@@ -57,8 +57,17 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
         Returns:
             response (object): requests response obj of metadata
         """
+        if metadata_type not in SUPPORTED_METADATA_TYPES:
+            raise ValueError(
+                f"Unsupported metadata type '{metadata_type}'. "
+                f"Must be one of: {', '.join(SUPPORTED_METADATA_TYPES)}"
+            )
         r = self.http_get(endpoint=f"resources/{pk}")["resource"]
 
-        link: str
-        link = [m for m in r["links"] if m["name"] == metadata_type][0]["url"]
+        matches = [m for m in r["links"] if m["name"] == metadata_type]
+        if not matches:
+            raise ValueError(
+                f"Metadata type '{metadata_type}' not found in resource links for pk={pk}"
+            )
+        link: str = matches[0]["url"]
         return self.http_get_download(link)

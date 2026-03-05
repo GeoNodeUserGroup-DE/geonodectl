@@ -9,13 +9,21 @@ repos:
         entry: black
         language: system
         types: [python]
-        args: ["--check", "src/"]
+        pass_filenames: false
+        args: ["--check", "src/", "tests/"]
       - id: mypy
         name: mypy
         entry: mypy
         language: system
         types: [python]
-        args: ["--check-untyped-defs", "--disable-error-code=import-untyped"]
+        pass_filenames: false
+        args:
+          [
+            "src/geonoderest/",
+            "--ignore-missing-imports",
+            "--check-untyped-defs",
+            "--disable-error-code=import-untyped",
+          ]
       - id: flake8-syntax
         name: flake8-syntax
         entry: flake8
@@ -39,6 +47,7 @@ repos:
 
       - id: unittest
         name: unittest
-        entry: bash -c "pip install . && python3 -m unittest discover -s tests"
+        entry: bash -c "pip install -e . -q && python3 -m unittest discover -s tests"
         language: system
         types: [python]
+        pass_filenames: false

@@ -58,22 +58,27 @@ class GeonodeObjectHandler(GeonodeRest):
             try:
                 pk_begin, pk_end = pk.split("-")
             except ValueError:
-                SystemExit(f"Invalid pk {pk} found, not a range ...")
-            if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
-                SystemExit(f"Invalid pk {pk} found, not an integer ...")
-            return [i for i in range(int(pk_begin), int(pk_end) + 1)]
+                raise SystemExit(f"Invalid pk {pk} found, not a range ...")
+            if not all(p.isdigit() for p in [pk_begin, pk_end]):
+                raise SystemExit(f"Invalid pk {pk} found, not an integer ...")
+            start, end = int(pk_begin), int(pk_end)
+            if start > end:
+                raise SystemExit(
+                    f"Invalid pk range {pk}: start ({start}) must be <= end ({end}) ..."
+                )
+            return list(range(start, end + 1))
 
         # pk list: 1,2,3,4,5,6,7
         elif "," in pk:
             pk_list = pk.split(",")
             if not all(x.isdigit() for x in pk_list):
-                SystemExit(f"Invalid pk {pk} found, not an integer ...")
+                raise SystemExit(f"Invalid pk {pk} found, not an integer ...")
             return [int(i) for i in pk_list]
 
         # single pk: 1
         else:
             if not pk.isdigit():
-                SystemExit(f"Invalid pk {pk}, is not an integer ...")
+                raise SystemExit(f"Invalid pk {pk}, is not an integer ...")
             return [int(pk)]
 
     def cmd_delete(self, pk: str, **kwargs):
@@ -107,18 +112,21 @@ class GeonodeObjectHandler(GeonodeRest):
              ValueError: catches json.decoder.JSONDecodeError and raises ValueError as decoding is not working
         """
 
+        json_content: Optional[Dict] = None
         if json_path:
             with open(json_path, "r") as file:
                 try:
                     json_content = json.load(file)
                 except json.decoder.JSONDecodeError as E:
                     json_decode_error_handler(str(file), E)
+                    return
 
         elif fields:
             try:
                 json_content = json.loads(fields)
             except json.decoder.JSONDecodeError as E:
                 json_decode_error_handler(fields, E)
+                return
         else:
             raise ValueError(
                 "At least one of 'fields' or 'json_path' must be provided."

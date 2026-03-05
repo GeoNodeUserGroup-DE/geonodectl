@@ -112,7 +112,9 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
                 os.path.join(dataset_path.parent, dataset_path.stem + ".prj")
             )
 
-            if not any(x.exists for x in [dataset_path, dbf_file, shx_file, prj_file]):
+            if not all(
+                x.exists() for x in [dataset_path, dbf_file, shx_file, prj_file]
+            ):
                 raise FileNotFoundError
 
             content_length: int = sum(
@@ -122,26 +124,32 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
                 ]
             )
 
+            fh_base = open(dataset_path, "rb")
+            fh_dbf = open(dbf_file, "rb")
+            fh_shx = open(shx_file, "rb")
+            fh_prj = open(prj_file, "rb")
+            open_handles = [fh_base, fh_dbf, fh_shx, fh_prj]
+
             files = [
                 (
                     "base_file",
                     (
                         dataset_path.name,
-                        open(dataset_path, "rb"),
+                        fh_base,
                         "application/octet-stream",
                     ),
                 ),
                 (
                     "dbf_file",
-                    (dbf_file.name, open(dbf_file, "rb"), "application/octet-stream"),
+                    (dbf_file.name, fh_dbf, "application/octet-stream"),
                 ),
                 (
                     "shx_file",
-                    (shx_file.name, open(shx_file, "rb"), "application/octet-stream"),
+                    (shx_file.name, fh_shx, "application/octet-stream"),
                 ),
                 (
                     "prj_file",
-                    (prj_file.name, open(prj_file, "rb"), "application/octet-stream"),
+                    (prj_file.name, fh_prj, "application/octet-stream"),
                 ),
             ]
 
@@ -150,13 +158,15 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
                 raise FileNotFoundError
             content_length = os.path.getsize(dataset_path)
 
+            fh_base = open(dataset_path, "rb")
+            open_handles = [fh_base]
             files = [
-                ("base_file", (dataset_path.name, open(dataset_path, "rb"))),
+                ("base_file", (dataset_path.name, fh_base)),
             ]
             if dataset_path.suffix == ".zip":
-                files.append(
-                    ("zip_file", (dataset_path.name, open(dataset_path, "rb")))
-                )
+                fh_zip = open(dataset_path, "rb")
+                open_handles.append(fh_zip)
+                files.append(("zip_file", (dataset_path.name, fh_zip)))
 
         json = {
             # layer permissions
@@ -169,12 +179,16 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             "skip_existing_layers": skip_existing_layers,
         }
 
-        return self.http_post(
-            endpoint="uploads/upload",
-            files=files,
-            data=json,
-            content_length=content_length,
-        )
+        try:
+            return self.http_post(
+                endpoint="uploads/upload",
+                files=files,
+                data=json,
+                content_length=content_length,
+            )
+        finally:
+            for fh in open_handles:
+                fh.close()
 
     def patch(
         self,

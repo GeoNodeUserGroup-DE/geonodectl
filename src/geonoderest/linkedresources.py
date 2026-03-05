@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 import logging
 import sys
 
@@ -11,45 +11,45 @@ from .cmdprint import show_list, print_json
 
 class GeonodeLinkedResourcesHandler(GeonodeRest):
 
-    def cmd_add(self, pk: int, linked_to: List[int] = [], **kwargs):
-        if len(linked_to) == 0:
+    def cmd_add(self, pk: int, linked_to: Optional[List[int]] = None, **kwargs):
+        if not linked_to:
             logging.warning(
                 "missing linked_to parameter for deletion, doing nothing ... "
             )
             sys.exit(0)
         obj: Dict = self.add(pk=pk, linked_to=linked_to, **kwargs)
-        if obj == None:
+        if obj is None:
             logging.warning("add failed ... ")
         else:
             print_json(obj)
 
-    def add(self, pk: int, linked_to: List[int] = [], **kwargs):
+    def add(self, pk: int, linked_to: Optional[List[int]] = None, **kwargs):
         linked_resource_obj: Dict = self.get(pk=pk)
         # target: list = linked_resource_obj["linked_to"] + linked_to
         json_content = {
-            "target": list(linked_to),
+            "target": list(linked_to) if linked_to else [],
         }
         endpoint = f"resources/{pk}/linked_resources"
         return self.http_post(endpoint=endpoint, json=json_content)
 
-    def cmd_delete(self, pk: int, linked_to: List[int], **kwargs):
-        if len(linked_to) == 0:
+    def cmd_delete(self, pk: int, linked_to: Optional[List[int]] = None, **kwargs):
+        if not linked_to:
             logging.warning(
                 "missing linked_to parameter for deletion, doing nothing ... "
             )
             sys.exit(0)
 
         obj: Dict = self.delete(pk=pk, linked_to=linked_to, **kwargs)
-        if obj == None:
+        if obj is None:
             logging.warning("delete failed ... ")
         else:
             print_json(obj)
 
-    def delete(self, pk: int, linked_to: List[int] = [], **kwargs):
+    def delete(self, pk: int, linked_to: Optional[List[int]] = None, **kwargs):
         endpoint = f"resources/{pk}/linked_resources"
 
         json_content = {
-            "target": list(linked_to),
+            "target": list(linked_to) if linked_to else [],
         }
         return self.http_delete(endpoint=endpoint, json=json_content)
 
