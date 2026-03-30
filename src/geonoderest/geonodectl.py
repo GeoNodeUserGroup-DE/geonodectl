@@ -19,6 +19,7 @@ from geonoderest.resources import (
 from geonoderest.documents import GeonodeDocumentsHandler
 from geonoderest.maps import GeonodeMapsHandler
 from geonoderest.users import GeonodeUsersHandler
+from geonoderest.groups import GeonodeGroupsHandler
 from geonoderest.geoapps import GeonodeGeoappsHandler
 from geonoderest.uploads import GeonodeUploadsHandler
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
@@ -847,6 +848,111 @@ To use this tool you have to set the following environment variables before star
     )
 
     ###########################
+    # GROUPS ARGUMENT PARSING #
+    ###########################
+    groups = subparsers.add_parser(
+        "groups", help="group | groups commands", aliases=("group",)
+    )
+    groups_subparsers = groups.add_subparsers(
+        help="geonodectl groups commands", dest="subcommand", required=True
+    )
+
+    # LIST
+    groups_list = groups_subparsers.add_parser("list", help="list groups")
+    groups_list.add_argument(
+        "--filter",
+        nargs="*",
+        action=kwargs_append_action,
+        dest="filter",
+        type=str,
+        help="filter groups by key value pairs. E.g. --filter title=mygroup",
+    )
+    groups_list.add_argument(
+        "--ordering",
+        dest="ordering",
+        default="pk",
+        type=str,
+        help="Which field to use when ordering the results. --ordering title (default: pk)",
+    )
+    groups_list.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help="A search term to filter the results by. --search mygroup",
+    )
+
+    # DESCRIBE
+    groups_describe = groups_subparsers.add_parser("describe", help="get group details")
+    groups_describe.add_argument(
+        type=int, dest="pk", help="pk of group to describe ..."
+    )
+
+    # PATCH
+    groups_patch = groups_subparsers.add_parser("patch", help="patch group metadata")
+    groups_patch.add_argument(type=int, dest="pk", help="pk of group to patch")
+    groups_patch_mutually_exclusive_group = groups_patch.add_mutually_exclusive_group()
+    groups_patch_mutually_exclusive_group.add_argument(
+        "--set",
+        dest="fields",
+        type=str,
+        help='patch metadata by providing a json string like: \'{"title": "new title"}\' ',
+    )
+    groups_patch_mutually_exclusive_group.add_argument(
+        "--json_path",
+        dest="json_path",
+        type=str,
+        help="patch metadata by providing a path to a json file",
+    )
+
+    # CREATE
+    groups_create = groups_subparsers.add_parser("create", help="create a new group")
+    groups_create_mutually_exclusive_group = (
+        groups_create.add_mutually_exclusive_group()
+    )
+    groups_create_mutually_exclusive_group.add_argument(
+        "--title",
+        type=str,
+        dest="title",
+        help="title of the new group ... (mutually exclusive [a])",
+    )
+    groups_create.add_argument(
+        "--name",
+        type=str,
+        required=False,
+        dest="name",
+        help="slug name of the new group (only with --title) ...",
+    )
+    groups_create.add_argument(
+        "--description",
+        type=str,
+        required=False,
+        dest="description",
+        default="",
+        help="description of the new group (only with --title) ...",
+    )
+    groups_create_mutually_exclusive_group.add_argument(
+        "--json_path",
+        dest="json_path",
+        type=str,
+        help="create group by providing a path to a json file ... (mutually exclusive [b])",
+    )
+    groups_create_mutually_exclusive_group.add_argument(
+        "--set",
+        dest="fields",
+        type=str,
+        help='create group by providing a json string like: \'{"title": "mygroup", "description": "my desc"}\' ... (mutually exclusive [c])',
+    )
+
+    # DELETE
+    groups_delete = groups_subparsers.add_parser("delete", help="delete existing group")
+    groups_delete.add_argument(
+        type=str,
+        dest="pk",
+        help="pk of group(s) to delete (range '1-5', list '1,2,3', single '1') ...",
+    )
+
+    ###########################
     # UPLOAD ARGUMENT PARSING #
     ###########################
     uploads = subparsers.add_parser("uploads", help="uploads commands")
@@ -1101,6 +1207,8 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeMapsHandler(env=geonode_env)
         case "users" | "user":
             g_obj = GeonodeUsersHandler(env=geonode_env)
+        case "groups" | "group":
+            g_obj = GeonodeGroupsHandler(env=geonode_env)
         case "geoapps" | "apps":
             g_obj = GeonodeGeoappsHandler(env=geonode_env)
         case "uploads":
