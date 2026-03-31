@@ -10,9 +10,9 @@ class TestGeonodeGroupsHandler(unittest.TestCase):
     def test_list(self, mock_http_get):
         """Ensure list calls the groups endpoint and returns groups list."""
         mock_http_get.return_value = {
-            "groups": [
-                {"pk": 1, "title": "Group A", "name": "group-a", "description": ""},
-                {"pk": 2, "title": "Group B", "name": "group-b", "description": ""},
+            "group_profiles": [
+                {"pk": 1, "title": "Group A", "slug": "group-a", "description": ""},
+                {"pk": 2, "title": "Group B", "slug": "group-b", "description": ""},
             ]
         }
         handler = GeonodeGroupsHandler(env={})
@@ -23,9 +23,14 @@ class TestGeonodeGroupsHandler(unittest.TestCase):
 
     @patch.object(GeonodeGroupsHandler, "http_get")
     def test_get(self, mock_http_get):
-        """Ensure get returns the 'group' dict from the API response."""
+        """Ensure get returns the 'group_profile' dict from the API response."""
         mock_http_get.return_value = {
-            "group": {"pk": 1, "title": "Group A", "name": "group-a", "description": ""}
+            "group_profile": {
+                "pk": 1,
+                "title": "Group A",
+                "slug": "group-a",
+                "description": "",
+            }
         }
         handler = GeonodeGroupsHandler(env={})
         result = handler.get(1)
@@ -62,7 +67,7 @@ class TestGeonodeGroupsHandler(unittest.TestCase):
         )
         mock_http_post.assert_called_once_with(
             endpoint="groups",
-            json={"title": "New Group", "description": "A desc", "name": "new-group"},
+            json={"title": "New Group", "slug": "new-group", "description": "A desc"},
         )
         self.assertEqual(result["pk"], 5)
 

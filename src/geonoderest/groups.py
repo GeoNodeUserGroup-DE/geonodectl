@@ -13,13 +13,13 @@ from geonoderest.cmdprint import (
 
 class GeonodeGroupsHandler(GeonodeObjectHandler):
     ENDPOINT_NAME = "groups"
-    JSON_OBJECT_NAME = "groups"
-    SINGULAR_RESOURCE_NAME = "group"
+    JSON_OBJECT_NAME = "group_profiles"
+    SINGULAR_RESOURCE_NAME = "group_profile"
 
     LIST_CMDOUT_HEADER: List[GeonodeCmdOutListKey] = [
         GeonodeCmdOutListKey(key="pk"),
         GeonodeCmdOutListKey(key="title"),
-        GeonodeCmdOutListKey(key="name"),
+        GeonodeCmdOutListKey(key="slug"),
         GeonodeCmdOutListKey(key="description"),
     ]
 
@@ -102,10 +102,9 @@ class GeonodeGroupsHandler(GeonodeObjectHandler):
                 sys.exit(1)
             json_content = {
                 "title": title,
+                "slug": name if name is not None else title.lower().replace(" ", "-"),
                 "description": description,
             }
-            if name is not None:
-                json_content["name"] = name
 
         return self.http_post(
             endpoint=self.ENDPOINT_NAME,
