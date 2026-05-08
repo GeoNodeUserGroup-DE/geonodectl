@@ -1,14 +1,9 @@
 import unittest
-<<<<<<< issue_#121_Bug__TypeError_crash_when_API_filter_returns_no_results__NoneType_has_no_len_
-from unittest.mock import patch, MagicMock
-from geonoderest.datasets import GeonodeDatasetsHandler
-from geonoderest.cmdprint import print_list_on_cmd
-=======
 
 from unittest.mock import patch, call, MagicMock
 from geonoderest.datasets import GeonodeDatasetsHandler
+from geonoderest.cmdprint import print_list_on_cmd
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
->>>>>>> main
 
 
 class TestGeonodeDatasetsHandler(unittest.TestCase):
@@ -224,6 +219,8 @@ class TestCmdDescribeRange(unittest.TestCase):
         handler.cmd_describe(pk="10,20,30")
         endpoints = [c.kwargs["endpoint"] for c in mock_http_get.call_args_list]
         self.assertEqual(endpoints, ["datasets/10", "datasets/20", "datasets/30"])
+
+
 class TestWaitForUpload(unittest.TestCase):
     """Tests for __wait_for_upload__ and cmd_upload --wait.
     Feature test for: https://github.com/GeoNodeUserGroup-DE/geonodectl/issues/80
