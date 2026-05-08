@@ -395,7 +395,11 @@ To use this tool you have to set the following environment variables before star
     datasets_patch = datasets_subparsers.add_parser(
         "patch", help="patch datasets metadata"
     )
-    datasets_patch.add_argument(type=str, dest="pk", help="pk of dataset to patch")
+    datasets_patch.add_argument(
+        type=str,
+        dest="pk",
+        help="pk of dataset(s) to patch (range '1-5', list '1,2,3,4,5', single '1') ...",
+    )
     datasets_patch_mutually_exclusive_group = (
         datasets_patch.add_mutually_exclusive_group()
     )
@@ -419,7 +423,9 @@ To use this tool you have to set the following environment variables before star
         "describe", help="get dataset details"
     )
     datasets_describe.add_argument(
-        type=int, dest="pk", help="pk of dataset to describe ..."
+        type=str,
+        dest="pk",
+        help="pk of dataset(s) to describe (range '1-5', list '1,2,3,4,5', single '1') ...",
     )
 
     # DELETE
