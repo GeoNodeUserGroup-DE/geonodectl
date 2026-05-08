@@ -2,13 +2,14 @@
 [build-system]
 requires = [
       "setuptools>=61.0.0",
+      "pip >= 26.0.1"
       "wheel",
     ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = 'geonodectl'
-version="0.3.2"
+version="0.3.3"
 description="a commandline interface tool for Geonode Rest API v2"
 authors = [{ name = "marcel wallschlaeger", email="marcel.wallschlaeger@zalf.de" }]
 readme = "README.md"
