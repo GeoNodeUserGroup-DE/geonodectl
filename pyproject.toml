@@ -12,7 +12,7 @@ version="0.3.2"
 description="a commandline interface tool for Geonode Rest API v2"
 authors = [{ name = "marcel wallschlaeger", email="marcel.wallschlaeger@zalf.de" }]
 readme = "README.md"
-requires-python = '>=3.8'
+requires-python = '>=3.10'
 dependencies = [
     "requests==2.32.4",
     "types-requests==2.32.0.20241016",
