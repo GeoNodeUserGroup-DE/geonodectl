@@ -382,12 +382,19 @@ To use this tool you have to set the following environment variables before star
         dest="skip_existing_layers",
         help="set skip existing layer for upload",
     )
+    datasets_upload.add_argument(
+        "--wait",
+        action="store_true",
+        dest="wait",
+        default=False,
+        help="wait for upload to finish and show resulting dataset(s)",
+    )
 
     # PATCH
     datasets_patch = datasets_subparsers.add_parser(
         "patch", help="patch datasets metadata"
     )
-    datasets_patch.add_argument(type=int, dest="pk", help="pk of dataset to patch")
+    datasets_patch.add_argument(type=str, dest="pk", help="pk of dataset to patch")
     datasets_patch_mutually_exclusive_group = (
         datasets_patch.add_mutually_exclusive_group()
     )
