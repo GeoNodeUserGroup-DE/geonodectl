@@ -45,7 +45,7 @@ class GeonodeObjectHandler(GeonodeRest):
             return None
         return r[self.JSON_OBJECT_NAME]
 
-    def __parse_delete_pk_string__(self, pk: str) -> List[int]:
+    def __parse_pk_string__(self, pk: str) -> List[int]:
         """
         differentiate between pk range, pk list or single pk
 
@@ -77,7 +77,7 @@ class GeonodeObjectHandler(GeonodeRest):
             return [int(pk)]
 
     def cmd_delete(self, pk: str, **kwargs):
-        for _pk in self.__parse_delete_pk_string__(pk):
+        for _pk in self.__parse_pk_string__(pk):
 
             obj = self.delete(pk=_pk, **kwargs)
             if obj is None:
@@ -91,7 +91,7 @@ class GeonodeObjectHandler(GeonodeRest):
 
     def cmd_patch(
         self,
-        pk: int,
+        pk: str,
         fields: Optional[str] = None,
         json_path: Optional[str] = None,
         **kwargs,
@@ -99,7 +99,7 @@ class GeonodeObjectHandler(GeonodeRest):
         """
         Tries to generate object from incoming json string
         Args:
-            pk (int): pk of the object
+            pk (str): pk of the object, supports single pk, range (e.g. 5-10) or comma-separated list (e.g. 1,2,3)
             fields (str): string of potential json object
             json_path (str): path to a json file
 
@@ -124,8 +124,12 @@ class GeonodeObjectHandler(GeonodeRest):
                 "At least one of 'fields' or 'json_path' must be provided."
             )
 
-        obj = self.patch(pk=pk, json_content=json_content, **kwargs)
-        print_json(obj)
+        for _pk in self.__parse_pk_string__(pk):
+            obj = self.patch(pk=_pk, json_content=json_content, **kwargs)
+            if obj is None:
+                logging.warning(f"patching {_pk} failed ... ")
+            else:
+                print_json(obj)
 
     def patch(
         self,
@@ -138,9 +142,13 @@ class GeonodeObjectHandler(GeonodeRest):
         )
         return obj
 
-    def cmd_describe(self, pk: int, **kwargs):
-        obj = self.get(pk=pk, **kwargs)
-        print_json(obj)
+    def cmd_describe(self, pk: str, **kwargs):
+        for _pk in self.__parse_pk_string__(pk):
+            obj = self.get(pk=_pk, **kwargs)
+            if obj is None:
+                logging.warning(f"describing {_pk} failed ... ")
+            else:
+                print_json(obj)
 
     def get(self, pk: int, **kwargs) -> Optional[Dict]:
         """get details for a given pk
