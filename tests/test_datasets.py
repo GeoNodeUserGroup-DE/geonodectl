@@ -1,8 +1,7 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from geonoderest.datasets import GeonodeDatasetsHandler
-import unittest
-from unittest.mock import patch
+from geonoderest.cmdprint import print_list_on_cmd
 
 
 class TestGeonodeDatasetsHandler(unittest.TestCase):
@@ -57,6 +56,60 @@ class TestGeonodeDatasetHandler(unittest.TestCase):
         handler = GeonodeDatasetsHandler(env={})
         result = handler.patch(123, json_content={"title": "Updated"})
         self.assertTrue(result["success"])
+
+
+class TestCmdListNoneHandling(unittest.TestCase):
+    """Tests for graceful handling when API returns None (e.g. invalid filter or error response).
+    Regression test for: https://github.com/GeoNodeUserGroup-DE/geonodectl/issues/121
+    """
+
+    @patch.object(GeonodeDatasetsHandler, "list")
+    def test_cmd_list_does_not_crash_when_api_returns_none(self, mock_list):
+        """cmd_list must not raise TypeError when list() returns None."""
+        mock_list.return_value = None
+        handler = GeonodeDatasetsHandler(env={})
+        try:
+            handler.cmd_list(json=False, filter={"is_featured": "true"})
+        except TypeError as e:
+            self.fail(f"cmd_list raised TypeError unexpectedly: {e}")
+
+    @patch.object(GeonodeDatasetsHandler, "list")
+    def test_cmd_list_json_does_not_crash_when_api_returns_none(self, mock_list):
+        """cmd_list with --json flag must not crash when list() returns None."""
+        mock_list.return_value = None
+        handler = GeonodeDatasetsHandler(env={})
+        try:
+            handler.cmd_list(json=True, filter={"is_featured": "true"})
+        except TypeError as e:
+            self.fail(f"cmd_list raised TypeError unexpectedly: {e}")
+
+    def test_print_list_on_cmd_does_not_crash_on_none(self):
+        """print_list_on_cmd must not raise TypeError when obj is None."""
+        try:
+            print_list_on_cmd(None, [])
+        except TypeError as e:
+            self.fail(f"print_list_on_cmd raised TypeError unexpectedly: {e}")
+
+    @patch.object(GeonodeDatasetsHandler, "list")
+    def test_cmd_list_works_normally_with_valid_results(self, mock_list):
+        """cmd_list must still work correctly when list() returns valid data."""
+        mock_list.return_value = [
+            {
+                "pk": 1,
+                "title": "Test Dataset",
+                "owner": {"username": "admin"},
+                "date": "2026-01-01",
+                "is_approved": True,
+                "is_published": True,
+                "state": "PROCESSED",
+                "detail_url": "/datasets/1",
+            }
+        ]
+        handler = GeonodeDatasetsHandler(env={})
+        try:
+            handler.cmd_list(json=False, filter={})
+        except Exception as e:
+            self.fail(f"cmd_list raised unexpectedly: {e}")
 
 
 if __name__ == "__main__":
