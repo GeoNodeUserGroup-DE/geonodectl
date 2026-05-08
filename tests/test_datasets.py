@@ -1,6 +1,8 @@
 import unittest
-from unittest.mock import patch, call
+
+from unittest.mock import patch, call, MagicMock
 from geonoderest.datasets import GeonodeDatasetsHandler
+from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 
 
 class TestGeonodeDatasetsHandler(unittest.TestCase):
@@ -162,6 +164,94 @@ class TestCmdDescribeRange(unittest.TestCase):
         handler.cmd_describe(pk="10,20,30")
         endpoints = [c.kwargs["endpoint"] for c in mock_http_get.call_args_list]
         self.assertEqual(endpoints, ["datasets/10", "datasets/20", "datasets/30"])
+class TestWaitForUpload(unittest.TestCase):
+    """Tests for __wait_for_upload__ and cmd_upload --wait.
+    Feature test for: https://github.com/GeoNodeUserGroup-DE/geonodectl/issues/80
+    """
+
+    def _make_er(self, status, pks=None):
+        resources = [{"id": pk} for pk in (pks or [])]
+        return {"status": status, "output_params": {"resources": resources}}
+
+    @patch.object(GeonodeExecutionRequestHandler, "get")
+    def test_wait_for_upload_returns_pks_on_success(self, mock_get):
+        """__wait_for_upload__ returns PKs when execution finishes successfully."""
+        mock_get.return_value = self._make_er("finished", pks=[42, 43])
+        handler = GeonodeDatasetsHandler(env={})
+        pks = handler.__wait_for_upload__(exec_id="abc-123", poll_interval=0)
+        self.assertEqual(pks, [42, 43])
+
+    @patch.object(GeonodeExecutionRequestHandler, "get")
+    def test_wait_for_upload_polls_until_finished(self, mock_get):
+        """__wait_for_upload__ polls until status is 'finished'."""
+        mock_get.side_effect = [
+            self._make_er("running"),
+            self._make_er("running"),
+            self._make_er("finished", pks=[7]),
+        ]
+        handler = GeonodeDatasetsHandler(env={})
+        pks = handler.__wait_for_upload__(exec_id="abc-123", poll_interval=0)
+        self.assertEqual(mock_get.call_count, 3)
+        self.assertEqual(pks, [7])
+
+    @patch.object(GeonodeExecutionRequestHandler, "get")
+    def test_wait_for_upload_exits_on_failure(self, mock_get):
+        """__wait_for_upload__ calls sys.exit when upload fails."""
+        mock_get.return_value = self._make_er("failed")
+        handler = GeonodeDatasetsHandler(env={})
+        with self.assertRaises(SystemExit):
+            handler.__wait_for_upload__(exec_id="abc-123", poll_interval=0)
+
+    @patch.object(GeonodeDatasetsHandler, "__wait_for_upload__")
+    @patch.object(GeonodeDatasetsHandler, "get")
+    @patch.object(GeonodeDatasetsHandler, "upload")
+    @patch.object(GeonodeExecutionRequestHandler, "get")
+    def test_cmd_upload_with_wait_describes_resulting_datasets(
+        self, mock_er_get, mock_upload, mock_ds_get, mock_wait
+    ):
+        """cmd_upload with wait=True waits and then describes each resulting dataset."""
+        mock_upload.return_value = {"execution_id": "exec-001"}
+        mock_er_get.return_value = {
+            "status": "running",
+            "exec_id": "exec-001",
+            "created": "",
+            "name": "",
+            "link": "",
+        }
+        mock_wait.return_value = [10, 11]
+        mock_ds_get.side_effect = lambda pk, **kw: {"pk": pk, "title": f"DS {pk}"}
+
+        handler = GeonodeDatasetsHandler(env={})
+        from pathlib import Path
+
+        handler.cmd_upload(
+            file_path=Path("/fake/file.gpkg"),
+            wait=True,
+            json=True,
+        )
+        mock_wait.assert_called_once_with(exec_id="exec-001")
+        self.assertEqual(mock_ds_get.call_count, 2)
+
+    @patch.object(GeonodeDatasetsHandler, "upload")
+    @patch.object(GeonodeExecutionRequestHandler, "get")
+    def test_cmd_upload_without_wait_shows_execution_request(
+        self, mock_er_get, mock_upload
+    ):
+        """cmd_upload without --wait shows the execution request info (existing behaviour)."""
+        mock_upload.return_value = {"execution_id": "exec-002"}
+        mock_er_get.return_value = {
+            "status": "started",
+            "exec_id": "exec-002",
+            "created": "2026-01-01",
+            "name": "import",
+            "link": "http://x",
+        }
+        handler = GeonodeDatasetsHandler(env={})
+        from pathlib import Path
+
+        # Should not raise; wait=False is default
+        handler.cmd_upload(file_path=Path("/fake/file.gpkg"), wait=False, json=True)
+        mock_er_get.assert_called_once()
 
 
 if __name__ == "__main__":
