@@ -26,6 +26,9 @@ class GeonodeObjectHandler(GeonodeRest):
     def cmd_list(self, **kwargs):
         """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
+        if obj is None:
+            logging.warning("No results returned from GeoNode API.")
+            return
         if kwargs["json"]:
             print_json(obj)
         else:
