@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 
 from geonoderest.cmdprint import print_json, json_decode_error_handler
 from geonoderest.datasets import GeonodeDatasetsHandler
-from geonoderest.geonodeobject import GeonodeObjectHandler
+from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodetypes import (
     GeonodeCmdOutListKey,
     GeonodeCmdOutDictKey,
@@ -17,7 +17,7 @@ OGC_WFS_LINK_TYPE = "OGC:WFS"
 OGC_WCS_LINK_TYPE = "OGC:WCS"
 
 
-class GeonodeMapsHandler(GeonodeObjectHandler):
+class GeonodeMapsHandler(GeonodeResourceHandler):
     ENDPOINT_NAME = JSON_OBJECT_NAME = "maps"
     SINGULAR_RESOURCE_NAME = "map"
 

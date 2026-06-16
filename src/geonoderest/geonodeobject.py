@@ -48,7 +48,7 @@ class GeonodeObjectHandler(GeonodeRest):
             return None
         return r[self.JSON_OBJECT_NAME]
 
-    def __parse_pk_string__(self, pk: str) -> List[int]:
+    def __parse_pk_string__(self, pk) -> List[int]:
         """
         differentiate between pk range, pk list or single pk
 
@@ -56,6 +56,7 @@ class GeonodeObjectHandler(GeonodeRest):
             pk (str): pk of the object, as string with range or list or single pk
         """
 
+        pk = str(pk)
         # pk range: 5-10
         if "-" in pk:
             try:
