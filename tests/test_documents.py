@@ -24,12 +24,12 @@ class TestGeonodeDocumentsHandler(unittest.TestCase):
         self.assertTrue(result["success"])
 
     @patch.object(GeonodeDocumentsHandler, "http_delete")
-    def test_delete_uses_typed_endpoint(self, mock_http_delete):
-        """Ensure delete only targets documents, not generic resources endpoint."""
+    def test_delete_uses_resources_endpoint(self, mock_http_delete):
+        """documents API does not allow DELETE — delete must use resources/{pk}/delete."""
         mock_http_delete.return_value = {}
         handler = GeonodeDocumentsHandler(env={})
         handler.delete(pk=7)
-        mock_http_delete.assert_called_once_with(endpoint="documents/7/")
+        mock_http_delete.assert_called_once_with(endpoint="resources/7/delete")
 
 
 if __name__ == "__main__":
