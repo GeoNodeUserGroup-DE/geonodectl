@@ -10,26 +10,7 @@ from geonoderest.apiconf import GeonodeApiConf
 
 urllib3.disable_warnings()
 
-NetworkExceptionHandlingTypes: TypeAlias = (
-    Callable[
-        [
-            "GeonodeRest",
-            str,
-            Dict,
-            Dict,
-            Optional[List[GeonodeHTTPFile]],
-            Optional[int],
-        ],
-        Optional[Dict],
-    ]  # http_post
-    | Callable[
-        ["GeonodeRest", str, Dict], Optional[Dict] | Optional[requests.Response]
-    ]  # http_get_download, http_get
-    | Callable[["GeonodeRest", str, Dict, Dict], Optional[Dict]]  # http_patch
-    | Callable[
-        ["GeonodeRest", str, Optional[str], Dict], requests.Response
-    ]  # http_get_anonymous
-)
+NetworkExceptionHandlingTypes: TypeAlias = Callable[..., Any]
 
 
 class GeonodeRest(object):
