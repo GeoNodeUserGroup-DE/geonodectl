@@ -22,22 +22,24 @@ class TestGeonodeDatasetsHandler(unittest.TestCase):
         self.assertTrue(result["success"])
 
     @patch.object(GeonodeDatasetsHandler, "http_delete")
-    def test_delete_uses_typed_endpoint(self, mock_http_delete):
-        """Ensure delete only targets datasets, not generic resources endpoint."""
+    def test_delete_uses_resources_endpoint(self, mock_http_delete):
+        """datasets API does not allow DELETE — delete must use resources/{pk}/delete."""
         mock_http_delete.return_value = {}
         handler = GeonodeDatasetsHandler(env={})
         handler.delete(pk=5)
-        mock_http_delete.assert_called_once_with(endpoint="datasets/5/")
+        mock_http_delete.assert_called_once_with(endpoint="resources/5/delete")
 
     @patch.object(GeonodeDatasetsHandler, "http_delete")
-    def test_delete_range_uses_typed_endpoint(self, mock_http_delete):
-        """Ensure range delete only calls dataset endpoint for each pk in range."""
+    def test_delete_range_uses_resources_endpoint(self, mock_http_delete):
+        """datasets API does not allow DELETE — range delete must use resources endpoint."""
         mock_http_delete.return_value = {}
         handler = GeonodeDatasetsHandler(env={})
         for pk in range(1, 4):
             handler.delete(pk=pk)
         calls = [c.kwargs["endpoint"] for c in mock_http_delete.call_args_list]
-        self.assertEqual(calls, ["datasets/1/", "datasets/2/", "datasets/3/"])
+        self.assertEqual(
+            calls, ["resources/1/delete", "resources/2/delete", "resources/3/delete"]
+        )
 
 
 if __name__ == "__main__":
