@@ -1,11 +1,12 @@
 import json
 import sys
 import logging
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey
+from geonoderest.exceptions import GeoNodeRestException
 from geonoderest.cmdprint import (
     print_list_on_cmd,
     print_json,
@@ -259,3 +260,76 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         """delete geonode resource object"""
         self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{pk}")
         self.http_delete(endpoint=f"users/{pk}")
+
+    def cmd_transfer_resources(
+        self,
+        pk: int,
+        new_owner: int,
+        resources: Optional[List[int]] = None,
+        **kwargs,
+    ):
+        """hand resources of a user over to another user and print the result
+
+        Args:
+            pk (int): id of the user currently owning the resources
+            new_owner (int): id of the user to hand them to
+            resources (Optional[List[int]]): ids of the resources to move,
+                                             all of the users resources if left out
+        """
+        print_json(
+            self.transfer_resources(
+                pk=pk, new_owner=new_owner, resources=resources, **kwargs
+            )
+        )
+
+    def transfer_resources(
+        self,
+        pk: int,
+        new_owner: int,
+        resources: Optional[List[int]] = None,
+        **kwargs,
+    ) -> Optional[Dict]:
+        """hand resources of a user over to another user
+
+        Two shapes of this endpoint are in the wild. GeoNode 5 takes newOwner,
+        currentOwner and an optional list of resource ids; GeoNode 4.4 takes a
+        single `owner` and always moves every resource the user owns. The
+        modern payload is sent first and the legacy one only after GeoNode has
+        answered that it did not understand it.
+
+        Note that `resources` is always sent, empty for a whole-account
+        transfer: GeoNode 5 raises a TypeError on a JSON body that leaves it
+        out entirely.
+
+        Args:
+            pk (int): id of the user currently owning the resources
+            new_owner (int): id of the user to hand them to
+            resources (Optional[List[int]]): ids of the resources to move,
+                                             all of the users resources if left out
+
+        Raises:
+            GeoNodeRestException: if a subset was asked for but the GeoNode
+                                  only offers the whole-account transfer
+
+        Returns:
+            Optional[Dict]: the API response, or None if the transfer failed
+        """
+        endpoint = f"{self.ENDPOINT_NAME}/{pk}/transfer_resources"
+        obj = self.http_post(
+            endpoint=endpoint,
+            json={
+                "newOwner": new_owner,
+                "currentOwner": pk,
+                "resources": resources or [],
+            },
+        )
+        if obj is not None:
+            return obj
+
+        if resources:
+            raise GeoNodeRestException(
+                "could not transfer the given resources. On GeoNode 4.4 this endpoint moves "
+                "every resource of the user and cannot be given a subset ..."
+            )
+        logging.info("retrying with the GeoNode 4.4 payload ...")
+        return self.http_post(endpoint=endpoint, json={"owner": new_owner})
