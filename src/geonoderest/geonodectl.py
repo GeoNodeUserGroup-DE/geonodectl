@@ -1388,13 +1388,13 @@ To use this tool you have to set the following environment variables before star
         case "geoserver":
             try:
                 gs_handler = GeonodeGeoServerStyleHandler.from_env()
-            except KeyError as e:
+            except (KeyError, ValueError) as e:
                 logging.error(
-                    f"Missing environment variable for geoserver command: {e}. "
+                    f"Cannot initialise GeoServer handler: {e}. "
                     f"Auth: set {GEOSERVER_BASIC_AUTH_ENV_VAR} (Base64 user:pass) "
                     f"or {GEOSERVER_USER_ENV_VAR}+{GEOSERVER_PASSWORD_ENV_VAR}. "
                     f"URL: set {GEOSERVER_URL_ENV_VAR} or {GEONODE_API_URL_ENV_VAR} "
-                    f"(GeoServer URL defaults to <geonode-base>/geoserver)."
+                    f"(defaults to <geonode-base>/geoserver)."
                 )
                 sys.exit(1)
             if args.subcommand == "styles":
