@@ -19,6 +19,7 @@ dependencies = [
     "tabulate==0.9.0",
     "types-tabulate==0.9.0.20240106",
     "types-urllib3==1.26.25.14",
+    "geoserver-rest>=2.10.0",
 ]
 
 [project.optional-dependencies]
@@ -39,6 +40,5 @@ geonodectl = "geonoderest.geonodectl:geonodectl"
 minversion = "6.0"
 addopts = "-ra -q"
 testpaths = [
-    "src/geonoderest/",
-
+    "tests/",
 ]

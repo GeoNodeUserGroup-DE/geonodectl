@@ -13,6 +13,7 @@ from geonoderest.geonodetypes import (
     GeonodeCmdOutDictKey,
 )
 
+
 OGC_WFS_LINK_TYPE = "OGC:WFS"
 OGC_WCS_LINK_TYPE = "OGC:WCS"
 
@@ -310,3 +311,43 @@ class GeonodeMapsHandler(GeonodeObjectHandler):
         if r is None:
             return None
         return r[self.SINGULAR_RESOURCE_NAME]
+
+    def cmd_get_blob(self, pk: int, **kwargs):
+        """Print the MapStore blob JSON for a map to stdout.
+
+        Useful for inspection and shell pipelines:
+          geonodectl maps get-blob 2073 | jq '.map.layers'
+        """
+        result = self.get(pk=pk)
+        if result is None:
+            logging.error(f"Map {pk} not found")
+            return
+        blob = result.get("blob")
+        if blob is None:
+            logging.error(f"Map {pk} has no blob field")
+            return
+        print_json(blob)
+
+    def cmd_set_blob(self, pk: int, json_path: Optional[str] = None, **kwargs):
+        """Replace the MapStore blob JSON for a map from a JSON file.
+
+        Args:
+            pk (int): pk of the map to update
+            json_path (str): path to a JSON file containing the new blob
+
+        Example:
+          geonodectl maps set-blob 2073 --json_path ./blob.json
+        """
+        if not json_path:
+            raise ValueError("--json_path is required for set-blob")
+        with open(json_path, "r") as f:
+            try:
+                blob = json.load(f)
+            except json.decoder.JSONDecodeError as e:
+                json_decode_error_handler(json_path, e)
+                return
+        result = self.patch(pk=pk, json_content={"blob": blob})
+        if result is None:
+            logging.error(f"Failed to update blob for map {pk}")
+            return
+        print_json(result)
