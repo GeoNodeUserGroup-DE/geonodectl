@@ -1,10 +1,11 @@
-from typing import List
+from typing import List, Dict, Optional
 import requests
 import logging
 
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 from geonoderest.exceptions import GeoNodeRestException
+from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 
 SUPPORTED_METADATA_TYPES: List[str] = [
     "Atom",
@@ -65,3 +66,35 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
         link: str
         link = [m for m in r["links"] if m["name"] == metadata_type][0]["url"]
         return self.http_get_download(link)
+
+    def delete_async(self, pk: int) -> Optional[Dict]:
+        """Asynchronous delete via ``DELETE /api/v2/resources/{pk}/delete``.
+
+        Unlike :meth:`delete` (which hits the synchronous endpoint), this
+        returns an async receipt — ``{status, execution_id, status_url}`` —
+        suitable for passing to :meth:`wait_for_completion`. Use this when
+        the caller needs to confirm the deletion completed (e.g. before
+        relying on it in a downstream assertion).
+        """
+        return self.http_delete(endpoint=f"{self.ENDPOINT_NAME}/{pk}/delete")
+
+    def wait_for_completion(
+        self,
+        exec_id: str,
+        poll_interval: int = 2,
+        timeout: int = 180,
+        on_poll=None,
+    ) -> Dict:
+        """Poll an async resource operation (delete, copy, …) to completion.
+
+        Delegates to :class:`GeonodeExecutionRequestHandler` so the polling
+        behavior is consistent across uploads, deletes, and permission
+        changes.
+        """
+        handler = GeonodeExecutionRequestHandler(env=self.gn_credentials)
+        return handler.wait_for_completion(
+            exec_id=exec_id,
+            poll_interval=poll_interval,
+            timeout=timeout,
+            on_poll=on_poll,
+        )

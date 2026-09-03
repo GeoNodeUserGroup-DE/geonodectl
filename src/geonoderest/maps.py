@@ -310,3 +310,50 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         if r is None:
             return None
         return r[self.SINGULAR_RESOURCE_NAME]
+
+    def cmd_get_blob(self, pk: int, **kwargs):
+        """Print the MapStore blob JSON for a map to stdout.
+
+        Useful for inspection and shell pipelines:
+          geonodectl maps get-blob 2073 | jq '.map.layers'
+        """
+        # GeoNode omits the blob from the default response; request it explicitly.
+        raw = self.http_get(f"{self.ENDPOINT_NAME}/{pk}/", params={"include[]": "blob"})
+        if raw is None:
+            logging.error(f"Map {pk} not found")
+            return
+        result = raw.get(self.SINGULAR_RESOURCE_NAME)
+        if result is None:
+            logging.error(f"Map {pk} not found")
+            return
+        blob = result.get("blob")
+        if not blob:
+            logging.error(
+                f"Map {pk} has no blob — the map may not have been configured yet"
+            )
+            return
+        print_json(blob)
+
+    def cmd_set_blob(self, pk: int, json_path: Optional[str] = None, **kwargs):
+        """Replace the MapStore blob JSON for a map from a JSON file.
+
+        Args:
+            pk (int): pk of the map to update
+            json_path (str): path to a JSON file containing the new blob
+
+        Example:
+          geonodectl maps set-blob 2073 --json_path ./blob.json
+        """
+        if not json_path:
+            raise ValueError("--json_path is required for set-blob")
+        with open(json_path, "r") as f:
+            try:
+                blob = json.load(f)
+            except json.decoder.JSONDecodeError as e:
+                json_decode_error_handler(json_path, e)
+                return
+        result = self.patch(pk=pk, json_content={"blob": blob})
+        if result is None:
+            logging.error(f"Failed to update blob for map {pk}")
+            return
+        print_json(result)

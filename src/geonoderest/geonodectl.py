@@ -28,6 +28,14 @@ from geonoderest.tkeywords import GeonodeThesauriKeywordsRequestHandler
 from geonoderest.tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
 from geonoderest.linkedresources import GeonodeLinkedResourcesHandler
 from geonoderest.attributes import GeonodeAttributeHandler
+from geonoderest.geoserver import (
+    GeonodeGeoServerStyleHandler,
+    GEOSERVER_URL_ENV_VAR,
+    GEOSERVER_BASIC_AUTH_ENV_VAR,
+    GEOSERVER_USER_ENV_VAR,
+    GEOSERVER_PASSWORD_ENV_VAR,
+    GEONODE_API_URL_ENV_VAR,
+)
 
 GEONODECTL_URL_ENV_VAR: str = "GEONODE_API_URL"
 GEONODECTL_BASIC_ENV_VAR: str = "GEONODE_API_BASIC_AUTH"
@@ -630,6 +638,126 @@ To use this tool you have to set the following environment variables before star
         dest="maplayers",
         type=int,
         help="space seperate list of integers of pks to add as maplayer to the map",
+    )
+
+    # GET-BLOB
+    maps_get_blob = maps_subparsers.add_parser(
+        "get-blob", help="print the MapStore blob JSON for a map (pipe-friendly)"
+    )
+    maps_get_blob.add_argument(type=int, dest="pk", help="pk of map to fetch blob from")
+
+    # SET-BLOB
+    maps_set_blob = maps_subparsers.add_parser(
+        "set-blob", help="replace the MapStore blob JSON for a map from a file"
+    )
+    maps_set_blob.add_argument(type=int, dest="pk", help="pk of map to update")
+    maps_set_blob.add_argument(
+        "--json_path",
+        dest="json_path",
+        type=str,
+        required=True,
+        help="path to a JSON file containing the new blob",
+    )
+
+    ################################
+    # GEOSERVER ARGUMENT PARSING   #
+    ################################
+    geoserver = subparsers.add_parser(
+        "geoserver",
+        help=f"GeoServer REST API commands — auth via {GEOSERVER_BASIC_AUTH_ENV_VAR} (Base64 user:pass) or {GEOSERVER_USER_ENV_VAR}+{GEOSERVER_PASSWORD_ENV_VAR}; URL defaults to {GEONODE_API_URL_ENV_VAR}",
+    )
+    geoserver_subparsers = geoserver.add_subparsers(
+        help="geonodectl geoserver commands", dest="subcommand", required=True
+    )
+
+    geoserver_styles = geoserver_subparsers.add_parser(
+        "styles", help="manage GeoServer styles"
+    )
+    geoserver_styles_subparsers = geoserver_styles.add_subparsers(
+        help="geonodectl geoserver styles commands",
+        dest="styles_subcommand",
+        required=True,
+    )
+
+    # styles list
+    geoserver_styles_list = geoserver_styles_subparsers.add_parser(
+        "list", help="list styles in GeoServer"
+    )
+    geoserver_styles_list.add_argument(
+        "--workspace",
+        dest="workspace",
+        type=str,
+        required=False,
+        default=None,
+        help="limit to a specific GeoServer workspace, e.g. geonode",
+    )
+
+    # styles describe
+    geoserver_styles_describe = geoserver_styles_subparsers.add_parser(
+        "describe", help="print SLD XML for a style"
+    )
+    geoserver_styles_describe.add_argument(
+        type=str, dest="name", help="style name in GeoServer"
+    )
+    geoserver_styles_describe.add_argument(
+        "--workspace",
+        dest="workspace",
+        type=str,
+        required=False,
+        default=None,
+        help="workspace the style belongs to",
+    )
+
+    # styles upload
+    geoserver_styles_upload = geoserver_styles_subparsers.add_parser(
+        "upload", help="create or update a style from an SLD file"
+    )
+    geoserver_styles_upload.add_argument(
+        "--name",
+        dest="name",
+        type=str,
+        required=True,
+        help="style name in GeoServer",
+    )
+    geoserver_styles_upload.add_argument(
+        "--sld-path",
+        dest="sld_path",
+        type=str,
+        required=True,
+        help="path to the SLD XML file to upload",
+    )
+    geoserver_styles_upload.add_argument(
+        "--workspace",
+        dest="workspace",
+        type=str,
+        default="geonode",
+        help="target GeoServer workspace (default: geonode)",
+    )
+
+    # styles set-default
+    geoserver_styles_set_default = geoserver_styles_subparsers.add_parser(
+        "set-default", help="set the default style for a GeoServer layer"
+    )
+    geoserver_styles_set_default.add_argument(
+        "--layer",
+        dest="layer",
+        type=str,
+        required=True,
+        help="fully qualified layer name, e.g. geonode:my_layer",
+    )
+    geoserver_styles_set_default.add_argument(
+        "--style",
+        dest="style_name",
+        type=str,
+        required=True,
+        help="name of the style to set as default",
+    )
+    geoserver_styles_set_default.add_argument(
+        "--workspace",
+        dest="workspace",
+        type=str,
+        default="geonode",
+        help="workspace of the style (default: geonode)",
     )
 
     ############################
@@ -1257,10 +1385,28 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeThesauriKeywordsRequestHandler(env=geonode_env)
         case "thesaurikeywordlabels" | "tkeywordlabels":
             g_obj = GeonodeThesauriKeywordLabelsRequestHandler(env=geonode_env)
-
+        case "geoserver":
+            try:
+                gs_handler = GeonodeGeoServerStyleHandler.from_env()
+            except (KeyError, ValueError) as e:
+                logging.error(
+                    f"Cannot initialise GeoServer handler: {e}. "
+                    f"Auth: set {GEOSERVER_BASIC_AUTH_ENV_VAR} (Base64 user:pass) "
+                    f"or {GEOSERVER_USER_ENV_VAR}+{GEOSERVER_PASSWORD_ENV_VAR}. "
+                    f"URL: set {GEOSERVER_URL_ENV_VAR} or {GEONODE_API_URL_ENV_VAR} "
+                    f"(defaults to <geonode-base>/geoserver)."
+                )
+                sys.exit(1)
+            if args.subcommand == "styles":
+                gs_func = getattr(
+                    gs_handler,
+                    "cmd_style_" + args.styles_subcommand.replace("-", "_"),
+                )
+                gs_func(**args.__dict__)
+            return
         case _:
             raise NotImplemented
-    g_obj_func = getattr(g_obj, "cmd_" + args.subcommand)
+    g_obj_func = getattr(g_obj, "cmd_" + args.subcommand.replace("-", "_"))
     g_obj_func(**args.__dict__)
 
 

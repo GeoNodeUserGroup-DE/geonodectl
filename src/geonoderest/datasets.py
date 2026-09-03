@@ -10,6 +10,7 @@ from geonoderest.geonodetypes import GeonodeHTTPFile
 from geonoderest.cmdprint import show_list, print_json
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
+from geonoderest.exceptions import GeoNodeRestException
 
 
 class GeonodeDatasetsHandler(GeonodeResourceHandler):
@@ -107,26 +108,18 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         execution_request_handler = GeonodeExecutionRequestHandler(
             env=self.gn_credentials
         )
-        elapsed = 0
-        while True:
-            er = execution_request_handler.get(exec_id=exec_id)
-            status = er.get("status", "")
-            if status in ("finished", "failed"):
-                break
-            logging.info(f"waiting for upload to finish ({elapsed}s) ...")
-            time.sleep(poll_interval)
-            elapsed += poll_interval
-
-        if er.get("status") == "failed":
-            logging.error("upload failed ...")
-            logging.error(er)
+        try:
+            er = execution_request_handler.wait_for_completion(
+                exec_id=exec_id, poll_interval=poll_interval
+            )
+        except GeoNodeRestException as exc:
+            logging.error(str(exc))
             sys.exit(1)
-
         logging.info("upload finished ...")
-        pks = []
-        for resource in er.get("output_params", {}).get("resources", []):
-            pks.append(resource["id"])
-        return pks
+        return [
+            resource["id"]
+            for resource in er.get("output_params", {}).get("resources", [])
+        ]
 
     def upload(
         self,

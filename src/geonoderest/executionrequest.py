@@ -1,10 +1,14 @@
 from typing import Dict, List, Optional
 import logging
+import time
 
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
 from geonoderest.rest import GeonodeRest
+from geonoderest.exceptions import GeoNodeRestException
 
 from geonoderest.cmdprint import print_list_on_cmd, print_json
+
+TERMINAL_STATUSES = ("finished", "failed")
 
 
 class GeonodeExecutionRequestHandler(GeonodeRest):
@@ -63,3 +67,60 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
         if r is None:
             return None
         return r[self.JSON_OBJECT_NAME]
+
+    def wait_for_completion(
+        self,
+        exec_id: str,
+        poll_interval: int = 2,
+        timeout: int = 600,
+        on_poll=None,
+    ) -> Dict:
+        """Poll an execution request until it reaches a terminal status.
+
+        Used by any async-acknowledged operation that returns an execution_id:
+        uploads, async resource deletes, permission changes, etc.
+
+        Args:
+            exec_id (str): Execution request UUID.
+            poll_interval (int): Seconds between polls. Defaults to 2.
+            timeout (int): Max seconds to wait before giving up. Defaults to 600.
+            on_poll (callable, optional): Invoked with the latest record after
+                each poll. Useful for surfacing progress to the user.
+
+        Returns:
+            Dict: The terminal execution record (status == "finished").
+
+        Raises:
+            GeoNodeRestException: If the execution reports `failed` or the
+                timeout elapses before reaching a terminal status.
+        """
+        elapsed = 0
+        last: Optional[Dict] = None
+        while elapsed <= timeout:
+            er = self.get(exec_id=exec_id)
+            if er is None:
+                raise GeoNodeRestException(
+                    f"execution {exec_id} not found while polling"
+                )
+            last = er
+            status = (er.get("status") or "").lower()
+            if on_poll is not None:
+                on_poll(er)
+            if status == "finished":
+                logging.info(f"execution {exec_id} finished in ~{elapsed}s")
+                return er
+            if status == "failed":
+                raise GeoNodeRestException(
+                    f"execution {exec_id} failed: "
+                    f"{er.get('log') or er.get('output_params')}"
+                )
+            logging.debug(
+                f"waiting for execution {exec_id} (status={status}, "
+                f"elapsed={elapsed}s) ..."
+            )
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+        raise GeoNodeRestException(
+            f"execution {exec_id} did not reach a terminal status within "
+            f"{timeout}s (last status: {last.get('status') if last else 'unknown'})"
+        )
