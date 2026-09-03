@@ -318,13 +318,22 @@ class GeonodeMapsHandler(GeonodeObjectHandler):
         Useful for inspection and shell pipelines:
           geonodectl maps get-blob 2073 | jq '.map.layers'
         """
-        result = self.get(pk=pk)
+        # GeoNode omits the blob from the default response; request it explicitly.
+        raw = self.http_get(
+            f"{self.ENDPOINT_NAME}/{pk}/", params={"include[]": "blob"}
+        )
+        if raw is None:
+            logging.error(f"Map {pk} not found")
+            return
+        result = raw.get(self.SINGULAR_RESOURCE_NAME)
         if result is None:
             logging.error(f"Map {pk} not found")
             return
         blob = result.get("blob")
-        if blob is None:
-            logging.error(f"Map {pk} has no blob field")
+        if not blob:
+            logging.error(
+                f"Map {pk} has no blob — the map may not have been configured yet"
+            )
             return
         print_json(blob)
 
