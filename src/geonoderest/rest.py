@@ -26,7 +26,9 @@ NetworkExceptionHandlingTypes: TypeAlias = (
         ["GeonodeRest", str, Dict], Optional[Dict] | Optional[requests.Response]
     ]  # http_get_download, http_get
     | Callable[["GeonodeRest", str, Dict, Dict], Optional[Dict]]
-    | Callable[["GeonodeRest", str, Optional[str], Dict], requests.Response]  # http_get_anonymous
+    | Callable[
+        ["GeonodeRest", str, Optional[str], Dict], requests.Response
+    ]  # http_get_anonymous
 )
 
 
