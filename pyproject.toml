@@ -32,6 +32,12 @@ test = [
     "black==24.4.1",
     "mypy==1.10.0"
 ]
+docs = [
+    "mkdocs",
+    "mkdocstrings",
+    "mkdocstrings-python",
+    "markdown-include",
+]
 
 [project.urls]
 repository = "https://github.com/GeoNodeUserGroup-DE/geonodectl/"
