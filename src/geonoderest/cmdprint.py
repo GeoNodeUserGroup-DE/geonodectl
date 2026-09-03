@@ -33,6 +33,9 @@ def print_list_on_cmd(obj: Dict, cmdout_header: List[GeonodeCmdOutObjectKey]):
     Args:
         obj (Dict): dict object to print on cmd line
     """
+    if obj is None:
+        logging.warning("return from geonode api was broken, not output ...")
+        return
 
     def generate_line(i, obj: Dict, headers: List[GeonodeCmdOutObjectKey]) -> List:
         return [cmdoutkey.get_key(obj[i]) for cmdoutkey in headers]
@@ -54,7 +57,7 @@ def print_json(json_str: Union[str, dict]):
     if json_str is None:
         logging.warning("return from geonode api was broken, not output ...")
         return None
-    print(json.dumps(json_str, indent=2))
+    print(json.dumps(json_str, indent=2, ensure_ascii=False))
 
 
 def json_decode_error_handler(json_str: str, error: json.decoder.JSONDecodeError):

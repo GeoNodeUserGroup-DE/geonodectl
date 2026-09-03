@@ -1,4 +1,6 @@
 import os
+import sys
+import time
 from pathlib import Path
 from typing import List, Dict, Optional
 import logging
@@ -35,6 +37,7 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         mosaic: bool = False,
         overwrite_existing_layer: bool = False,
         skip_existing_layers: bool = False,
+        wait: bool = False,
         **kwargs,
     ):
         """upload data and show them on the cmdline
@@ -44,6 +47,7 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             charset (str, optional): charset of data Defaults to "UTF-8".
             time (bool, optional): set if data is timeseries data Defaults to False.
             mosaic (bool, optional): declare dataset as mosaic
+            wait (bool, optional): wait for upload to finish and show resulting dataset(s). Defaults to False.
         """
         r = self.upload(
             file_path=file_path,
@@ -64,6 +68,17 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         if er is None:
             logging.warning("upload failed ... ")
             return
+
+        if wait:
+            pks = self.__wait_for_upload__(exec_id=str(r["execution_id"]))
+            for pk in pks:
+                obj = self.get(pk=pk, **kwargs)
+                if kwargs.get("json"):
+                    print_json(obj)
+                else:
+                    self.cmd_describe(pk=str(pk), **kwargs)
+            return
+
         if kwargs["json"] is True:
             print_json(er)
         else:
@@ -75,6 +90,43 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
                 ["link", str(er["link"])],
             ]
             show_list(values=list_items, headers=["key", "value"])
+
+    def __wait_for_upload__(self, exec_id: str, poll_interval: int = 5) -> List[int]:
+        """Wait for an upload execution request to finish and return the resulting dataset PKs.
+
+        Args:
+            exec_id (str): The execution request ID returned by the upload endpoint.
+            poll_interval (int): Seconds between status polls. Defaults to 5.
+
+        Returns:
+            List[int]: PKs of the created/updated datasets.
+
+        Raises:
+            SystemExit: If the upload fails.
+        """
+        execution_request_handler = GeonodeExecutionRequestHandler(
+            env=self.gn_credentials
+        )
+        elapsed = 0
+        while True:
+            er = execution_request_handler.get(exec_id=exec_id)
+            status = er.get("status", "")
+            if status in ("finished", "failed"):
+                break
+            logging.info(f"waiting for upload to finish ({elapsed}s) ...")
+            time.sleep(poll_interval)
+            elapsed += poll_interval
+
+        if er.get("status") == "failed":
+            logging.error("upload failed ...")
+            logging.error(er)
+            sys.exit(1)
+
+        logging.info("upload finished ...")
+        pks = []
+        for resource in er.get("output_params", {}).get("resources", []):
+            pks.append(resource["id"])
+        return pks
 
     def upload(
         self,

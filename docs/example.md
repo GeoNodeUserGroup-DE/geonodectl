@@ -47,7 +47,7 @@ Currently not all features of the API are implemented. Here is a list of what yo
 | documents        | list, delete, patch, describe, upload |
 | maps             | list, delete, patch, describe, create |
 | geoapps          | list, delete, patch, describe |
-| users            | list, delete, patch, describe, create |
+| users            | list, delete, patch, describe, create, transfer_resources |
 | uploads          | list, describe |
 | executionrequest | list, describe |
 | keywords         | list, describe |

@@ -27,6 +27,14 @@ class TestGeonodeMapsHandler(unittest.TestCase):
         result = handler.patch(123, json_content={"title": "Updated"})
         self.assertTrue(result["success"])
 
+    @patch.object(GeonodeMapsHandler, "http_delete")
+    def test_delete_uses_resources_endpoint(self, mock_http_delete):
+        """maps API does not allow DELETE — delete must use resources/{pk}/delete."""
+        mock_http_delete.return_value = {}
+        handler = GeonodeMapsHandler(env={})
+        handler.delete(pk=5)
+        mock_http_delete.assert_called_once_with(endpoint="resources/5/delete")
+
 
 class TestCmdGetBlob(unittest.TestCase):
     def _handler(self):

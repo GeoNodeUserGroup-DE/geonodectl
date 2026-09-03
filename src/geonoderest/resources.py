@@ -29,6 +29,9 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
         GeonodeCmdOutListKey(key="detail_url"),
     ]
 
+    def delete(self, pk: int, **kwargs):
+        return self.http_delete(endpoint=f"resources/{pk}/delete")
+
     def cmd_metadata(
         self, pk: int, metadata_type: str = DEFAULT_METADATA_TYPE, **kwargs
     ):
