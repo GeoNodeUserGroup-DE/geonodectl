@@ -24,7 +24,7 @@ def _exc_msg(e: GeoserverException) -> str:
     return f"HTTP {e.status}: {msg}"
 
 
-class GeonodeGeoServerHandler:
+class GeonodeGeoServerStyleHandler:
     """GeoServer REST API client for style management.
 
     Reads connection details from environment variables:
@@ -50,12 +50,12 @@ class GeonodeGeoServerHandler:
         )
 
     @staticmethod
-    def from_env() -> "GeonodeGeoServerHandler":
+    def from_env() -> "GeonodeGeoServerStyleHandler":
         url = os.environ[GEOSERVER_URL_ENV_VAR]
         user = os.environ[GEOSERVER_USER_ENV_VAR]
         password = os.environ[GEOSERVER_PASSWORD_ENV_VAR]
         verify = os.getenv("GEONODE_API_VERIFY", "True") == "True"
-        return GeonodeGeoServerHandler(
+        return GeonodeGeoServerStyleHandler(
             url=url, username=user, password=password, verify=verify
         )
 

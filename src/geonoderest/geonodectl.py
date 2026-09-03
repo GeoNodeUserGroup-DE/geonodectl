@@ -29,7 +29,7 @@ from geonoderest.tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandle
 from geonoderest.linkedresources import GeonodeLinkedResourcesHandler
 from geonoderest.attributes import GeonodeAttributeHandler
 from geonoderest.geoserver import (
-    GeonodeGeoServerHandler,
+    GeonodeGeoServerStyleHandler,
     GEOSERVER_URL_ENV_VAR,
     GEOSERVER_USER_ENV_VAR,
     GEOSERVER_PASSWORD_ENV_VAR,
@@ -1385,7 +1385,7 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeThesauriKeywordLabelsRequestHandler(env=geonode_env)
         case "geoserver":
             try:
-                gs_handler = GeonodeGeoServerHandler.from_env()
+                gs_handler = GeonodeGeoServerStyleHandler.from_env()
             except KeyError as e:
                 logging.error(
                     f"Missing environment variable for geoserver command: {e}. "

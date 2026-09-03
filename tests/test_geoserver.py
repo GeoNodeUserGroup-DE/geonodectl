@@ -1,4 +1,4 @@
-"""Tests for GeonodeGeoServerHandler — style management and WMS operations."""
+"""Tests for GeonodeGeoServerStyleHandler — style management and WMS operations."""
 
 import json
 import os
@@ -9,16 +9,16 @@ from unittest.mock import MagicMock, patch
 import requests
 from geo.Geoserver import GeoserverException
 
-from geonoderest.geoserver import GeonodeGeoServerHandler
+from geonoderest.geoserver import GeonodeGeoServerStyleHandler
 
 WORKSPACE = "geonode"
 STYLE_NAME = "foss4g_buildings"
 SLD = "<StyledLayerDescriptor/>"
 
 
-def _handler() -> GeonodeGeoServerHandler:
+def _handler() -> GeonodeGeoServerStyleHandler:
     with patch("geonoderest.geoserver.Geoserver"):
-        h = GeonodeGeoServerHandler(
+        h = GeonodeGeoServerStyleHandler(
             url="https://geoserver.example.com",
             username="admin",
             password="secret",
