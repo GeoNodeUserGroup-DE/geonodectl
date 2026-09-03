@@ -1,4 +1,4 @@
-"""Tests for GeonodeGeoServerHandler — geoserver-rest-backed implementation."""
+"""Tests for GeonodeGeoServerHandler — style management and WMS operations."""
 
 import json
 import os
@@ -29,19 +29,26 @@ def _handler() -> GeonodeGeoServerHandler:
     return h
 
 
-class TestCmdList(unittest.TestCase):
+# ------------------------------------------------------------------
+# Style management tests
+# ------------------------------------------------------------------
+
+
+class TestCmdStyleList(unittest.TestCase):
     def setUp(self):
         self.h = _handler()
 
     def test_prints_style_names(self, *_):
         self.h.geo.get_styles.return_value = {
-            "styles": {"style": [
-                {"name": "foss4g_buildings"},
-                {"name": "foss4g_pois"},
-            ]}
+            "styles": {
+                "style": [
+                    {"name": "foss4g_buildings"},
+                    {"name": "foss4g_pois"},
+                ]
+            }
         }
         with patch("builtins.print") as mock_print:
-            self.h.cmd_list(workspace=WORKSPACE)
+            self.h.cmd_style_list(workspace=WORKSPACE)
         names = [c.args[0] for c in mock_print.call_args_list]
         self.assertIn("foss4g_buildings", names)
         self.assertIn("foss4g_pois", names)
@@ -51,16 +58,16 @@ class TestCmdList(unittest.TestCase):
             "styles": {"style": {"name": "only_style"}}
         }
         with patch("builtins.print") as mock_print:
-            self.h.cmd_list()
+            self.h.cmd_style_list()
         self.assertEqual(mock_print.call_args.args[0], "only_style")
 
     def test_logs_error_on_geoserver_exception(self):
         self.h.geo.get_styles.side_effect = GeoserverException(500, b"error")
         with self.assertLogs(level="ERROR"):
-            self.h.cmd_list(workspace=WORKSPACE)
+            self.h.cmd_style_list(workspace=WORKSPACE)
 
 
-class TestCmdDescribe(unittest.TestCase):
+class TestCmdStyleDescribe(unittest.TestCase):
     def setUp(self):
         self.h = _handler()
 
@@ -70,7 +77,7 @@ class TestCmdDescribe(unittest.TestCase):
             status_code=200, text=SLD, raise_for_status=lambda: None
         )
         with patch("builtins.print") as mock_print:
-            self.h.cmd_describe(STYLE_NAME, workspace=WORKSPACE)
+            self.h.cmd_style_describe(STYLE_NAME, workspace=WORKSPACE)
         mock_print.assert_called_once_with(SLD)
 
     @patch("geonoderest.geoserver.requests.get")
@@ -78,7 +85,7 @@ class TestCmdDescribe(unittest.TestCase):
         mock_get.return_value = MagicMock(
             status_code=200, text=SLD, raise_for_status=lambda: None
         )
-        self.h.cmd_describe(STYLE_NAME, workspace=WORKSPACE)
+        self.h.cmd_style_describe(STYLE_NAME, workspace=WORKSPACE)
         url = mock_get.call_args.args[0]
         self.assertIn(f"workspaces/{WORKSPACE}/styles", url)
 
@@ -86,10 +93,10 @@ class TestCmdDescribe(unittest.TestCase):
     def test_logs_error_on_http_failure(self, mock_get):
         mock_get.side_effect = requests.RequestException("404")
         with self.assertLogs(level="ERROR"):
-            self.h.cmd_describe(STYLE_NAME, workspace=WORKSPACE)
+            self.h.cmd_style_describe(STYLE_NAME, workspace=WORKSPACE)
 
 
-class TestCmdUpload(unittest.TestCase):
+class TestCmdStyleUpload(unittest.TestCase):
     def setUp(self):
         self.h = _handler()
         self.tmp = tempfile.NamedTemporaryFile(suffix=".sld", delete=False, mode="w")
@@ -103,7 +110,7 @@ class TestCmdUpload(unittest.TestCase):
     def test_delegates_to_upload_style(self):
         self.h.geo.upload_style.return_value = 200
         with patch("builtins.print"):
-            self.h.cmd_upload(STYLE_NAME, self.sld_path, workspace=WORKSPACE)
+            self.h.cmd_style_upload(STYLE_NAME, self.sld_path, workspace=WORKSPACE)
         self.h.geo.upload_style.assert_called_once_with(
             path=SLD, name=STYLE_NAME, workspace=WORKSPACE
         )
@@ -111,7 +118,7 @@ class TestCmdUpload(unittest.TestCase):
     def test_prints_success_json(self):
         self.h.geo.upload_style.return_value = 200
         with patch("builtins.print") as mock_print:
-            self.h.cmd_upload(STYLE_NAME, self.sld_path, workspace=WORKSPACE)
+            self.h.cmd_style_upload(STYLE_NAME, self.sld_path, workspace=WORKSPACE)
         printed = json.loads(mock_print.call_args.args[0])
         self.assertTrue(printed["success"])
         self.assertEqual(printed["style"], STYLE_NAME)
@@ -121,9 +128,11 @@ class TestCmdUpload(unittest.TestCase):
         """Regression: if upload_style fails (style already exists), must still
         attempt a direct PUT to update the existing SLD body."""
         self.h.geo.upload_style.side_effect = GeoserverException(409, b"Already exists")
-        mock_put.return_value = MagicMock(status_code=200, raise_for_status=lambda: None)
+        mock_put.return_value = MagicMock(
+            status_code=200, raise_for_status=lambda: None
+        )
         with patch("builtins.print"):
-            self.h.cmd_upload(STYLE_NAME, self.sld_path, workspace=WORKSPACE)
+            self.h.cmd_style_upload(STYLE_NAME, self.sld_path, workspace=WORKSPACE)
         mock_put.assert_called_once()
         _, kwargs = mock_put.call_args
         self.assertIn("application/vnd.ogc.sld+xml", kwargs["headers"]["Content-Type"])
@@ -133,17 +142,17 @@ class TestCmdUpload(unittest.TestCase):
         self.h.geo.upload_style.side_effect = GeoserverException(500, b"error")
         mock_put.side_effect = requests.RequestException("refused")
         with self.assertLogs(level="ERROR"):
-            self.h.cmd_upload(STYLE_NAME, self.sld_path, workspace=WORKSPACE)
+            self.h.cmd_style_upload(STYLE_NAME, self.sld_path, workspace=WORKSPACE)
 
 
-class TestCmdSetDefault(unittest.TestCase):
+class TestCmdStyleSetDefault(unittest.TestCase):
     def setUp(self):
         self.h = _handler()
 
     def test_splits_qualified_layer_for_publish_style(self):
         self.h.geo.publish_style.return_value = 200
         with patch("builtins.print"):
-            self.h.cmd_set_default("geonode:buildings", STYLE_NAME)
+            self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
         self.h.geo.publish_style.assert_called_once_with(
             layer_name="buildings",
             style_name=STYLE_NAME,
@@ -153,7 +162,7 @@ class TestCmdSetDefault(unittest.TestCase):
     def test_uses_workspace_arg_for_bare_layer_name(self):
         self.h.geo.publish_style.return_value = 200
         with patch("builtins.print"):
-            self.h.cmd_set_default("buildings", STYLE_NAME, workspace="custom")
+            self.h.cmd_style_set_default("buildings", STYLE_NAME, workspace="custom")
         self.h.geo.publish_style.assert_called_once_with(
             layer_name="buildings",
             style_name=STYLE_NAME,
@@ -163,16 +172,101 @@ class TestCmdSetDefault(unittest.TestCase):
     def test_prints_success_json(self):
         self.h.geo.publish_style.return_value = 200
         with patch("builtins.print") as mock_print:
-            self.h.cmd_set_default("geonode:buildings", STYLE_NAME)
+            self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
         printed = json.loads(mock_print.call_args.args[0])
         self.assertTrue(printed["success"])
         self.assertEqual(printed["layer"], "geonode:buildings")
         self.assertEqual(printed["style"], STYLE_NAME)
 
     def test_logs_error_on_geoserver_exception(self):
-        self.h.geo.publish_style.side_effect = GeoserverException(404, b"layer not found")
+        self.h.geo.publish_style.side_effect = GeoserverException(
+            404, b"layer not found"
+        )
         with self.assertLogs(level="ERROR"):
-            self.h.cmd_set_default("geonode:buildings", STYLE_NAME)
+            self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
+
+
+# ------------------------------------------------------------------
+# WMS tests
+# ------------------------------------------------------------------
+
+
+class TestCmdWmsGetMap(unittest.TestCase):
+    def setUp(self):
+        self.h = _handler()
+        self.tmp_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        self.tmp_out.close()
+        self.output = self.tmp_out.name
+
+    def tearDown(self):
+        os.unlink(self.output)
+
+    @patch("geonoderest.geoserver.requests.get")
+    def test_saves_image_to_output_file(self, mock_get):
+        mock_get.return_value = MagicMock(
+            ok=True,
+            content=b"PNG_BYTES",
+            headers={"Content-Type": "image/png"},
+            raise_for_status=lambda: None,
+        )
+        with patch("builtins.print"):
+            self.h.cmd_wms_get_map(
+                layer="geonode:pois",
+                bbox="132.45,34.39,132.47,34.40",
+                output=self.output,
+            )
+        self.assertEqual(Path(self.output).read_bytes(), b"PNG_BYTES")
+
+    @patch("geonoderest.geoserver.requests.get")
+    def test_prints_success_json(self, mock_get):
+        mock_get.return_value = MagicMock(
+            ok=True,
+            content=b"PNG_BYTES",
+            headers={"Content-Type": "image/png"},
+            raise_for_status=lambda: None,
+        )
+        with patch("builtins.print") as mock_print:
+            self.h.cmd_wms_get_map(
+                layer="geonode:pois",
+                bbox="132.45,34.39,132.47,34.40",
+                output=self.output,
+            )
+        printed = json.loads(mock_print.call_args.args[0])
+        self.assertTrue(printed["success"])
+        self.assertEqual(printed["output"], self.output)
+
+    @patch("geonoderest.geoserver.requests.get")
+    def test_uses_geoserver_ows_endpoint(self, mock_get):
+        mock_get.return_value = MagicMock(
+            ok=True,
+            content=b"",
+            headers={},
+            raise_for_status=lambda: None,
+        )
+        with patch("builtins.print"):
+            self.h.cmd_wms_get_map(
+                layer="geonode:pois",
+                bbox="0,0,1,1",
+                output=self.output,
+            )
+        url = mock_get.call_args.args[0]
+        self.assertTrue(url.endswith("/ows"))
+
+    def test_logs_error_on_invalid_bbox(self):
+        with self.assertLogs(level="ERROR"):
+            self.h.cmd_wms_get_map(
+                layer="geonode:pois", bbox="not,a,valid", output=self.output
+            )
+
+    @patch("geonoderest.geoserver.requests.get")
+    def test_logs_error_on_http_failure(self, mock_get):
+        mock_get.side_effect = requests.RequestException("timeout")
+        with self.assertLogs(level="ERROR"):
+            self.h.cmd_wms_get_map(
+                layer="geonode:pois",
+                bbox="0,0,1,1",
+                output=self.output,
+            )
 
 
 if __name__ == "__main__":

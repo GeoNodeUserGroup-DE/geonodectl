@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 import requests
 import urllib3
@@ -25,7 +25,7 @@ def _exc_msg(e: GeoserverException) -> str:
 
 
 class GeonodeGeoServerHandler:
-    """GeoServer REST API client for style management.
+    """GeoServer REST API client — style management and WMS operations.
 
     Reads connection details from environment variables:
       GEOSERVER_URL      — base URL, e.g. https://geonode.example.com/geoserver
@@ -33,6 +33,10 @@ class GeonodeGeoServerHandler:
       GEOSERVER_PASSWORD — GeoServer admin password
 
     SSL verification follows GEONODE_API_VERIFY (True/False, default True).
+
+    CLI subcommand routing:
+      geoserver styles  <list|describe|upload|set-default>  → cmd_style_*
+      geoserver wms     <get-map>                           → cmd_wms_*
     """
 
     def __init__(self, url: str, username: str, password: str, verify: bool = True):
@@ -52,13 +56,15 @@ class GeonodeGeoServerHandler:
         user = os.environ[GEOSERVER_USER_ENV_VAR]
         password = os.environ[GEOSERVER_PASSWORD_ENV_VAR]
         verify = os.getenv("GEONODE_API_VERIFY", "True") == "True"
-        return GeonodeGeoServerHandler(url=url, username=user, password=password, verify=verify)
+        return GeonodeGeoServerHandler(
+            url=url, username=user, password=password, verify=verify
+        )
 
     # ------------------------------------------------------------------
-    # cmd_ methods (called by geonodectl dispatch)
+    # Style management  (geoserver styles …)
     # ------------------------------------------------------------------
 
-    def cmd_list(self, workspace: Optional[str] = None, **kwargs):
+    def cmd_style_list(self, workspace: Optional[str] = None, **kwargs):
         """List styles in GeoServer, optionally filtered to a workspace."""
         try:
             data = self.geo.get_styles(workspace=workspace)
@@ -71,8 +77,8 @@ class GeonodeGeoServerHandler:
         for s in styles:
             print(s.get("name", ""))
 
-    def cmd_describe(self, name: str, workspace: Optional[str] = None, **kwargs):
-        """Print the SLD XML for a style.
+    def cmd_style_describe(self, name: str, workspace: Optional[str] = None, **kwargs):
+        """Print the SLD XML for a named style.
 
         geoserver-rest only exposes JSON metadata via get_style(); the raw SLD
         body requires a direct request with the appropriate Accept header.
@@ -88,7 +94,7 @@ class GeonodeGeoServerHandler:
         except requests.RequestException as e:
             logging.error(f"Failed to fetch SLD for '{name}': {e}")
 
-    def cmd_upload(
+    def cmd_style_upload(
         self,
         name: str,
         sld_path: str,
@@ -125,12 +131,14 @@ class GeonodeGeoServerHandler:
                 )
                 r.raise_for_status()
             except requests.RequestException as put_err:
-                logging.error(f"Failed to upload SLD body for style '{name}': {put_err}")
+                logging.error(
+                    f"Failed to upload SLD body for style '{name}': {put_err}"
+                )
                 return
 
         print(json.dumps({"success": True, "style": name, "workspace": workspace}))
 
-    def cmd_set_default(
+    def cmd_style_set_default(
         self,
         layer: str,
         style_name: str,
@@ -145,7 +153,7 @@ class GeonodeGeoServerHandler:
             workspace (str): workspace of the layer (default: geonode)
 
         Example:
-          geonodectl geoserver styles set-default geonode:my_layer my_style
+          geonodectl geoserver styles set-default --layer geonode:my_layer --style my_style
         """
         # layer may arrive as "workspace:name" or bare "name"
         parts = layer.rsplit(":", 1)
@@ -159,7 +167,100 @@ class GeonodeGeoServerHandler:
                 workspace=layer_workspace,
             )
         except GeoserverException as e:
-            logging.error(f"Failed to set default style for layer '{layer}': {_exc_msg(e)}")
+            logging.error(
+                f"Failed to set default style for layer '{layer}': {_exc_msg(e)}"
+            )
             return
 
         print(json.dumps({"success": True, "layer": layer, "style": style_name}))
+
+    # ------------------------------------------------------------------
+    # WMS operations  (geoserver wms …)
+    # ------------------------------------------------------------------
+
+    def cmd_wms_get_map(
+        self,
+        layer: str,
+        bbox: str,
+        output: str,
+        width: int = 512,
+        height: int = 512,
+        srs: str = "EPSG:3857",
+        image_format: str = "image/png",
+        styles: Optional[str] = None,
+        transparent: bool = True,
+        tiled: bool = True,
+        access_token: Optional[str] = None,
+        version: str = "1.3.0",
+        **kwargs,
+    ):
+        """Issue a WMS GetMap request and save the image to a file.
+
+        Args:
+            layer (str): Layer name (typically the ``alternate`` of a dataset).
+            bbox (str): Bounding box as ``minx,miny,maxx,maxy``.
+            output (str): Path to write the image to.
+            width (int): Image width in pixels. Defaults to 512.
+            height (int): Image height in pixels. Defaults to 512.
+            srs (str): Spatial reference system. Defaults to ``EPSG:3857``.
+            image_format (str): MIME type. Defaults to ``image/png``.
+            styles (str): Style name. Defaults to the layer name.
+            transparent (bool): Render with transparent background.
+            tiled (bool): Pass GeoServer tiling hint.
+            access_token (str): OAuth2 token for GeoServer auth.
+            version (str): WMS protocol version. Defaults to ``1.3.0``.
+
+        Note:
+            GeoServer rejects Django Basic Auth credentials. Authentication is
+            performed via the ``access_token`` query parameter (obtained from
+            ``/api/v2/userinfo``). Requests without a token are anonymous.
+        """
+        try:
+            bbox_tuple: Tuple[float, ...] = tuple(float(x) for x in bbox.split(","))
+            if len(bbox_tuple) != 4:
+                raise ValueError
+        except ValueError:
+            logging.error(
+                f"Invalid bbox '{bbox}': expected four comma-separated floats "
+                "(minx,miny,maxx,maxy)"
+            )
+            return
+
+        params = [
+            ("SERVICE", "WMS"),
+            ("VERSION", version),
+            ("REQUEST", "GetMap"),
+            ("FORMAT", image_format),
+            ("TRANSPARENT", str(transparent).lower()),
+            ("LAYERS", layer),
+            ("STYLES", styles if styles is not None else layer),
+            ("SRS", srs),
+            ("CRS", srs),
+            ("WIDTH", str(width)),
+            ("HEIGHT", str(height)),
+            ("BBOX", ",".join(str(c) for c in bbox_tuple)),
+            ("TILED", str(tiled).lower()),
+        ]
+        if access_token:
+            params.append(("access_token", access_token))
+
+        url = f"{self.base_url}/ows"
+        logging.debug(f"WMS GetMap: {url} params={params}")
+        try:
+            r = requests.get(url, params=params, verify=self._verify, timeout=60)
+            r.raise_for_status()
+        except requests.RequestException as e:
+            logging.error(f"WMS GetMap failed: {e}")
+            return
+
+        Path(output).write_bytes(r.content)
+        print(
+            json.dumps(
+                {
+                    "success": True,
+                    "output": output,
+                    "content_type": r.headers.get("Content-Type"),
+                    "size_bytes": len(r.content),
+                }
+            )
+        )

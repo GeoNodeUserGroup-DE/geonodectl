@@ -79,9 +79,7 @@ class TestCmdSetBlob(unittest.TestCase):
     @patch.object(GeonodeMapsHandler, "http_patch")
     def test_patches_map_with_blob_from_file(self, mock_patch):
         mock_patch.return_value = {"map": {"pk": 42}}
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(BLOB, f)
             path = f.name
         with patch("geonoderest.maps.print_json"):
@@ -92,9 +90,7 @@ class TestCmdSetBlob(unittest.TestCase):
     @patch.object(GeonodeMapsHandler, "http_patch")
     def test_prints_result_on_success(self, mock_patch):
         mock_patch.return_value = {"map": {"pk": 42, "title": "T"}}
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(BLOB, f)
             path = f.name
         with patch("geonoderest.maps.print_json") as mock_print:
@@ -103,9 +99,7 @@ class TestCmdSetBlob(unittest.TestCase):
 
     @patch.object(GeonodeMapsHandler, "http_patch", return_value=None)
     def test_logs_error_when_patch_fails(self, _):
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(BLOB, f)
             path = f.name
         with self.assertLogs(level="ERROR"):

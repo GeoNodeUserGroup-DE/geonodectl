@@ -13,7 +13,6 @@ from geonoderest.geonodetypes import (
     GeonodeCmdOutDictKey,
 )
 
-
 OGC_WFS_LINK_TYPE = "OGC:WFS"
 OGC_WCS_LINK_TYPE = "OGC:WCS"
 
@@ -319,9 +318,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
           geonodectl maps get-blob 2073 | jq '.map.layers'
         """
         # GeoNode omits the blob from the default response; request it explicitly.
-        raw = self.http_get(
-            f"{self.ENDPOINT_NAME}/{pk}/", params={"include[]": "blob"}
-        )
+        raw = self.http_get(f"{self.ENDPOINT_NAME}/{pk}/", params={"include[]": "blob"})
         if raw is None:
             logging.error(f"Map {pk} not found")
             return
