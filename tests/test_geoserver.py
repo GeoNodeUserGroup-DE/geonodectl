@@ -1,5 +1,6 @@
-"""Tests for GeonodeGeoServerStyleHandler — style management and WMS operations."""
+"""Tests for GeonodeGeoServerStyleHandler — style management."""
 
+import base64
 import json
 import os
 import tempfile
@@ -183,6 +184,106 @@ class TestCmdStyleSetDefault(unittest.TestCase):
         )
         with self.assertLogs(level="ERROR"):
             self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
+
+
+class TestFromEnv(unittest.TestCase):
+    """from_env: auth priority and URL defaulting."""
+
+    def _make(self, env: dict):
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("geonoderest.geoserver.Geoserver") as mock_gs,
+        ):
+            h = GeonodeGeoServerStyleHandler.from_env()
+            return h, mock_gs
+
+    def test_basic_auth_var_decodes_credentials(self):
+        token = base64.b64encode(b"admin:s3cr3t").decode()
+        h, mock_gs = self._make(
+            {
+                "GEOSERVER_API_BASIC_AUTH": token,
+                "GEOSERVER_URL": "https://gs.example.com",
+            }
+        )
+        _, kwargs = mock_gs.call_args
+        self.assertEqual(kwargs["username"], "admin")
+        self.assertEqual(kwargs["password"], "s3cr3t")
+
+    def test_user_password_vars_used_as_fallback(self):
+        h, mock_gs = self._make(
+            {
+                "GEOSERVER_USER": "admin",
+                "GEOSERVER_PASSWORD": "pw",
+                "GEOSERVER_URL": "https://gs.example.com",
+            }
+        )
+        _, kwargs = mock_gs.call_args
+        self.assertEqual(kwargs["username"], "admin")
+        self.assertEqual(kwargs["password"], "pw")
+
+    def test_basic_auth_takes_precedence_over_user_password(self):
+        token = base64.b64encode(b"tokenuser:tokenpass").decode()
+        h, mock_gs = self._make(
+            {
+                "GEOSERVER_API_BASIC_AUTH": token,
+                "GEOSERVER_USER": "other",
+                "GEOSERVER_PASSWORD": "other",
+                "GEOSERVER_URL": "https://gs.example.com",
+            }
+        )
+        _, kwargs = mock_gs.call_args
+        self.assertEqual(kwargs["username"], "tokenuser")
+
+    def test_url_defaults_from_geonode_api_url(self):
+        token = base64.b64encode(b"admin:pw").decode()
+        h, mock_gs = self._make(
+            {
+                "GEOSERVER_API_BASIC_AUTH": token,
+                "GEONODE_API_URL": "https://geonode.example.com/api/v2/",
+            }
+        )
+        _, kwargs = mock_gs.call_args
+        self.assertEqual(kwargs["service_url"], "https://geonode.example.com/geoserver")
+
+    def test_explicit_geoserver_url_overrides_default(self):
+        token = base64.b64encode(b"admin:pw").decode()
+        h, mock_gs = self._make(
+            {
+                "GEOSERVER_API_BASIC_AUTH": token,
+                "GEOSERVER_URL": "https://custom.gs.example.com",
+                "GEONODE_API_URL": "https://geonode.example.com/api/v2/",
+            }
+        )
+        _, kwargs = mock_gs.call_args
+        self.assertEqual(kwargs["service_url"], "https://custom.gs.example.com")
+
+    def test_raises_when_neither_url_nor_geonode_url_set(self):
+        token = base64.b64encode(b"admin:pw").decode()
+        with self.assertRaises(KeyError):
+            with (
+                patch.dict(
+                    os.environ,
+                    {"GEOSERVER_API_BASIC_AUTH": token},
+                    clear=True,
+                ),
+                patch("geonoderest.geoserver.Geoserver"),
+            ):
+                GeonodeGeoServerStyleHandler.from_env()
+
+    def test_raises_on_invalid_basic_auth_encoding(self):
+        with self.assertRaises(ValueError):
+            with (
+                patch.dict(
+                    os.environ,
+                    {
+                        "GEOSERVER_API_BASIC_AUTH": "!!!not-base64!!!",
+                        "GEOSERVER_URL": "https://gs.example.com",
+                    },
+                    clear=True,
+                ),
+                patch("geonoderest.geoserver.Geoserver"),
+            ):
+                GeonodeGeoServerStyleHandler.from_env()
 
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import os
@@ -13,8 +14,11 @@ urllib3.disable_warnings()
 SLD_CONTENT_TYPE = "application/vnd.ogc.sld+xml"
 
 GEOSERVER_URL_ENV_VAR = "GEOSERVER_URL"
+GEOSERVER_BASIC_AUTH_ENV_VAR = "GEOSERVER_API_BASIC_AUTH"
 GEOSERVER_USER_ENV_VAR = "GEOSERVER_USER"
 GEOSERVER_PASSWORD_ENV_VAR = "GEOSERVER_PASSWORD"
+
+GEONODE_API_URL_ENV_VAR = "GEONODE_API_URL"
 
 
 def _exc_msg(e: GeoserverException) -> str:
@@ -27,10 +31,14 @@ def _exc_msg(e: GeoserverException) -> str:
 class GeonodeGeoServerStyleHandler:
     """GeoServer REST API client for style management.
 
-    Reads connection details from environment variables:
-      GEOSERVER_URL      — base URL, e.g. https://geonode.example.com/geoserver
-      GEOSERVER_USER     — GeoServer admin username
-      GEOSERVER_PASSWORD — GeoServer admin password
+    Authentication (in order of precedence):
+      GEOSERVER_API_BASIC_AUTH — Base64-encoded ``user:password`` (same format
+                                  as GEONODE_API_BASIC_AUTH). Preferred.
+      GEOSERVER_USER + GEOSERVER_PASSWORD — explicit credentials fallback.
+
+    URL:
+      GEOSERVER_URL — GeoServer base URL (default: GEONODE_API_URL with
+                      ``/api/v2/`` replaced by ``/geoserver``).
 
     SSL verification follows GEONODE_API_VERIFY (True/False, default True).
 
@@ -51,9 +59,36 @@ class GeonodeGeoServerStyleHandler:
 
     @staticmethod
     def from_env() -> "GeonodeGeoServerStyleHandler":
-        url = os.environ[GEOSERVER_URL_ENV_VAR]
-        user = os.environ[GEOSERVER_USER_ENV_VAR]
-        password = os.environ[GEOSERVER_PASSWORD_ENV_VAR]
+        # --- URL: explicit or derived from GeoNode API URL ---
+        url = os.getenv(GEOSERVER_URL_ENV_VAR)
+        if not url:
+            geonode_url = os.getenv(GEONODE_API_URL_ENV_VAR, "").rstrip("/")
+            if not geonode_url:
+                raise KeyError(
+                    f"Set {GEOSERVER_URL_ENV_VAR} or {GEONODE_API_URL_ENV_VAR}"
+                )
+            # strip /api/v2 suffix and append /geoserver
+            base = (
+                geonode_url[: -len("/api/v2")]
+                if geonode_url.endswith("/api/v2")
+                else geonode_url
+            )
+            url = base.rstrip("/") + "/geoserver"
+
+        # --- Auth: GEOSERVER_API_BASIC_AUTH takes precedence ---
+        basic_auth = os.getenv(GEOSERVER_BASIC_AUTH_ENV_VAR)
+        if basic_auth:
+            try:
+                decoded = base64.b64decode(basic_auth).decode("utf-8")
+                user, password = decoded.split(":", 1)
+            except Exception as exc:
+                raise ValueError(
+                    f"Cannot decode {GEOSERVER_BASIC_AUTH_ENV_VAR}: {exc}"
+                ) from exc
+        else:
+            user = os.environ[GEOSERVER_USER_ENV_VAR]
+            password = os.environ[GEOSERVER_PASSWORD_ENV_VAR]
+
         verify = os.getenv("GEONODE_API_VERIFY", "True") == "True"
         return GeonodeGeoServerStyleHandler(
             url=url, username=user, password=password, verify=verify

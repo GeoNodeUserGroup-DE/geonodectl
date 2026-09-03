@@ -31,8 +31,10 @@ from geonoderest.attributes import GeonodeAttributeHandler
 from geonoderest.geoserver import (
     GeonodeGeoServerStyleHandler,
     GEOSERVER_URL_ENV_VAR,
+    GEOSERVER_BASIC_AUTH_ENV_VAR,
     GEOSERVER_USER_ENV_VAR,
     GEOSERVER_PASSWORD_ENV_VAR,
+    GEONODE_API_URL_ENV_VAR,
 )
 
 GEONODECTL_URL_ENV_VAR: str = "GEONODE_API_URL"
@@ -662,7 +664,7 @@ To use this tool you have to set the following environment variables before star
     ################################
     geoserver = subparsers.add_parser(
         "geoserver",
-        help="GeoServer REST API commands (requires GEOSERVER_URL, GEOSERVER_USER, GEOSERVER_PASSWORD)",
+        help=f"GeoServer REST API commands — auth via {GEOSERVER_BASIC_AUTH_ENV_VAR} (Base64 user:pass) or {GEOSERVER_USER_ENV_VAR}+{GEOSERVER_PASSWORD_ENV_VAR}; URL defaults to {GEONODE_API_URL_ENV_VAR}",
     )
     geoserver_subparsers = geoserver.add_subparsers(
         help="geonodectl geoserver commands", dest="subcommand", required=True
@@ -1389,8 +1391,10 @@ To use this tool you have to set the following environment variables before star
             except KeyError as e:
                 logging.error(
                     f"Missing environment variable for geoserver command: {e}. "
-                    f"Please set {GEOSERVER_URL_ENV_VAR}, {GEOSERVER_USER_ENV_VAR}, "
-                    f"{GEOSERVER_PASSWORD_ENV_VAR}."
+                    f"Auth: set {GEOSERVER_BASIC_AUTH_ENV_VAR} (Base64 user:pass) "
+                    f"or {GEOSERVER_USER_ENV_VAR}+{GEOSERVER_PASSWORD_ENV_VAR}. "
+                    f"URL: set {GEOSERVER_URL_ENV_VAR} or {GEONODE_API_URL_ENV_VAR} "
+                    f"(GeoServer URL defaults to <geonode-base>/geoserver)."
                 )
                 sys.exit(1)
             if args.subcommand == "styles":
