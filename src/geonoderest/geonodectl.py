@@ -860,6 +860,29 @@ To use this tool you have to set the following environment variables before star
         "is_staff": true, "is_superuser": true}\' ... (mutually exclusive [c])',
     )
 
+    # TRANSFER RESOURCES
+    users_transfer_resources = users_subparsers.add_parser(
+        "transfer_resources", help="hand resources of a user over to another user"
+    )
+    users_transfer_resources.add_argument(
+        type=int, dest="pk", help="pk of the user currently owning the resources"
+    )
+    users_transfer_resources.add_argument(
+        "--new_owner",
+        type=int,
+        dest="new_owner",
+        required=True,
+        help="pk of the user to hand the resources to ...",
+    )
+    users_transfer_resources.add_argument(
+        "--resources",
+        nargs="+",
+        type=int,
+        dest="resources",
+        help="pks of the resources to move, like --resources 1 2 3. Moves every resource \
+        of the user if left out. Needs GeoNode 5, GeoNode 4.4 can only move all of them ...",
+    )
+
     ###########################
     # GROUPS ARGUMENT PARSING #
     ###########################
