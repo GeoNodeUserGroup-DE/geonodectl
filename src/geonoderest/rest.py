@@ -245,6 +245,72 @@ class GeonodeRest(object):
         return r.json()
 
     @network_exception_handling
+    def http_put(
+        self, endpoint: str, json_content: Dict = {}, params: Dict = {}, **kwargs
+    ) -> Optional[Dict]:
+        """
+        Execute HTTP PUT request on the specified endpoint with optional parameters.
+
+        Args:
+            endpoint (str): The API endpoint to send the PUT request to.
+            json_content (Dict, optional): A dictionary of JSON data to include in the request body.
+            params (Dict, optional): A dictionary of query parameters to include in the request.
+
+        Returns:
+            Dict: The JSON response from the server, or None if an error occurred.
+        """
+        url = self.url + endpoint
+        try:
+            logging.debug(
+                f"PUT URL: {url}, headers: {self.header}, params: {params}, json: {json_content}"
+            )
+            r = requests.put(
+                url,
+                headers=self.header,
+                json=json_content,
+                params=params,
+                verify=self.verify,
+            )
+            r.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            if r is not None:
+                logging.error(f"PUT error response: {r.text}")
+            logging.error(err)
+            return None
+        return r.json()
+
+    @network_exception_handling
+    def http_get_anonymous(
+        self,
+        endpoint: str = "",
+        url: Optional[str] = None,
+        params: Dict = {},
+    ) -> requests.Response:
+        """
+        Execute an HTTP GET without sending session credentials.
+
+        Useful for probes that must verify the API behavior for unauthenticated
+        callers — e.g. confirming a permission restriction prevents anonymous
+        reads. No Authorization header, no session cookie. Returns the raw
+        `requests.Response` so callers can inspect status code, headers, and
+        body; HTTP error statuses are NOT raised because they are frequently
+        the expected outcome.
+
+        Args:
+            endpoint (str): Endpoint relative to the configured API base URL.
+                Ignored when `url` is provided.
+            url (Optional[str]): Absolute URL to GET. Takes precedence over
+                `endpoint`.
+            params (Dict): Query-string parameters.
+
+        Returns:
+            requests.Response: The raw response.
+        """
+        target_url = url if url else self.url + endpoint
+        logging.debug(f"GET (anonymous) URL: {target_url}, params: {params}")
+        return requests.get(target_url, params=params, verify=self.verify)
+
+    @network_exception_handling
     def http_patch(
         self, endpoint: str, json_content: Dict = {}, params: Dict = {}, **kwargs
     ) -> Optional[Dict]:
