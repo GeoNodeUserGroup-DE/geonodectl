@@ -4,7 +4,6 @@ import json
 import os
 import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -184,89 +183,6 @@ class TestCmdStyleSetDefault(unittest.TestCase):
         )
         with self.assertLogs(level="ERROR"):
             self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
-
-
-# ------------------------------------------------------------------
-# WMS tests
-# ------------------------------------------------------------------
-
-
-class TestCmdWmsGetMap(unittest.TestCase):
-    def setUp(self):
-        self.h = _handler()
-        self.tmp_out = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        self.tmp_out.close()
-        self.output = self.tmp_out.name
-
-    def tearDown(self):
-        os.unlink(self.output)
-
-    @patch("geonoderest.geoserver.requests.get")
-    def test_saves_image_to_output_file(self, mock_get):
-        mock_get.return_value = MagicMock(
-            ok=True,
-            content=b"PNG_BYTES",
-            headers={"Content-Type": "image/png"},
-            raise_for_status=lambda: None,
-        )
-        with patch("builtins.print"):
-            self.h.cmd_wms_get_map(
-                layer="geonode:pois",
-                bbox="132.45,34.39,132.47,34.40",
-                output=self.output,
-            )
-        self.assertEqual(Path(self.output).read_bytes(), b"PNG_BYTES")
-
-    @patch("geonoderest.geoserver.requests.get")
-    def test_prints_success_json(self, mock_get):
-        mock_get.return_value = MagicMock(
-            ok=True,
-            content=b"PNG_BYTES",
-            headers={"Content-Type": "image/png"},
-            raise_for_status=lambda: None,
-        )
-        with patch("builtins.print") as mock_print:
-            self.h.cmd_wms_get_map(
-                layer="geonode:pois",
-                bbox="132.45,34.39,132.47,34.40",
-                output=self.output,
-            )
-        printed = json.loads(mock_print.call_args.args[0])
-        self.assertTrue(printed["success"])
-        self.assertEqual(printed["output"], self.output)
-
-    @patch("geonoderest.geoserver.requests.get")
-    def test_uses_geoserver_ows_endpoint(self, mock_get):
-        mock_get.return_value = MagicMock(
-            ok=True,
-            content=b"",
-            headers={},
-            raise_for_status=lambda: None,
-        )
-        with patch("builtins.print"):
-            self.h.cmd_wms_get_map(
-                layer="geonode:pois",
-                bbox="0,0,1,1",
-                output=self.output,
-            )
-        url = mock_get.call_args.args[0]
-        self.assertTrue(url.endswith("/ows"))
-
-    def test_logs_error_on_invalid_bbox(self):
-        with self.assertLogs(level="ERROR"):
-            self.h.cmd_wms_get_map(
-                layer="geonode:pois", bbox="not,a,valid", output=self.output
-            )
-
-    @patch("geonoderest.geoserver.requests.get")
-    def test_logs_error_on_http_failure(self, mock_get):
-        mock_get.side_effect = requests.RequestException("timeout")
-        with self.assertLogs(level="ERROR"):
-            self.h.cmd_wms_get_map(
-                layer="geonode:pois",
-                bbox="0,0,1,1",
-                output=self.output,
-            )
 
 
 if __name__ == "__main__":

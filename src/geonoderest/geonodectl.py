@@ -758,66 +758,6 @@ To use this tool you have to set the following environment variables before star
         help="workspace of the style (default: geonode)",
     )
 
-    # wms subcommand group
-    geoserver_wms = geoserver_subparsers.add_parser(
-        "wms", help="GeoServer WMS operations"
-    )
-    geoserver_wms_subparsers = geoserver_wms.add_subparsers(
-        help="geonodectl geoserver wms commands",
-        dest="wms_subcommand",
-        required=True,
-    )
-
-    geoserver_wms_get_map = geoserver_wms_subparsers.add_parser(
-        "get-map", help="issue a WMS GetMap request and save the image to a file"
-    )
-    geoserver_wms_get_map.add_argument(
-        "--layer", dest="layer", type=str, required=True, help="layer name (alternate)"
-    )
-    geoserver_wms_get_map.add_argument(
-        "--bbox",
-        dest="bbox",
-        type=str,
-        required=True,
-        help="bounding box as minx,miny,maxx,maxy",
-    )
-    geoserver_wms_get_map.add_argument(
-        "--output",
-        dest="output",
-        type=str,
-        required=True,
-        help="file path to write the image to",
-    )
-    geoserver_wms_get_map.add_argument(
-        "--width", dest="width", type=int, default=512, help="image width in pixels"
-    )
-    geoserver_wms_get_map.add_argument(
-        "--height", dest="height", type=int, default=512, help="image height in pixels"
-    )
-    geoserver_wms_get_map.add_argument(
-        "--srs", dest="srs", type=str, default="EPSG:3857"
-    )
-    geoserver_wms_get_map.add_argument(
-        "--format",
-        dest="image_format",
-        type=str,
-        default="image/png",
-        help="MIME type (default: image/png)",
-    )
-    geoserver_wms_get_map.add_argument(
-        "--styles", dest="styles", type=str, default=None
-    )
-    geoserver_wms_get_map.add_argument(
-        "--access-token",
-        dest="access_token",
-        type=str,
-        default=None,
-        help="OAuth2 access token for GeoServer authentication",
-    )
-    geoserver_wms_get_map.add_argument(
-        "--version", dest="version", type=str, default="1.3.0"
-    )
-
     ############################
     # GEOAPPS ARGUMENT PARSING #
     ############################
@@ -1457,12 +1397,6 @@ To use this tool you have to set the following environment variables before star
                 gs_func = getattr(
                     gs_handler,
                     "cmd_style_" + args.styles_subcommand.replace("-", "_"),
-                )
-                gs_func(**args.__dict__)
-            elif args.subcommand == "wms":
-                gs_func = getattr(
-                    gs_handler,
-                    "cmd_wms_" + args.wms_subcommand.replace("-", "_"),
                 )
                 gs_func(**args.__dict__)
             return

@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import requests
 import urllib3
@@ -25,7 +25,7 @@ def _exc_msg(e: GeoserverException) -> str:
 
 
 class GeonodeGeoServerHandler:
-    """GeoServer REST API client — style management and WMS operations.
+    """GeoServer REST API client for style management.
 
     Reads connection details from environment variables:
       GEOSERVER_URL      — base URL, e.g. https://geonode.example.com/geoserver
@@ -36,7 +36,6 @@ class GeonodeGeoServerHandler:
 
     CLI subcommand routing:
       geoserver styles  <list|describe|upload|set-default>  → cmd_style_*
-      geoserver wms     <get-map>                           → cmd_wms_*
     """
 
     def __init__(self, url: str, username: str, password: str, verify: bool = True):
@@ -173,94 +172,3 @@ class GeonodeGeoServerHandler:
             return
 
         print(json.dumps({"success": True, "layer": layer, "style": style_name}))
-
-    # ------------------------------------------------------------------
-    # WMS operations  (geoserver wms …)
-    # ------------------------------------------------------------------
-
-    def cmd_wms_get_map(
-        self,
-        layer: str,
-        bbox: str,
-        output: str,
-        width: int = 512,
-        height: int = 512,
-        srs: str = "EPSG:3857",
-        image_format: str = "image/png",
-        styles: Optional[str] = None,
-        transparent: bool = True,
-        tiled: bool = True,
-        access_token: Optional[str] = None,
-        version: str = "1.3.0",
-        **kwargs,
-    ):
-        """Issue a WMS GetMap request and save the image to a file.
-
-        Args:
-            layer (str): Layer name (typically the ``alternate`` of a dataset).
-            bbox (str): Bounding box as ``minx,miny,maxx,maxy``.
-            output (str): Path to write the image to.
-            width (int): Image width in pixels. Defaults to 512.
-            height (int): Image height in pixels. Defaults to 512.
-            srs (str): Spatial reference system. Defaults to ``EPSG:3857``.
-            image_format (str): MIME type. Defaults to ``image/png``.
-            styles (str): Style name. Defaults to the layer name.
-            transparent (bool): Render with transparent background.
-            tiled (bool): Pass GeoServer tiling hint.
-            access_token (str): OAuth2 token for GeoServer auth.
-            version (str): WMS protocol version. Defaults to ``1.3.0``.
-
-        Note:
-            GeoServer rejects Django Basic Auth credentials. Authentication is
-            performed via the ``access_token`` query parameter (obtained from
-            ``/api/v2/userinfo``). Requests without a token are anonymous.
-        """
-        try:
-            bbox_tuple: Tuple[float, ...] = tuple(float(x) for x in bbox.split(","))
-            if len(bbox_tuple) != 4:
-                raise ValueError
-        except ValueError:
-            logging.error(
-                f"Invalid bbox '{bbox}': expected four comma-separated floats "
-                "(minx,miny,maxx,maxy)"
-            )
-            return
-
-        params = [
-            ("SERVICE", "WMS"),
-            ("VERSION", version),
-            ("REQUEST", "GetMap"),
-            ("FORMAT", image_format),
-            ("TRANSPARENT", str(transparent).lower()),
-            ("LAYERS", layer),
-            ("STYLES", styles if styles is not None else layer),
-            ("SRS", srs),
-            ("CRS", srs),
-            ("WIDTH", str(width)),
-            ("HEIGHT", str(height)),
-            ("BBOX", ",".join(str(c) for c in bbox_tuple)),
-            ("TILED", str(tiled).lower()),
-        ]
-        if access_token:
-            params.append(("access_token", access_token))
-
-        url = f"{self.base_url}/ows"
-        logging.debug(f"WMS GetMap: {url} params={params}")
-        try:
-            r = requests.get(url, params=params, verify=self._verify, timeout=60)
-            r.raise_for_status()
-        except requests.RequestException as e:
-            logging.error(f"WMS GetMap failed: {e}")
-            return
-
-        Path(output).write_bytes(r.content)
-        print(
-            json.dumps(
-                {
-                    "success": True,
-                    "output": output,
-                    "content_type": r.headers.get("Content-Type"),
-                    "size_bytes": len(r.content),
-                }
-            )
-        )
