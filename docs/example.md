@@ -4,11 +4,11 @@ geonodectl has the following capabilities:
 
 | geonode resource | capabilities |
 |------------------|--------------|
-| resource         | list, delete, download metadata |
-| dataset          | list, delete, patch, describe, upload |
-| documents        | list, delete, patch, describe, upload |
-| maps             | list, delete, patch, describe, create, get-blob, set-blob, maplayers list/add/remove |
-| geoapps          | list, delete, patch, describe |
+| resource         | list, delete, download metadata, validate |
+| dataset          | list, delete, patch, describe, upload, validate |
+| documents        | list, delete, patch, describe, upload, validate |
+| maps             | list, delete, patch, describe, create, get-blob, set-blob, maplayers list/add/remove, validate |
+| geoapps          | list, delete, patch, describe, validate |
 | users            | list, delete, patch, describe, create, transfer_resources |
 | groups           | list, delete, patch, describe, create |
 | uploads          | list, describe |

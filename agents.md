@@ -227,6 +227,7 @@ Generic handler for all resource types. Also provides metadata download:
 | `list(**kwargs)` | | `Optional[Dict]` | List all resources (datasets, docs, maps) |
 | `delete(pk: int, **kwargs)` | | `Optional[Dict]` | Delete any resource |
 | `metadata(pk: int, metadata_type: str = "ISO", **kwargs)` | | `requests.Response` | Download metadata in a given format |
+| `validate(pk: int, validator, **kwargs)` | | `Optional[List[Dict]]` | Validate metadata against a prepared JSON Schema validator. Returns violations (empty when valid), or `None` when the object could not be fetched. Never prints or exits. Inherited by datasets, documents, maps and geoapps. |
 
 **Supported metadata types**: `"Atom"`, `"DIF"`, `"Dublin Core"`, `"FGDC"`, `"ISO"`
 
@@ -420,11 +421,11 @@ All HTTP methods return `None` on HTTP errors (4xx/5xx) and log the error. Conne
 ```
 GeonodeRest                          # HTTP methods (get/post/patch/delete)
 ├── GeonodeObjectHandler             # CRUD: list, get, delete, patch
-│   ├── GeonodeResourceHandler       # + metadata download
+│   ├── GeonodeResourceHandler       # + metadata download, validate
 │   │   ├── GeonodeDatasetsHandler   # + upload (shapefile, zip, single file)
 │   │   ├── GeonodeDocumentsHandler  # + upload (any document)
+│   │   ├── GeonodeMapsHandler       # + create, blob, add/remove maplayers
 │   │   └── GeonodeGeoappsHandler
-│   ├── GeonodeMapsHandler           # + create, blob, add/remove maplayers
 │   ├── GeonodeUsersHandler          # + create, user_resources, user_groups
 │   ├── GeonodeGroupsHandler
 │   ├── GeonodeUploadsHandler
@@ -452,6 +453,6 @@ GeonodeRest                          # HTTP methods (get/post/patch/delete)
 - **PyPI**: `pip install geonodectl`
 - **Import package**: `geonoderest`
 - **Python**: ≥ 3.10
-- **Dependencies**: `requests`, `tabulate`
+- **Dependencies**: `requests`, `tabulate`, `jsonschema`
 - **Repository**: https://github.com/GeoNodeUserGroup-DE/geonodectl
 - **License**: MIT

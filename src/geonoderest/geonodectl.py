@@ -94,6 +94,34 @@ class kwargs_append_action(argparse.Action):
         setattr(args, self.dest, d)
 
 
+def add_validate_parser(subparsers, noun: str):
+    """add a `validate` subcommand to a resource's subparsers
+
+    The four resource types take an identical validate verb, so it is built once
+    here instead of being copied per resource.
+
+    Args:
+        subparsers: the resource's subparser group
+        noun (str): singular name of the resource, used in the help texts
+    """
+    validate = subparsers.add_parser(
+        "validate", help=f"validate {noun} metadata against a JSON schema"
+    )
+    validate.add_argument(
+        type=str,
+        dest="pk",
+        help=f"pk of {noun}(s) to validate (range '1-5', list '1,2,3,4,5', single '1') ...",
+    )
+    validate.add_argument(
+        "--json_schema",
+        dest="json_schema",
+        type=str,
+        required=True,
+        help="path to a JSON Schema file to validate the metadata against",
+    )
+    return validate
+
+
 def geonodectl():
     parser = argparse.ArgumentParser(
         prog="geonodectl",
@@ -208,6 +236,9 @@ To use this tool you have to set the following environment variables before star
         default=DEFAULT_METADATA_TYPE,
         help="pk of resource to show metadata",
     )
+
+    # VALIDATE
+    add_validate_parser(resource_subparsers, "resource")
 
     ####################################
     # LINKED RESOURCE ARGUMENT PARSING #
@@ -446,6 +477,9 @@ To use this tool you have to set the following environment variables before star
         help="pk of dataset(s) to delete (range '1-5',list '1,2,3,4,5', single '1') ...",
     )
 
+    # VALIDATE
+    add_validate_parser(datasets_subparsers, "dataset")
+
     #############################
     # DOCUMENT ARGUMENT PARSING #
     #############################
@@ -508,7 +542,11 @@ To use this tool you have to set the following environment variables before star
     documents_patch = documents_subparsers.add_parser(
         "patch", help="patch documents metadata"
     )
-    documents_patch.add_argument(type=int, dest="pk", help="pk of documents to patch")
+    documents_patch.add_argument(
+        type=str,
+        dest="pk",
+        help="pk of document(s) to patch (range '1-5', list '1,2,3,4,5', single '1') ...",
+    )
     documents_patch_mutually_exclusive_group = (
         documents_patch.add_mutually_exclusive_group()
     )
@@ -531,7 +569,9 @@ To use this tool you have to set the following environment variables before star
         "describe", help="get document details"
     )
     documents_describe.add_argument(
-        type=int, dest="pk", help="pk of document to describe ..."
+        type=str,
+        dest="pk",
+        help="pk of document(s) to describe (range '1-5', list '1,2,3,4,5', single '1') ...",
     )
 
     # DELETE
@@ -543,6 +583,9 @@ To use this tool you have to set the following environment variables before star
         dest="pk",
         help="pk of document(s) to delete (range '1-5',list '1,2,3,4,5', single '1')...",
     )
+
+    # VALIDATE
+    add_validate_parser(documents_subparsers, "document")
 
     ########################
     # MAP ARGUMENT PARSING #
@@ -579,7 +622,11 @@ To use this tool you have to set the following environment variables before star
 
     # PATCH
     maps_patch = maps_subparsers.add_parser("patch", help="patch maps metadata")
-    maps_patch.add_argument(type=int, dest="pk", help="pk of map to patch")
+    maps_patch.add_argument(
+        type=str,
+        dest="pk",
+        help="pk of map(s) to patch (range '1-5', list '1,2,3,4,5', single '1') ...",
+    )
     maps_patch_mutually_exclusive_group = maps_patch.add_mutually_exclusive_group()
 
     maps_patch_mutually_exclusive_group.add_argument(
@@ -597,7 +644,11 @@ To use this tool you have to set the following environment variables before star
 
     # DESCRIBE
     maps_describe = maps_subparsers.add_parser("describe", help="get map details")
-    maps_describe.add_argument(type=int, dest="pk", help="pk of map to describe ...")
+    maps_describe.add_argument(
+        type=str,
+        dest="pk",
+        help="pk of map(s) to describe (range '1-5', list '1,2,3,4,5', single '1') ...",
+    )
 
     # DELETE
     maps_delete = maps_subparsers.add_parser("delete", help="delete existing map")
@@ -697,6 +748,9 @@ To use this tool you have to set the following environment variables before star
         dest="datasets",
         help="space seperated list of dataset pks to remove as maplayers from the map",
     )
+
+    # VALIDATE
+    add_validate_parser(maps_subparsers, "map")
 
     ################################
     # GEOSERVER ARGUMENT PARSING   #
@@ -838,7 +892,11 @@ To use this tool you have to set the following environment variables before star
     geoapps_patch = geoapps_subparsers.add_parser(
         "patch", help="patch geoapps metadata"
     )
-    geoapps_patch.add_argument(type=int, dest="pk", help="pk of geoapp to patch")
+    geoapps_patch.add_argument(
+        type=str,
+        dest="pk",
+        help="pk of geoapp(s) to patch (range '1-5', list '1,2,3,4,5', single '1') ...",
+    )
 
     geoapps_patch_mutually_exclusive_group = (
         geoapps_patch.add_mutually_exclusive_group()
@@ -862,7 +920,9 @@ To use this tool you have to set the following environment variables before star
         "describe", help="get geoapp details"
     )
     geoapps_describe.add_argument(
-        type=int, dest="pk", help="pk of geoapp to describe ..."
+        type=str,
+        dest="pk",
+        help="pk of geoapp(s) to describe (range '1-5', list '1,2,3,4,5', single '1') ...",
     )
 
     # DELETE
@@ -874,6 +934,9 @@ To use this tool you have to set the following environment variables before star
         dest="pk",
         help="pk of geoapp(s) to delete (range '1-5',list '1,2,3,4,5', single '1') ...",
     )
+
+    # VALIDATE
+    add_validate_parser(geoapps_subparsers, "geoapp")
 
     ##########################
     # USERS ARGUMENT PARSING #

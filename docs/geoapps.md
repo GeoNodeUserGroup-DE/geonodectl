@@ -40,3 +40,14 @@ geonodectl geoapps patch 7 --json_path ./geoapp_patch.json
 geonodectl geoapps delete 7
 geonodectl geoapps delete 7,8,9
 ```
+
+---
+
+## Validate
+
+Check the metadata against a JSON Schema. See [validate.md](validate.md) for schema
+authoring, exit codes and shared-baseline `$ref` use.
+
+```bash
+geonodectl geoapps validate 12 --json_schema ./common-baseline.json
+```

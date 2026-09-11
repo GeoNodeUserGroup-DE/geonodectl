@@ -195,3 +195,14 @@ rewrite both sides in a single PATCH.
 > **Note:** the maps API replaces the whole `maplayers` list on PATCH — every maplayer
 > missing from the payload is deleted. These commands therefore read the current list,
 > modify it, and send it back complete, preserving the `pk` of untouched layers.
+
+---
+
+## Validate
+
+Check the metadata against a JSON Schema. See [validate.md](validate.md) for schema
+authoring, exit codes and shared-baseline `$ref` use.
+
+```bash
+geonodectl maps validate 2165 --json_schema ./map-schema.json
+```

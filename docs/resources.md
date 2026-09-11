@@ -38,3 +38,14 @@ geonodectl resources metadata 36 --metadata-type ISO
 ```
 
 The `--metadata-type` option accepts the formats supported by your GeoNode instance (e.g. `ISO`, `Dublin Core`).
+
+---
+
+## Validate
+
+Check the metadata against a JSON Schema. See [validate.md](validate.md) for schema
+authoring, exit codes and shared-baseline `$ref` use.
+
+```bash
+geonodectl resources validate 2162 --json_schema ./common-baseline.json
+```

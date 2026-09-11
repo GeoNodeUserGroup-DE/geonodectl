@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Dataset metadata requirements",
+  "allOf": [{ "$ref": "common-baseline.json" }],
+  "type": "object",
+  "properties": {
+    "attribute_set": {
+      "type": "array",
+      "minItems": 1,
+      "description": "every column of the attribute table must be described",
+      "items": {
+        "type": "object",
+        "required": ["attribute", "description"],
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "GeoNode leaves this null until a curator fills it in"
+          }
+        }
+      }
+    }
+  }
+}

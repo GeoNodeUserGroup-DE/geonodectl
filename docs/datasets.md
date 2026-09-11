@@ -98,3 +98,14 @@ geonodectl dataset delete 36
 geonodectl dataset delete 1,2,3
 geonodectl dataset delete 1-5
 ```
+
+---
+
+## Validate
+
+Check the metadata against a JSON Schema. See [validate.md](validate.md) for schema
+authoring, exit codes and shared-baseline `$ref` use.
+
+```bash
+geonodectl dataset validate 2162 --json_schema ./dataset-schema.json
+```
