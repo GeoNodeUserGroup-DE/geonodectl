@@ -749,6 +749,72 @@ To use this tool you have to set the following environment variables before star
         help="space seperated list of dataset pks to remove as maplayers from the map",
     )
 
+    # WIDGETS
+    maps_widgets = maps_subparsers.add_parser(
+        "widgets", help="list, add, describe or remove the widgets of a map"
+    )
+    maps_widgets_subparsers = maps_widgets.add_subparsers(
+        help="geonodectl maps widgets commands",
+        dest="widgets_subcommand",
+        required=True,
+    )
+
+    maps_widgets_list = maps_widgets_subparsers.add_parser(
+        "list", help="list the widgets of a map"
+    )
+    maps_widgets_list.add_argument(
+        type=int, dest="pk", help="pk of map to list widgets of"
+    )
+
+    maps_widgets_add = maps_widgets_subparsers.add_parser(
+        "add", help="add a widget to an existing map"
+    )
+    maps_widgets_add.add_argument(type=int, dest="pk", help="pk of map to modify")
+    maps_widgets_add.add_argument(
+        nargs="?",
+        default="textbox",
+        choices=["textbox"],
+        dest="widget_type",
+        help="type of widget to add (default: textbox)",
+    )
+    maps_widgets_add.add_argument(
+        "--title", dest="title", type=str, default=None, help="title of the widget"
+    )
+    maps_widgets_add.add_argument(
+        "--text",
+        dest="text",
+        type=str,
+        default=None,
+        help="body of the widget, HTML is passed through to MapStore",
+    )
+    maps_widgets_add.add_argument(
+        "--json-path",
+        "--json_path",
+        dest="json_path",
+        type=str,
+        default=None,
+        help="path to a json file with a raw widget definition, \
+            overrides --title and --text",
+    )
+
+    maps_widgets_describe = maps_widgets_subparsers.add_parser(
+        "describe", help="show a single widget of a map"
+    )
+    maps_widgets_describe.add_argument(
+        type=int, dest="pk", help="pk of map the widget belongs to"
+    )
+    maps_widgets_describe.add_argument(
+        type=str, dest="widget_id", help="id of the widget to describe"
+    )
+
+    maps_widgets_remove = maps_widgets_subparsers.add_parser(
+        "remove", help="remove a widget from an existing map"
+    )
+    maps_widgets_remove.add_argument(type=int, dest="pk", help="pk of map to modify")
+    maps_widgets_remove.add_argument(
+        type=str, dest="widget_id", help="id of the widget to remove"
+    )
+
     # VALIDATE
     add_validate_parser(maps_subparsers, "map")
 
@@ -1511,6 +1577,12 @@ To use this tool you have to set the following environment variables before star
     if args.command == "maps" and args.subcommand == "maplayers":
         g_obj_func = getattr(
             g_obj, "cmd_maplayers_" + args.maplayers_subcommand.replace("-", "_")
+        )
+        g_obj_func(**args.__dict__)
+        return
+    if args.command == "maps" and args.subcommand == "widgets":
+        g_obj_func = getattr(
+            g_obj, "cmd_widgets_" + args.widgets_subcommand.replace("-", "_")
         )
         g_obj_func(**args.__dict__)
         return

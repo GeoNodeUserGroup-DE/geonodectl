@@ -198,6 +198,105 @@ rewrite both sides in a single PATCH.
 
 ---
 
+## widgets
+
+Manage the MapStore widgets of an existing map. Widgets live in the map's blob under
+`widgetsConfig.widgets` and are addressed by their **widget id**.
+
+Currently only the `textbox` widget type is supported.
+
+### widgets list
+
+```bash
+geonodectl maps widgets list 2073
+
+# --raw/--json is a global flag and has to come before the command
+geonodectl --json maps widgets list 2073
+```
+
+```
+| id                                   | widgetType   | title       |
+|--------------------------------------|--------------|-------------|
+| 3fa85f64-5717-4562-b3fc-2c963f66afa6 | text         | Description |
+| 9c1f2d0e-1b44-4f1a-9f7e-0d2c4b6a8e10 | text         | Sources     |
+```
+
+### widgets add
+
+```bash
+geonodectl maps widgets add 2073 textbox --title "test" --text "this is an example textbox"
+```
+
+`--text` is passed through to MapStore as **HTML** — the viewer renders it with the same
+rich-text editor used in the widget builder:
+
+```bash
+geonodectl maps widgets add 2073 textbox \
+    --title "Sources" \
+    --text "<p>Data: <a href='https://example.org'>example.org</a></p>"
+```
+
+A raw widget definition can be supplied instead, which overrides `--title` and `--text`:
+
+```bash
+geonodectl maps widgets add 2073 textbox --json-path ./widget.json
+```
+
+Missing `id`, `widgetType` and `dataGrid` are filled in automatically, so the file can be
+as small as `{"title": "test", "text": "hello"}`.
+
+> **Note:** there is no `--description`. MapStore does not render a description for text
+> widgets — it explicitly excludes them from the description tool, because the text body
+> already serves that purpose. The flag would write a key the viewer never shows.
+
+### widgets describe
+
+```bash
+geonodectl maps widgets describe 2073 3fa85f64-5717-4562-b3fc-2c963f66afa6
+```
+
+Prints the raw widget JSON, which is convenient as a starting point for `--json-path`.
+
+### widgets remove
+
+```bash
+geonodectl maps widgets remove 2073 3fa85f64-5717-4562-b3fc-2c963f66afa6
+```
+
+Removing an id that is not on the map leaves the map untouched and warns.
+
+### Typical workflow
+
+```bash
+# 1. Add a textbox
+geonodectl maps widgets add 2073 textbox --title "About" --text "<p>What this map shows</p>"
+
+# 2. Find its id
+geonodectl maps widgets list 2073
+
+# 3. Inspect it
+geonodectl maps widgets describe 2073 <widget-id>
+
+# 4. Drop it again
+geonodectl maps widgets remove 2073 <widget-id>
+```
+
+### How it works
+
+Unlike `maplayers`, widgets exist only inside the blob — there is no parallel API-side
+list. Each command reads the blob, changes `widgetsConfig.widgets`, and writes the whole
+blob back in a single PATCH.
+
+New widgets are stacked downwards: the `dataGrid.y` of a new widget is one below the
+lowest existing widget, so an added textbox never lands on top of one that is already
+there.
+
+The first widget on a map starts at row `2` rather than row `0`, which keeps it clear of
+the controls along the top of the map. Adjust `GeonodeMapsHandler.WIDGET_TOP_OFFSET` to
+move that starting point.
+
+---
+
 ## Validate
 
 Check the metadata against a JSON Schema. See [validate.md](validate.md) for schema

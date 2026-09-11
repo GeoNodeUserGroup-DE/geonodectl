@@ -412,5 +412,170 @@ class TestCmdMaplayersList(unittest.TestCase):
         mock_http_get.assert_called_once_with("maps/42/", params={})
 
 
+def _map_with_widgets(widgets):
+    """a map detail whose blob carries the given widgets"""
+    return {
+        "map": {
+            "pk": 42,
+            "data": {
+                "version": 2,
+                "map": {"projection": "EPSG:3857", "layers": []},
+                "widgetsConfig": {"widgets": widgets},
+            },
+        }
+    }
+
+
+def _text_widget(widget_id, row, title="existing"):
+    return {
+        "id": widget_id,
+        "widgetType": "text",
+        "title": title,
+        "text": "<p>body</p>",
+        "dataGrid": {"x": 0, "y": row, "w": 1, "h": 1},
+    }
+
+
+class TestWidgets(unittest.TestCase):
+    def _handler(self):
+        return GeonodeMapsHandler(env={})
+
+    @staticmethod
+    def _patched_widgets(mock_patch):
+        """the widgets list as it was sent to the API"""
+        json_content = mock_patch.call_args.kwargs["json_content"]
+        return json_content["data"]["widgetsConfig"]["widgets"]
+
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_add_creates_widgetsconfig_when_missing(self, mock_http_get, mock_patch):
+        """a map that never had a widget has no widgetsConfig at all"""
+        mock_http_get.return_value = {
+            "map": {"pk": 42, "data": {"version": 2, "map": {"layers": []}}}
+        }
+        self._handler().add_widget(pk=42, title="t", text="<p>x</p>")
+
+        widgets = self._patched_widgets(mock_patch)
+        self.assertEqual(len(widgets), 1)
+        self.assertEqual(widgets[0]["widgetType"], "text")
+        self.assertEqual(widgets[0]["title"], "t")
+        self.assertEqual(widgets[0]["text"], "<p>x</p>")
+        # the first widget starts below the map controls, not flush at row 0
+        self.assertEqual(
+            widgets[0]["dataGrid"]["y"], GeonodeMapsHandler.WIDGET_TOP_OFFSET
+        )
+        # description is deliberately not written - MapStore ignores it for text widgets
+        self.assertNotIn("description", widgets[0])
+
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_add_stacks_below_existing_widgets(self, mock_http_get, mock_patch):
+        """a new widget must not land on top of an existing one"""
+        mock_http_get.return_value = _map_with_widgets(
+            [_text_widget("aaa", 0), _text_widget("bbb", 3)]
+        )
+        self._handler().add_widget(pk=42, title="new", text="x")
+
+        widgets = self._patched_widgets(mock_patch)
+        self.assertEqual(len(widgets), 3)
+        self.assertEqual(widgets[-1]["dataGrid"]["y"], 4)
+
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_add_generates_unique_ids(self, mock_http_get, mock_patch):
+        mock_http_get.return_value = _map_with_widgets([_text_widget("aaa", 0)])
+        self._handler().add_widget(pk=42, title="new", text="x")
+
+        widgets = self._patched_widgets(mock_patch)
+        self.assertNotEqual(widgets[0]["id"], widgets[1]["id"])
+        self.assertTrue(widgets[1]["id"])
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_add_rejects_unknown_widget_type(self, mock_http_get, mock_patch):
+        mock_http_get.return_value = _map_with_widgets([])
+        result = self._handler().add_widget(pk=42, widget_type="piechart", title="t")
+        self.assertIsNone(result)
+        mock_patch.assert_not_called()
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_add_requires_title_or_text(self, mock_http_get, mock_patch):
+        mock_http_get.return_value = _map_with_widgets([])
+        result = self._handler().add_widget(pk=42)
+        self.assertIsNone(result)
+        mock_patch.assert_not_called()
+
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_add_from_json_path(self, mock_http_get, mock_patch):
+        """a raw widget is taken as given but still gets its bookkeeping fields"""
+        mock_http_get.return_value = _map_with_widgets([])
+        raw = {"widgetType": "text", "title": "raw", "text": "<b>hi</b>"}
+        with tempfile.NamedTemporaryFile("w", suffix=".json") as f:
+            json.dump(raw, f)
+            f.flush()
+            self._handler().add_widget(pk=42, json_path=f.name)
+
+        widgets = self._patched_widgets(mock_patch)
+        self.assertEqual(widgets[0]["title"], "raw")
+        self.assertEqual(widgets[0]["text"], "<b>hi</b>")
+        self.assertTrue(widgets[0]["id"])
+        self.assertEqual(
+            widgets[0]["dataGrid"]["y"], GeonodeMapsHandler.WIDGET_TOP_OFFSET
+        )
+
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_remove_drops_only_the_requested_widget(self, mock_http_get, mock_patch):
+        mock_http_get.return_value = _map_with_widgets(
+            [_text_widget("aaa", 0), _text_widget("bbb", 1)]
+        )
+        self._handler().remove_widget(pk=42, widget_id="aaa")
+
+        widgets = self._patched_widgets(mock_patch)
+        self.assertEqual([w["id"] for w in widgets], ["bbb"])
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_remove_unknown_id_does_not_patch(self, mock_http_get, mock_patch):
+        """nothing to remove must not rewrite the blob"""
+        mock_http_get.return_value = _map_with_widgets([_text_widget("aaa", 0)])
+        result = self._handler().remove_widget(pk=42, widget_id="nope")
+        self.assertIsNone(result)
+        mock_patch.assert_not_called()
+
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_top_offset_only_applies_to_the_first_widget(
+        self, mock_http_get, mock_patch
+    ):
+        """the offset clears the map controls; later widgets just stack below"""
+        mock_http_get.return_value = _map_with_widgets(
+            [_text_widget("aaa", GeonodeMapsHandler.WIDGET_TOP_OFFSET)]
+        )
+        self._handler().add_widget(pk=42, title="second", text="x")
+
+        widgets = self._patched_widgets(mock_patch)
+        self.assertEqual(
+            widgets[-1]["dataGrid"]["y"], GeonodeMapsHandler.WIDGET_TOP_OFFSET + 1
+        )
+
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_get_widgets_empty_when_blob_has_none(self, mock_http_get):
+        mock_http_get.return_value = {
+            "map": {"pk": 42, "data": {"version": 2, "map": {"layers": []}}}
+        }
+        self.assertEqual(self._handler().get_widgets(pk=42), [])
+
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_describe_prints_the_matching_widget(self, mock_http_get):
+        widget = _text_widget("aaa", 0)
+        mock_http_get.return_value = _map_with_widgets([widget, _text_widget("bbb", 1)])
+        with patch("geonoderest.maps.print_json") as mock_print:
+            self._handler().cmd_widgets_describe(pk=42, widget_id="aaa")
+        mock_print.assert_called_once_with(widget)
+
+
 if __name__ == "__main__":
     unittest.main()

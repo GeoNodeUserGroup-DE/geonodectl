@@ -747,3 +747,286 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             # remove_maplayers already reported why
             return
         print_json(obj)
+
+    # MapStore widget types, keyed by the name used on the command line. MapStore's
+    # own name for a textbox is "text"; "textbox" reads better as a CLI verb.
+    WIDGET_TYPES = {"textbox": "text"}
+
+    # Grid row the first widget of a map is placed in. Row 0 sits flush with the top of
+    # the map, where the MapStore toolbars are, so start a little lower down.
+    WIDGET_TOP_OFFSET = 2
+
+    @classmethod
+    def __next_widget_row__(cls, widgets: List[Dict]) -> int:
+        """
+        Return the grid row a newly added widget should occupy.
+
+        MapStore lays widgets out with react-grid-layout, so a widget without a free
+        row lands on top of an existing one. Stack downwards instead.
+
+        The first widget starts at WIDGET_TOP_OFFSET rather than row 0, which keeps it
+        clear of the controls at the top of the map.
+
+        Args:
+            widgets (List[Dict]): the widgets already present in the blob
+
+        Returns:
+            int: the first free row
+        """
+        rows: List[int] = [
+            row
+            for row in ((widget.get("dataGrid") or {}).get("y") for widget in widgets)
+            if isinstance(row, int)
+        ]
+        return max(rows) + 1 if rows else cls.WIDGET_TOP_OFFSET
+
+    @staticmethod
+    def __build_text_widget__(
+        title: Optional[str], text: Optional[str], row: int
+    ) -> Dict:
+        """
+        Build a MapStore text widget.
+
+        `text` is rendered as HTML by MapStore (TextWidget renders it through the Quill
+        `ql-editor`), so markup is passed through untouched.
+
+        Note there is deliberately no `description`: MapStore excludes text widgets from
+        the description tool ("text widgets already contain description"), so the key
+        would never be shown.
+
+        Args:
+            title (str): widget title, shown in the widget header
+            text (str): widget body, HTML allowed
+            row (int): grid row to place the widget in
+
+        Returns:
+            Dict: the widget, ready to be appended to widgetsConfig.widgets
+        """
+        return {
+            "id": str(uuid.uuid4()),
+            "widgetType": "text",
+            "title": title or "",
+            "text": text or "",
+            "dataGrid": {"x": 0, "y": row, "w": 1, "h": 1},
+        }
+
+    def get_widgets(self, pk: int) -> Optional[List[Dict]]:
+        """
+        Return the MapStore widgets of a map.
+
+        Args:
+            pk (int): pk of the map
+
+        Returns:
+            List[Dict]: the widgets, empty when the map has none, None when the blob
+                could not be read
+        """
+        blob = self.get_blob(pk)
+        if blob is None:
+            # get_blob already reported why
+            return None
+        return (blob.get("widgetsConfig") or {}).get("widgets") or []
+
+    def add_widget(
+        self,
+        pk: int,
+        widget_type: str = "textbox",
+        title: Optional[str] = None,
+        text: Optional[str] = None,
+        json_path: Optional[str] = None,
+        **kwargs,
+    ) -> Optional[Dict]:
+        """
+        Add a widget to the MapStore blob of an existing map.
+
+        Widgets live only in the blob - unlike maplayers there is no parallel API side
+        list - so the blob is read, extended and written back as a whole.
+
+        Args:
+            pk (int): pk of the map to modify
+            widget_type (str): widget type, see WIDGET_TYPES
+            title (str): widget title, ignored when json_path is given
+            text (str): widget body, HTML allowed, ignored when json_path is given
+            json_path (str): path to a JSON file holding a raw widget definition
+
+        Returns:
+            Dict: the updated map, or None when nothing was added or the update failed
+        """
+        if widget_type not in self.WIDGET_TYPES:
+            logging.error(
+                f"unknown widget type '{widget_type}', "
+                f"expected one of: {', '.join(sorted(self.WIDGET_TYPES))}"
+            )
+            return None
+
+        blob = self.get_blob(pk)
+        if blob is None:
+            return None
+
+        widgets = blob.setdefault("widgetsConfig", {}).setdefault("widgets", [])
+        row = self.__next_widget_row__(widgets)
+
+        if json_path:
+            with open(json_path, "r") as f:
+                try:
+                    widget = json.load(f)
+                except json.decoder.JSONDecodeError as e:
+                    json_decode_error_handler(json_path, e)
+                    return None
+            if not isinstance(widget, dict):
+                logging.error(f"{json_path} must contain a single JSON object")
+                return None
+            # a hand written widget may omit the bookkeeping fields
+            widget.setdefault("id", str(uuid.uuid4()))
+            widget.setdefault("widgetType", self.WIDGET_TYPES[widget_type])
+            widget.setdefault("dataGrid", {"x": 0, "y": row, "w": 1, "h": 1})
+        else:
+            if not title and not text:
+                logging.error("either --title or --text is required to add a widget")
+                return None
+            widget = self.__build_text_widget__(title, text, row)
+
+        widgets.append(widget)
+
+        result = self.patch(pk=pk, json_content={"data": blob})
+        if result is None:
+            logging.error(f"failed to add widget to map {pk}")
+            return None
+        # unwrap the dynamic-rest envelope, like create() does
+        return result.get(self.SINGULAR_RESOURCE_NAME, result)
+
+    def remove_widget(self, pk: int, widget_id: str, **kwargs) -> Optional[Dict]:
+        """
+        Remove a widget from the MapStore blob of an existing map.
+
+        Args:
+            pk (int): pk of the map to modify
+            widget_id (str): id of the widget to remove
+
+        Returns:
+            Dict: the updated map, or None when nothing was removed or the update failed
+        """
+        blob = self.get_blob(pk)
+        if blob is None:
+            return None
+
+        widgets = (blob.get("widgetsConfig") or {}).get("widgets") or []
+        remaining = [widget for widget in widgets if widget.get("id") != widget_id]
+
+        if len(remaining) == len(widgets):
+            logging.warning(
+                f"map {pk} has no widget with id {widget_id}, doing nothing ... "
+            )
+            return None
+
+        blob.setdefault("widgetsConfig", {})["widgets"] = remaining
+
+        result = self.patch(pk=pk, json_content={"data": blob})
+        if result is None:
+            logging.error(f"failed to remove widget {widget_id} from map {pk}")
+            return None
+        # unwrap the dynamic-rest envelope, like create() does
+        return result.get(self.SINGULAR_RESOURCE_NAME, result)
+
+    def cmd_widgets_list(self, pk: int, **kwargs):
+        """
+        Show the MapStore widgets of a map on the command line.
+
+        Args:
+            pk (int): pk of the map
+
+        Example:
+          geonodectl maps widgets list 2073
+        """
+        widgets = self.get_widgets(pk=pk)
+        if widgets is None:
+            return
+
+        if kwargs.get("json"):
+            print_json(widgets)
+            return
+
+        show_list(
+            headers=["id", "widgetType", "title"],
+            values=[
+                [
+                    str(widget.get("id")),
+                    str(widget.get("widgetType")),
+                    str(widget.get("title")),
+                ]
+                for widget in widgets
+            ],
+        )
+
+    def cmd_widgets_add(
+        self,
+        pk: int,
+        widget_type: str = "textbox",
+        title: Optional[str] = None,
+        text: Optional[str] = None,
+        json_path: Optional[str] = None,
+        **kwargs,
+    ):
+        """
+        Add a widget to an existing map.
+
+        Args:
+            pk (int): pk of the map to modify
+            widget_type (str): widget type, currently only textbox
+            title (str): widget title
+            text (str): widget body, HTML allowed
+            json_path (str): path to a JSON file holding a raw widget definition
+
+        Example:
+          geonodectl maps widgets add 2073 textbox --title "test" --text "some text"
+        """
+        obj = self.add_widget(
+            pk=pk,
+            widget_type=widget_type,
+            title=title,
+            text=text,
+            json_path=json_path,
+            **kwargs,
+        )
+        if obj is None:
+            # add_widget already reported why
+            return
+        print_json(obj)
+
+    def cmd_widgets_describe(self, pk: int, widget_id: str, **kwargs):
+        """
+        Show a single widget of a map.
+
+        Args:
+            pk (int): pk of the map
+            widget_id (str): id of the widget to describe
+
+        Example:
+          geonodectl maps widgets describe 2073 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        """
+        widgets = self.get_widgets(pk=pk)
+        if widgets is None:
+            return
+
+        for widget in widgets:
+            if widget.get("id") == widget_id:
+                print_json(widget)
+                return
+        logging.error(f"map {pk} has no widget with id {widget_id}")
+
+    def cmd_widgets_remove(self, pk: int, widget_id: str, **kwargs):
+        """
+        Remove a widget from an existing map.
+
+        Args:
+            pk (int): pk of the map to modify
+            widget_id (str): id of the widget to remove
+
+        Example:
+          geonodectl maps widgets remove 2073 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        """
+        obj = self.remove_widget(pk=pk, widget_id=widget_id, **kwargs)
+        if obj is None:
+            # remove_widget already reported why
+            return
+        print_json(obj)
