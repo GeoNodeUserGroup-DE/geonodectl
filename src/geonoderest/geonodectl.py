@@ -659,6 +659,45 @@ To use this tool you have to set the following environment variables before star
         help="path to a JSON file containing the new blob",
     )
 
+    # MAPLAYERS
+    maps_maplayers = maps_subparsers.add_parser(
+        "maplayers", help="list, add or remove the maplayers of a map"
+    )
+    maps_maplayers_subparsers = maps_maplayers.add_subparsers(
+        help="geonodectl maps maplayers commands",
+        dest="maplayers_subcommand",
+        required=True,
+    )
+
+    maps_maplayers_list = maps_maplayers_subparsers.add_parser(
+        "list", help="list the maplayers of a map"
+    )
+    maps_maplayers_list.add_argument(
+        type=int, dest="pk", help="pk of map to list maplayers of"
+    )
+
+    maps_maplayers_add = maps_maplayers_subparsers.add_parser(
+        "add", help="add datasets as maplayers to an existing map"
+    )
+    maps_maplayers_add.add_argument(type=int, dest="pk", help="pk of map to modify")
+    maps_maplayers_add.add_argument(
+        nargs="+",
+        type=int,
+        dest="datasets",
+        help="space seperated list of dataset pks to add as maplayers to the map",
+    )
+
+    maps_maplayers_remove = maps_maplayers_subparsers.add_parser(
+        "remove", help="remove maplayers from an existing map"
+    )
+    maps_maplayers_remove.add_argument(type=int, dest="pk", help="pk of map to modify")
+    maps_maplayers_remove.add_argument(
+        nargs="+",
+        type=int,
+        dest="datasets",
+        help="space seperated list of dataset pks to remove as maplayers from the map",
+    )
+
     ################################
     # GEOSERVER ARGUMENT PARSING   #
     ################################
@@ -1406,6 +1445,12 @@ To use this tool you have to set the following environment variables before star
             return
         case _:
             raise NotImplemented
+    if args.command == "maps" and args.subcommand == "maplayers":
+        g_obj_func = getattr(
+            g_obj, "cmd_maplayers_" + args.maplayers_subcommand.replace("-", "_")
+        )
+        g_obj_func(**args.__dict__)
+        return
     g_obj_func = getattr(g_obj, "cmd_" + args.subcommand.replace("-", "_"))
     g_obj_func(**args.__dict__)
 

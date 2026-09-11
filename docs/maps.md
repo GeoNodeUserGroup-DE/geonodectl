@@ -70,7 +70,9 @@ geonodectl maps get-blob 2073 | jq '.map.center'
 geonodectl maps get-blob 2073 | jq '.map.zoom'
 ```
 
-> **Note:** GeoNode omits the blob from the default API response. This command requests it explicitly via `?include[]=blob`.
+> **Note:** GeoNode omits the blob from the default API response, and its writable `blob`
+> field is write-only. The readable representation is `data`, so this command requests it
+> explicitly via `?include[]=data`.
 
 ---
 
@@ -125,3 +127,71 @@ The blob JSON must contain both `map` and `maplayers` top-level keys:
   "mapInfoConfiguration": {}
 }
 ```
+
+---
+
+## maplayers
+
+Manage the datasets shown on an existing map. Layers are addressed by **dataset pk**, the
+same way `maps create --maplayers` takes them.
+
+### maplayers list
+
+```bash
+geonodectl maps maplayers list 2073
+
+# --raw/--json is a global flag and has to come before the command
+geonodectl --raw maps maplayers list 2073
+```
+
+```
+|   dataset.pk | name              | current_style     |   order | visibility   |   opacity |
+|--------------|-------------------|-------------------|---------|--------------|-----------|
+|         2162 | geonode:buildings | geonode:buildings |       0 | True         |         1 |
+|         2163 | geonode:pois      | geonode:pois      |       1 | True         |         1 |
+```
+
+### maplayers add
+
+```bash
+geonodectl maps maplayers add 2073 2162 2163
+```
+
+Datasets already on the map are skipped with a warning. If none of the given datasets is
+new, the map is left untouched.
+
+### maplayers remove
+
+```bash
+geonodectl maps maplayers remove 2073 2162
+```
+
+Background layers (OpenStreetMap, OpenTopoMap, Sentinel-2 cloudless, empty) are never
+removed, and the order of the remaining layers is renumbered.
+
+### Typical workflow
+
+```bash
+# 1. Create a map
+geonodectl maps create --title "My Map"
+
+# 2. Put datasets on it
+geonodectl maps maplayers add 2073 2162 2163 2164
+
+# 3. Check what ended up there
+geonodectl maps maplayers list 2073
+
+# 4. Drop one again
+geonodectl maps maplayers remove 2073 2164
+```
+
+### How it works
+
+A map stores its layers twice: as `maplayers` rows in the API, and as layer entries inside
+the MapStore blob. The two are joined by `maplayer.extra_params.msId` == `blob.map.layers[].id`.
+Updating only one side leaves the map broken in the MapStore viewer, so both commands
+rewrite both sides in a single PATCH.
+
+> **Note:** the maps API replaces the whole `maplayers` list on PATCH — every maplayer
+> missing from the payload is deleted. These commands therefore read the current list,
+> modify it, and send it back complete, preserving the `pk` of untouched layers.

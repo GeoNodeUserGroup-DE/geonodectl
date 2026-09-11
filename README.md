@@ -12,6 +12,7 @@
 - List, describe, upload, patch, and delete datasets, documents, maps, and geoapps
 - Manage users, groups, uploads, execution requests, keywords, and linked resources
 - Read and write the MapStore blob JSON for maps (`get-blob`, `set-blob`)
+- Add and remove maplayers of an existing map (`maplayers add`, `maplayers remove`)
 - Manage GeoServer styles — list, describe, upload SLD, set default style
 - Transfer resources between users
 - Supports authentication and secure API access
@@ -90,7 +91,7 @@ See [docs/example.md](docs/example.md) for worked examples.
 | `resources` | `resource` | list, delete, metadata |
 | `datasets` | `ds`, `dataset` | list, delete, patch, describe, upload |
 | `documents` | `doc`, `document` | list, delete, patch, describe, upload |
-| `maps` | — | list, delete, patch, describe, create, **get-blob**, **set-blob** |
+| `maps` | — | list, delete, patch, describe, create, get-blob, set-blob, **maplayers list/add/remove** |
 | `geoapps` | `apps` | list, delete, patch, describe |
 | `users` | `user` | list, delete, patch, describe, create, transfer_resources |
 | `groups` | — | list, delete, patch, describe, create |
@@ -142,6 +143,22 @@ geonodectl maps get-blob 2073 | jq '.map.layers'
 
 # Replace the blob JSON from a file
 geonodectl maps set-blob 2073 --json_path ./my_blob.json
+```
+
+### Map layer commands
+
+Add or remove the datasets shown on an existing map. Both the `maplayers` entries and the
+matching MapStore blob layers are updated, so the map stays renderable.
+
+```bash
+# Which datasets are on the map?
+geonodectl maps maplayers list 2073
+
+# Add datasets 36 and 42 as maplayers
+geonodectl maps maplayers add 2073 36 42
+
+# Remove dataset 36 from the map
+geonodectl maps maplayers remove 2073 36
 ```
 
 ## Development

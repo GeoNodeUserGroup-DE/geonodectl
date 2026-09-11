@@ -7,7 +7,7 @@ geonodectl has the following capabilities:
 | resource         | list, delete, download metadata |
 | dataset          | list, delete, patch, describe, upload |
 | documents        | list, delete, patch, describe, upload |
-| maps             | list, delete, patch, describe, create, get-blob, set-blob |
+| maps             | list, delete, patch, describe, create, get-blob, set-blob, maplayers list/add/remove |
 | geoapps          | list, delete, patch, describe |
 | users            | list, delete, patch, describe, create, transfer_resources |
 | groups           | list, delete, patch, describe, create |

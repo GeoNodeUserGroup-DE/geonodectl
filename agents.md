@@ -200,10 +200,18 @@ maps = GeonodeMapsHandler(env=conf)
 | `delete(pk: int, **kwargs)` | | `Optional[Dict]` | Delete a map |
 | `patch(pk: int, json_content: Dict, **kwargs)` | | `Optional[Dict]` | Update map metadata |
 | `create(title: str, json_content: Optional[Dict] = None, maplayers: List[int] = [], **kwargs)` | | `Dict` | Create a new map |
+| `get_blob(pk: int)` | | `Optional[Dict]` | Get the MapStore blob of a map |
+| `get_maplayers(pk: int)` | | `Optional[List[Dict]]` | Get the maplayers of a map |
+| `add_maplayers(pk: int, datasets: List[int], **kwargs)` | | `Optional[Dict]` | Add datasets as maplayers, keeping blob and maplayers in sync |
+| `remove_maplayers(pk: int, datasets: List[int], **kwargs)` | | `Optional[Dict]` | Remove the maplayers pointing to the given datasets |
 
 ```python
 maps = GeonodeMapsHandler(env=conf)
 new_map = maps.create(title="My Map", maplayers=[12, 34, 56])
+
+# change the layers of an existing map (datasets are addressed by pk)
+maps.add_maplayers(pk=new_map["pk"], datasets=[78])
+maps.remove_maplayers(pk=new_map["pk"], datasets=[12])
 ```
 
 ---
@@ -416,7 +424,7 @@ GeonodeRest                          # HTTP methods (get/post/patch/delete)
 │   │   ├── GeonodeDatasetsHandler   # + upload (shapefile, zip, single file)
 │   │   ├── GeonodeDocumentsHandler  # + upload (any document)
 │   │   └── GeonodeGeoappsHandler
-│   ├── GeonodeMapsHandler           # + create (with maplayers)
+│   ├── GeonodeMapsHandler           # + create, blob, add/remove maplayers
 │   ├── GeonodeUsersHandler          # + create, user_resources, user_groups
 │   ├── GeonodeGroupsHandler
 │   ├── GeonodeUploadsHandler

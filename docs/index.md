@@ -26,7 +26,7 @@ geonodectl dataset list
 |---|---|
 | [datasets.md](datasets.md) | `dataset list/upload/describe/patch/delete` |
 | [documents.md](documents.md) | `documents list/upload/describe/patch/delete` |
-| [maps.md](maps.md) | `maps list/create/describe/patch/delete/get-blob/set-blob` |
+| [maps.md](maps.md) | `maps list/create/describe/patch/delete/get-blob/set-blob/maplayers` |
 | [geoapps.md](geoapps.md) | `geoapps list/describe/patch/delete` |
 | [users.md](users.md) | `users list/create/describe/patch/delete/transfer_resources` |
 | [groups.md](groups.md) | `groups list/create/describe/patch/delete` |
