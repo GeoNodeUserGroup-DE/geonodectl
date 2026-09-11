@@ -330,7 +330,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             return None
         return r[self.SINGULAR_RESOURCE_NAME]
 
-    def __get_map_detail__(self, pk: int) -> Optional[Dict]:
+    def __get_map_detail__(self, pk: int, with_blob: bool = True) -> Optional[Dict]:
         """Fetch a map including its MapStore blob and its maplayers.
 
         GeoNode omits the blob from the default response and exposes it read-only under
@@ -340,11 +340,15 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
         Args:
             pk (int): pk of the map
+            with_blob (bool): request the blob too. Skip it when only the maplayers are
+                needed — the blob of a large map is by far the biggest part of the
+                response.
 
         Returns:
             Dict: the map object, or None when it could not be fetched
         """
-        raw = self.http_get(f"{self.ENDPOINT_NAME}/{pk}/", params={"include[]": "data"})
+        params = {"include[]": "data"} if with_blob else {}
+        raw = self.http_get(f"{self.ENDPOINT_NAME}/{pk}/", params=params)
         if raw is None:
             logging.error(f"Map {pk} not found")
             return None
@@ -384,7 +388,8 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         Returns:
             List[Dict]: the maplayers as returned by the maps detail endpoint
         """
-        result = self.__get_map_detail__(pk)
+        # `maplayers` is not deferred, so the blob does not need to be pulled along
+        result = self.__get_map_detail__(pk, with_blob=False)
         if result is None:
             return None
         return result.get("maplayers", [])
@@ -469,13 +474,21 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         return sorted(maplayers, key=lambda maplayer: maplayer.get("order") or 0)
 
     @staticmethod
-    def __is_removed_blob_layer__(layer: Dict, msids: set, dataset_pks: set) -> bool:
+    def __is_removed_blob_layer__(
+        layer: Dict, msids: set, dataset_pks: set, named_ids: set
+    ) -> bool:
         """
         Decide whether a blob layer belongs to one of the maplayers being removed.
 
-        A blob layer is linked to its maplayer by `id` == `extra_params.msId`, but maps
-        edited in MapStore also carry layers identified by `extendedParams.pk` or by an
-        `{alternate}__{dataset_pk}` id, so all three are matched.
+        A blob layer is linked to its maplayer by `id` == `extra_params.msId`, which is
+        what geonodectl writes and what the MapStore client joins on. Maps that went
+        through other tooling also carry layers identified by `extendedParams.pk`, or by
+        an `{alternate}__{dataset_pk}` id with neither of the two set.
+
+        The last form is matched in full (`named_ids` holds the exact
+        `{alternate}__{dataset_pk}` strings) rather than by a `__{dataset_pk}` suffix:
+        `{name}__{index}` is an equally common id shape, so a suffix test would strip an
+        unrelated layer whose index happens to equal the dataset pk being removed.
 
         Background layers are never removed — they are not maplayers at all.
         """
@@ -490,9 +503,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         if extended_pk is not None and extended_pk in dataset_pks:
             return True
 
-        if isinstance(layer_id, str) and any(
-            layer_id.endswith(f"__{dataset_pk}") for dataset_pk in dataset_pks
-        ):
+        if layer_id is not None and layer_id in named_ids:
             return True
 
         return False
@@ -566,7 +577,9 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         )
         if result is None:
             logging.error(f"failed to add maplayers to map {pk}")
-        return result
+            return None
+        # unwrap the dynamic-rest envelope, like create() does
+        return result.get(self.SINGULAR_RESOURCE_NAME, result)
 
     def remove_maplayers(
         self, pk: int, datasets: List[int], **kwargs
@@ -625,6 +638,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         removed_dataset_pks = {
             self.__maplayer_dataset_pk__(maplayer) for maplayer in removed
         }
+        # exact `{alternate}__{dataset_pk}` ids, see __is_removed_blob_layer__
+        named_ids = {
+            f"{maplayer.get('name')}__{self.__maplayer_dataset_pk__(maplayer)}"
+            for maplayer in removed
+            if maplayer.get("name")
+        }
 
         order = 0
         maplayers_list = []
@@ -638,7 +657,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             layer
             for layer in blob.get("map", {}).get("layers", [])
             if not self.__is_removed_blob_layer__(
-                layer, removed_msids, removed_dataset_pks
+                layer, removed_msids, removed_dataset_pks, named_ids
             )
         ]
 
@@ -647,7 +666,9 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         )
         if result is None:
             logging.error(f"failed to remove maplayers from map {pk}")
-        return result
+            return None
+        # unwrap the dynamic-rest envelope, like create() does
+        return result.get(self.SINGULAR_RESOURCE_NAME, result)
 
     def cmd_maplayers_list(self, pk: int, **kwargs):
         """

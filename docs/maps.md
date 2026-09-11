@@ -139,7 +139,9 @@ same way `maps create --maplayers` takes them.
 
 ```bash
 geonodectl maps maplayers list 2073
-geonodectl maps maplayers list 2073 --raw
+
+# --raw/--json is a global flag and has to come before the command
+geonodectl --raw maps maplayers list 2073
 ```
 
 ```

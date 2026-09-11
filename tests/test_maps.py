@@ -191,7 +191,7 @@ class TestAddMaplayers(unittest.TestCase):
 
     def _add(self, mock_http_get, mock_patch, datasets, existing=(101, 102)):
         mock_http_get.return_value = _map_detail()
-        mock_patch.return_value = {"pk": 42}
+        mock_patch.return_value = {"map": {"pk": 42, "title": "T"}}
         with patch("geonoderest.maps.GeonodeDatasetsHandler") as mock_ds_handler:
             mock_ds_handler.return_value.get.side_effect = lambda pk: _dataset(pk)
             result = self._handler().add_maplayers(pk=42, datasets=datasets)
@@ -270,6 +270,13 @@ class TestAddMaplayers(unittest.TestCase):
         with self.assertLogs(level="ERROR"):
             self.assertIsNone(self._handler().add_maplayers(pk=999, datasets=[103]))
 
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_returns_unwrapped_map(self, mock_http_get, mock_patch):
+        """the API wraps the response in a `map` envelope, create() unwraps it too"""
+        result = self._add(mock_http_get, mock_patch, [103])
+        self.assertEqual(result, {"pk": 42, "title": "T"})
+
     def test_cmd_warns_on_empty_dataset_list(self):
         with self.assertLogs(level="WARNING"):
             self._handler().cmd_maplayers_add(pk=42, datasets=[])
@@ -283,7 +290,7 @@ class TestRemoveMaplayers(unittest.TestCase):
     @patch.object(GeonodeMapsHandler, "http_get")
     def test_removes_maplayer_and_blob_layer(self, mock_http_get, mock_patch):
         mock_http_get.return_value = _map_detail()
-        mock_patch.return_value = {"pk": 42}
+        mock_patch.return_value = {"map": {"pk": 42, "title": "T"}}
         self._handler().remove_maplayers(pk=42, datasets=[101])
         json_content = mock_patch.call_args.kwargs["json_content"]
         self.assertEqual([m["pk"] for m in json_content["maplayers"]], [902])
@@ -295,7 +302,7 @@ class TestRemoveMaplayers(unittest.TestCase):
     @patch.object(GeonodeMapsHandler, "http_get")
     def test_keeps_background_layers(self, mock_http_get, mock_patch):
         mock_http_get.return_value = _map_detail()
-        mock_patch.return_value = {"pk": 42}
+        mock_patch.return_value = {"map": {"pk": 42, "title": "T"}}
         self._handler().remove_maplayers(pk=42, datasets=[101, 102])
         json_content = mock_patch.call_args.kwargs["json_content"]
         self.assertEqual(json_content["maplayers"], [])
@@ -309,7 +316,7 @@ class TestRemoveMaplayers(unittest.TestCase):
         detail["map"]["maplayers"].append(_maplayer(903, 103, "msid-103", 2))
         detail["map"]["data"]["map"]["layers"].append(_dataset_layer("msid-103", 103))
         mock_http_get.return_value = detail
-        mock_patch.return_value = {"pk": 42}
+        mock_patch.return_value = {"map": {"pk": 42, "title": "T"}}
         self._handler().remove_maplayers(pk=42, datasets=[101])
         maplayers = mock_patch.call_args.kwargs["json_content"]["maplayers"]
         self.assertEqual([m["order"] for m in maplayers], [0, 1])
@@ -323,7 +330,7 @@ class TestRemoveMaplayers(unittest.TestCase):
             {"id": "geonode:ds101__101", "group": "Default", "name": "geonode:ds101"}
         )
         mock_http_get.return_value = detail
-        mock_patch.return_value = {"pk": 42}
+        mock_patch.return_value = {"map": {"pk": 42, "title": "T"}}
         self._handler().remove_maplayers(pk=42, datasets=[101])
         layer_ids = [
             layer["id"]
@@ -332,6 +339,37 @@ class TestRemoveMaplayers(unittest.TestCase):
             ]
         ]
         self.assertNotIn("geonode:ds101__101", layer_ids)
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_keeps_unrelated_layer_with_matching_index_suffix(
+        self, mock_http_get, mock_patch
+    ):
+        """`{name}__{index}` ids must not be mistaken for `{alternate}__{dataset_pk}`"""
+        detail = _map_detail()
+        # an unrelated layer whose *index* happens to equal the dataset pk being removed
+        detail["map"]["data"]["map"]["layers"].append(
+            {"id": "geonode:rivers__101", "group": "Default", "name": "geonode:rivers"}
+        )
+        mock_http_get.return_value = detail
+        mock_patch.return_value = {"map": {"pk": 42, "title": "T"}}
+        self._handler().remove_maplayers(pk=42, datasets=[101])
+        layer_ids = [
+            layer["id"]
+            for layer in mock_patch.call_args.kwargs["json_content"]["data"]["map"][
+                "layers"
+            ]
+        ]
+        self.assertIn("geonode:rivers__101", layer_ids)
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_returns_unwrapped_map(self, mock_http_get, mock_patch):
+        """the API wraps the response in a `map` envelope, create() unwraps it too"""
+        mock_http_get.return_value = _map_detail()
+        mock_patch.return_value = {"map": {"pk": 42, "title": "T"}}
+        result = self._handler().remove_maplayers(pk=42, datasets=[101])
+        self.assertEqual(result, {"pk": 42, "title": "T"})
 
     @patch.object(GeonodeMapsHandler, "patch")
     @patch.object(GeonodeMapsHandler, "http_get")
@@ -365,6 +403,13 @@ class TestCmdMaplayersList(unittest.TestCase):
         with patch("geonoderest.maps.print_json") as mock_print:
             self._handler().cmd_maplayers_list(pk=42, json=True)
         mock_print.assert_called_once()
+
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_does_not_fetch_the_blob(self, mock_http_get):
+        """maplayers are not deferred — no need to download the whole blob for a table"""
+        mock_http_get.return_value = _map_detail()
+        self._handler().get_maplayers(pk=42)
+        mock_http_get.assert_called_once_with("maps/42/", params={})
 
 
 if __name__ == "__main__":
