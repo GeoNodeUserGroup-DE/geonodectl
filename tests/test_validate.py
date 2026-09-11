@@ -59,6 +59,14 @@ class TestLoadSchema(unittest.TestCase):
             with self.assertRaises(SchemaLoadError):
                 build_validator(load_schema(path), path)
 
+    def test_non_utf8_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "binary.json")
+            with open(path, "wb") as f:
+                f.write(b'\xff\xfe{"type":"object"}')
+            with self.assertRaises(SchemaLoadError):
+                load_schema(path)
+
 
 class TestCollectErrors(unittest.TestCase):
     def test_valid_object_has_no_errors(self):
@@ -114,6 +122,7 @@ class TestCollectErrors(unittest.TestCase):
         self.assertEqual(errors[0]["keyword"], "minLength")
 
     def test_remote_ref_is_not_fetched(self):
+        """a remote $ref must surface as SchemaLoadError, not a raw traceback"""
         with tempfile.TemporaryDirectory() as d:
             path = _write(
                 d,
@@ -124,8 +133,40 @@ class TestCollectErrors(unittest.TestCase):
                 },
             )
             v = build_validator(load_schema(path), path)
-            with self.assertRaises(Exception):
+            with self.assertRaises(SchemaLoadError):
                 collect_errors(v, {"title": "x"})
+
+    def test_missing_sibling_ref_raises_schema_load_error(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = _write(
+                d,
+                "schema.json",
+                {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "allOf": [{"$ref": "does-not-exist.json"}],
+                },
+            )
+            v = build_validator(load_schema(path), path)
+            with self.assertRaises(SchemaLoadError):
+                collect_errors(v, {"title": "x"})
+
+    def test_ref_resolves_under_a_path_containing_a_space(self):
+        """Path.as_uri() percent-encodes; the retrieve callback must decode"""
+        with tempfile.TemporaryDirectory() as d:
+            sub = os.path.join(d, "my schemas")
+            os.makedirs(sub)
+            _write(sub, "common.json", BASELINE_SCHEMA)
+            path = _write(
+                sub,
+                "dataset.json",
+                {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "allOf": [{"$ref": "common.json"}],
+                },
+            )
+            v = build_validator(load_schema(path), path)
+            errors = collect_errors(v, {"title": "x"})
+        self.assertEqual(errors[0]["path"], "$.title")
 
 
 class TestValidateLibraryMethod(unittest.TestCase):
@@ -195,6 +236,23 @@ class TestCmdValidate(unittest.TestCase):
     def test_exit_2_when_schema_is_invalid(self, _):
         with tempfile.TemporaryDirectory() as d:
             path = _write(d, "schema.json", {"type": "not-a-real-type"})
+            with self.assertLogs(level="ERROR"):
+                code = self._run(GeonodeDatasetsHandler(env={}), "1", path, json=False)
+        self.assertEqual(code, 2)
+
+    @patch.object(GeonodeDatasetsHandler, "http_get")
+    def test_exit_2_when_a_ref_cannot_be_resolved(self, mock_http_get):
+        """an unusable schema must not look like invalid metadata (exit 1)"""
+        mock_http_get.return_value = {"dataset": {"title": "a good title"}}
+        with tempfile.TemporaryDirectory() as d:
+            path = _write(
+                d,
+                "schema.json",
+                {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "allOf": [{"$ref": "does-not-exist.json"}],
+                },
+            )
             with self.assertLogs(level="ERROR"):
                 code = self._run(GeonodeDatasetsHandler(env={}), "1", path, json=False)
         self.assertEqual(code, 2)

@@ -121,7 +121,12 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
         unreachable: List[int] = []
 
         for _pk in self.__parse_pk_string__(pk):
-            errors = self.validate(pk=_pk, validator=validator, **kwargs)
+            try:
+                errors = self.validate(pk=_pk, validator=validator, **kwargs)
+            except SchemaLoadError as e:
+                # $refs resolve lazily, so an unusable schema only shows up here
+                logging.error(str(e))
+                sys.exit(VALIDATE_EXIT_ERROR)
             if errors is None:
                 logging.error(f"could not fetch {self.SINGULAR_RESOURCE_NAME} {_pk}")
                 unreachable.append(_pk)

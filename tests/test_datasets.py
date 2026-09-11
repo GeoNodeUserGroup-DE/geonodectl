@@ -137,6 +137,24 @@ class TestPkRangeParsing(unittest.TestCase):
     def test_parse_pk_list(self):
         self.assertEqual(self.handler.__parse_pk_string__("1,2,3"), [1, 2, 3])
 
+    def test_invalid_single_pk_exits_cleanly(self):
+        """a bad pk must exit with a message, not escape as a ValueError"""
+        with self.assertRaises(SystemExit):
+            self.handler.__parse_pk_string__("abc")
+
+    def test_invalid_range_bounds_exit_cleanly(self):
+        with self.assertRaises(SystemExit):
+            self.handler.__parse_pk_string__("a-b")
+
+    def test_malformed_range_exits_cleanly(self):
+        """'1-2-3' used to escape as UnboundLocalError"""
+        with self.assertRaises(SystemExit):
+            self.handler.__parse_pk_string__("1-2-3")
+
+    def test_invalid_pk_list_exits_cleanly(self):
+        with self.assertRaises(SystemExit):
+            self.handler.__parse_pk_string__("1,a")
+
 
 class TestCmdPatchRange(unittest.TestCase):
     """Tests for cmd_patch range/list/single pk execution.

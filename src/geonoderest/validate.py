@@ -11,12 +11,18 @@ Nothing in here talks to GeoNode or exits the process — see
 import json
 from pathlib import Path
 from typing import Any, Dict, List
+from urllib.parse import urlsplit
+from urllib.request import url2pathname
 
-from jsonschema.exceptions import SchemaError, best_match
+from jsonschema.exceptions import (
+    SchemaError,
+    _WrappedReferencingError,
+    best_match,
+)
 from jsonschema.validators import validator_for
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
-from referencing.exceptions import NoSuchResource
+from referencing.exceptions import NoSuchResource, Unresolvable
 
 # schemas that omit "$schema" are treated as the newest draft
 DEFAULT_SPEC = DRAFT202012
@@ -37,7 +43,7 @@ def load_schema(json_schema: str) -> Dict:
     """
     path = Path(json_schema)
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         raise SchemaLoadError(f"schema file not found: {path}")
@@ -45,6 +51,8 @@ def load_schema(json_schema: str) -> Dict:
         raise SchemaLoadError(f"schema path is a directory: {path}")
     except PermissionError:
         raise SchemaLoadError(f"schema file not readable: {path}")
+    except UnicodeDecodeError:
+        raise SchemaLoadError(f"schema file is not UTF-8 encoded: {path}")
     except json.decoder.JSONDecodeError as e:
         raise SchemaLoadError(f"schema file is not valid JSON: {path}: {e}")
 
@@ -60,13 +68,15 @@ def __retrieve_local__(uri: str) -> Resource:
     # NoSuchResource/Registry take attrs-aliased kwargs that mypy cannot see
     if not uri.startswith("file://"):
         raise NoSuchResource(ref=uri)  # type: ignore[call-arg]
-    path = Path(uri.removeprefix("file://"))
+    # as_uri() percent-encodes, so decode before touching the filesystem or a
+    # schema kept under a path with a space or umlaut can never resolve its refs
+    path = Path(url2pathname(urlsplit(uri).path))
     try:
-        contents = json.loads(path.read_text())
+        contents = json.loads(path.read_text(encoding="utf-8"))
     except (FileNotFoundError, IsADirectoryError):
         raise NoSuchResource(ref=uri)  # type: ignore[call-arg]
-    except json.decoder.JSONDecodeError as e:
-        raise SchemaLoadError(f"referenced schema is not valid JSON: {path}: {e}")
+    except (json.decoder.JSONDecodeError, UnicodeDecodeError) as e:
+        raise SchemaLoadError(f"referenced schema is not readable: {path}: {e}")
     return Resource.from_contents(contents, default_specification=DEFAULT_SPEC)
 
 
@@ -104,11 +114,21 @@ def build_validator(schema: Dict, schema_path: str):
 def collect_errors(validator, instance: Any) -> List[Dict]:
     """Validate ``instance`` and return every violation as a flat record.
 
+    Raises:
+        SchemaLoadError: a ``$ref`` in the schema could not be resolved. Refs are
+            resolved lazily, at validation time rather than when the validator is
+            built, so this surfaces here and not in :func:`build_validator`.
+
     Returns:
         List[Dict]: one record per violation with ``path``, ``keyword``,
             ``message`` and ``schema_path``; empty when the instance is valid.
     """
-    errors = sorted(validator.iter_errors(instance), key=lambda e: list(e.path))
+    try:
+        errors = sorted(validator.iter_errors(instance), key=lambda e: list(e.path))
+    except (_WrappedReferencingError, Unresolvable) as e:
+        # a missing sibling file, or a remote ref we deliberately do not fetch:
+        # the schema is unusable, which is not the same as invalid metadata
+        raise SchemaLoadError(f"could not resolve a $ref in the schema: {e}")
 
     records: List[Dict] = []
     for error in errors:
