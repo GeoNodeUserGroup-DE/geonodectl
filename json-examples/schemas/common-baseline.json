@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Baseline metadata every GeoNode resource must carry",
+  "type": "object",
+  "required": ["title", "abstract", "owner"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 3,
+      "description": "a human readable title, not the file name"
+    },
+    "abstract": {
+      "type": "string",
+      "minLength": 20,
+      "not": { "const": "No abstract provided" },
+      "description": "GeoNode substitutes a placeholder when the abstract is empty"
+    },
+    "owner": {
+      "type": "object",
+      "required": ["username"]
+    },
+    "doi": {
+      "type": ["string", "null"],
+      "pattern": "^10\\.\\d{4,9}/[-._;()/:A-Za-z0-9]+$",
+      "description": "a bare DOI, not a doi.org URL"
+    }
+  },
+  "if": {
+    "required": ["doi"],
+    "properties": { "doi": { "type": "string" } }
+  },
+  "then": {
+    "required": ["license", "attribution"],
+    "properties": {
+      "license": {
+        "type": "object",
+        "required": ["identifier"],
+        "properties": {
+          "identifier": {
+            "not": { "const": "not_specified" },
+            "description": "a published DOI needs a real license"
+          }
+        }
+      },
+      "attribution": { "type": "string", "minLength": 1 }
+    }
+  }
+}

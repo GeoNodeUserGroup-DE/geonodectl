@@ -24,13 +24,13 @@ geonodectl dataset list
 
 | Document | Commands covered |
 |---|---|
-| [datasets.md](datasets.md) | `dataset list/upload/describe/patch/delete` |
-| [documents.md](documents.md) | `documents list/upload/describe/patch/delete` |
-| [maps.md](maps.md) | `maps list/create/describe/patch/delete/get-blob/set-blob/maplayers` |
-| [geoapps.md](geoapps.md) | `geoapps list/describe/patch/delete` |
+| [datasets.md](datasets.md) | `dataset list/upload/describe/patch/delete/validate` |
+| [documents.md](documents.md) | `documents list/upload/describe/patch/delete/validate` |
+| [maps.md](maps.md) | `maps list/create/describe/patch/delete/get-blob/set-blob/maplayers/validate` |
+| [geoapps.md](geoapps.md) | `geoapps list/describe/patch/delete/validate` |
 | [users.md](users.md) | `users list/create/describe/patch/delete/transfer_resources` |
 | [groups.md](groups.md) | `groups list/create/describe/patch/delete` |
-| [resources.md](resources.md) | `resources list/delete/metadata` |
+| [resources.md](resources.md) | `resources list/delete/metadata/validate` |
 | [uploads.md](uploads.md) | `uploads list/describe` |
 | [executionrequest.md](executionrequest.md) | `executionrequest list/describe` |
 | [keywords.md](keywords.md) | `keywords`, `tkeywords`, `tkeywordlabels` |

@@ -31,4 +31,5 @@ nav:
       - Keywords: keywords.md
       - Linked Resources: linked-resources.md
       - Attributes: attributes.md
+      - Validate: validate.md
       - GeoServer Styles: geoserver.md

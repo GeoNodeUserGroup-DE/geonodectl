@@ -62,22 +62,22 @@ class GeonodeObjectHandler(GeonodeRest):
             try:
                 pk_begin, pk_end = pk.split("-")
             except ValueError:
-                SystemExit(f"Invalid pk {pk} found, not a range ...")
+                raise SystemExit(f"Invalid pk {pk} found, not a range ...")
             if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
-                SystemExit(f"Invalid pk {pk} found, not an integer ...")
+                raise SystemExit(f"Invalid pk {pk} found, not an integer ...")
             return [i for i in range(int(pk_begin), int(pk_end) + 1)]
 
         # pk list: 1,2,3,4,5,6,7
         elif "," in pk:
             pk_list = pk.split(",")
             if not all(x.isdigit() for x in pk_list):
-                SystemExit(f"Invalid pk {pk} found, not an integer ...")
+                raise SystemExit(f"Invalid pk {pk} found, not an integer ...")
             return [int(i) for i in pk_list]
 
         # single pk: 1
         else:
             if not pk.isdigit():
-                SystemExit(f"Invalid pk {pk}, is not an integer ...")
+                raise SystemExit(f"Invalid pk {pk}, is not an integer ...")
             return [int(pk)]
 
     def cmd_delete(self, pk: str, **kwargs):

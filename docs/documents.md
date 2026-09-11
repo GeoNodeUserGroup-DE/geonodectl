@@ -66,3 +66,14 @@ geonodectl documents patch 12 --json_path ./metadata.json
 geonodectl documents delete 12
 geonodectl documents delete 10,11,12
 ```
+
+---
+
+## Validate
+
+Check the metadata against a JSON Schema. See [validate.md](validate.md) for schema
+authoring, exit codes and shared-baseline `$ref` use.
+
+```bash
+geonodectl documents validate 2135 --json_schema ./common-baseline.json
+```

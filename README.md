@@ -13,6 +13,7 @@
 - Manage users, groups, uploads, execution requests, keywords, and linked resources
 - Read and write the MapStore blob JSON for maps (`get-blob`, `set-blob`)
 - Add and remove maplayers of an existing map (`maplayers add`, `maplayers remove`)
+- Validate resource metadata against a JSON Schema (`validate`)
 - Manage GeoServer styles — list, describe, upload SLD, set default style
 - Transfer resources between users
 - Supports authentication and secure API access
@@ -88,11 +89,11 @@ See [docs/example.md](docs/example.md) for worked examples.
 
 | Command | Aliases | Capabilities |
 |---|---|---|
-| `resources` | `resource` | list, delete, metadata |
-| `datasets` | `ds`, `dataset` | list, delete, patch, describe, upload |
-| `documents` | `doc`, `document` | list, delete, patch, describe, upload |
-| `maps` | — | list, delete, patch, describe, create, get-blob, set-blob, **maplayers list/add/remove** |
-| `geoapps` | `apps` | list, delete, patch, describe |
+| `resources` | `resource` | list, delete, metadata, **validate** |
+| `datasets` | `ds`, `dataset` | list, delete, patch, describe, upload, **validate** |
+| `documents` | `doc`, `document` | list, delete, patch, describe, upload, **validate** |
+| `maps` | — | list, delete, patch, describe, create, get-blob, set-blob, maplayers list/add/remove, **validate** |
+| `geoapps` | `apps` | list, delete, patch, describe, **validate** |
 | `users` | `user` | list, delete, patch, describe, create, transfer_resources |
 | `groups` | — | list, delete, patch, describe, create |
 | `uploads` | — | list, describe |
@@ -160,6 +161,32 @@ geonodectl maps maplayers add 2073 36 42
 # Remove dataset 36 from the map
 geonodectl maps maplayers remove 2073 36
 ```
+
+### Metadata validation
+
+Check that a resource's metadata meets a baseline expressed as a
+[JSON Schema](https://json-schema.org/) — required fields, value patterns, and conditional
+rules such as "a resource with a DOI must carry a real license".
+
+```bash
+geonodectl dataset validate 2162 --json_schema ./dataset-schema.json
+geonodectl maps    validate 1-5  --json_schema ./map-schema.json
+geonodectl resources validate 2162 --json_schema ./common-baseline.json
+
+# machine readable report for CI
+geonodectl --raw dataset validate 2162 --json_schema ./dataset-schema.json
+```
+
+Exit codes make it usable as a CI gate:
+
+| Code | Meaning |
+|---|---|
+| 0 | everything validated |
+| 1 | at least one object violated the schema |
+| 2 | validation could not run (schema missing/invalid, object not fetchable) |
+
+Worked example schemas live in [json-examples/schemas/](json-examples/schemas/); see
+[docs/validate.md](docs/validate.md) for details.
 
 ## Development
 
