@@ -249,6 +249,37 @@ as small as `{"title": "test", "text": "hello"}`.
 > widgets — it explicitly excludes them from the description tool, because the text body
 > already serves that purpose. The flag would write a key the viewer never shows.
 
+### widgets add table
+
+A table widget shows the features of a **maplayer** as a table. The dataset has to be a
+maplayer of the map already — add it with `maps maplayers add` first.
+
+```bash
+geonodectl maps widgets add 2073 table --maplayer 2162 \
+    --title "Stations" --description "measurement sites" \
+    --attributes fid name
+```
+
+Columns can be given by name or by attribute pk — use `geonodectl attributes describe
+<dataset-pk>` to see both:
+
+```bash
+# by name
+geonodectl maps widgets add 2073 table --maplayer 2162 --attributes fid name ror
+
+# by attribute pk
+geonodectl maps widgets add 2073 table --maplayer 2162 --attribute-ids 63 58 59
+
+# neither: every attribute of the dataset becomes a column
+geonodectl maps widgets add 2073 table --maplayer 2162
+```
+
+Names and pks are validated against the dataset before anything is written, so a typo is
+reported instead of producing an empty column in the viewer.
+
+Unlike a textbox, a table **does** show its `--description`, behind the question-mark tool
+in the widget header.
+
 ### widgets describe
 
 ```bash
@@ -294,6 +325,13 @@ there.
 The first widget on a map starts at row `2` rather than row `0`, which keeps it clear of
 the controls along the top of the map. Adjust `GeonodeMapsHandler.WIDGET_TOP_OFFSET` to
 move that starting point.
+
+Each widget type has its own default footprint in `GeonodeMapsHandler.WIDGET_DEFAULT_SIZE`
+— a textbox is 1x1, a table 2x2, since a 1x1 table shows nothing useful.
+
+A table widget embeds the blob layer it reads from, so it is bound to the layer that is
+already on the map rather than to a fresh copy of the dataset. Removing that maplayer
+afterwards leaves the table pointing at a layer the map no longer has.
 
 ---
 

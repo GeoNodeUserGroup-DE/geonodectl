@@ -6,6 +6,7 @@ import uuid
 from typing import List, Dict, Optional, Tuple
 
 from geonoderest.cmdprint import print_json, json_decode_error_handler, show_list
+from geonoderest.attributes import GeonodeAttributeHandler
 from geonoderest.datasets import GeonodeDatasetsHandler
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodetypes import (
@@ -750,11 +751,15 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
     # MapStore widget types, keyed by the name used on the command line. MapStore's
     # own name for a textbox is "text"; "textbox" reads better as a CLI verb.
-    WIDGET_TYPES = {"textbox": "text"}
+    WIDGET_TYPES = {"textbox": "text", "table": "table"}
 
     # Grid row the first widget of a map is placed in. Row 0 sits flush with the top of
     # the map, where the MapStore toolbars are, so start a little lower down.
     WIDGET_TOP_OFFSET = 2
+
+    # Default grid footprint per MapStore widget type. A table needs more room than a
+    # textbox before it shows anything useful.
+    WIDGET_DEFAULT_SIZE = {"text": {"w": 1, "h": 1}, "table": {"w": 2, "h": 2}}
 
     @classmethod
     def __next_widget_row__(cls, widgets: List[Dict]) -> int:
@@ -810,6 +815,149 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             "dataGrid": {"x": 0, "y": row, "w": 1, "h": 1},
         }
 
+    @classmethod
+    def __find_blob_layer_for_dataset__(
+        cls, blob: Dict, maplayers: List[Dict], dataset_pk: int
+    ) -> Optional[Dict]:
+        """
+        Return the blob layer of a map that belongs to the given dataset.
+
+        Reuses the matching of __is_removed_blob_layer__ so that a table widget binds to
+        a layer by exactly the same rules a removal uses - a map built by other tooling
+        identifies its layers by extendedParams.pk or an {alternate}__{pk} id rather
+        than by the msId geonodectl writes.
+
+        Args:
+            blob (Dict): the MapStore blob of the map
+            maplayers (List[Dict]): the maplayers of the map
+            dataset_pk (int): pk of the dataset to look for
+
+        Returns:
+            Dict: the blob layer, or None when the dataset is not on the map
+        """
+        matching = [
+            maplayer
+            for maplayer in maplayers
+            if cls.__maplayer_dataset_pk__(maplayer) == dataset_pk
+        ]
+
+        msids = {
+            (maplayer.get("extra_params") or {}).get("msId") for maplayer in matching
+        }
+        msids.discard(None)
+        named_ids = {
+            f"{maplayer.get('name')}__{dataset_pk}"
+            for maplayer in matching
+            if maplayer.get("name")
+        }
+
+        for layer in blob.get("map", {}).get("layers", []):
+            if cls.__is_removed_blob_layer__(layer, msids, {dataset_pk}, named_ids):
+                return layer
+        return None
+
+    def __resolve_attributes__(
+        self,
+        dataset_pk: int,
+        attributes: Optional[List[str]] = None,
+        attribute_ids: Optional[List[int]] = None,
+    ) -> Optional[List[str]]:
+        """
+        Work out the attribute names a table widget should show as columns.
+
+        MapStore stores the columns as names in options.propertyName, so attribute pks
+        are resolved against the dataset attribute_set. Names are validated against the
+        same set - the request is made either way, so a typo is caught here instead of
+        silently producing an empty column in the viewer.
+
+        Args:
+            dataset_pk (int): pk of the dataset the table is built from
+            attributes (List[str]): attribute names, as shown by `geonodectl attributes`
+            attribute_ids (List[int]): attribute pks
+
+        Returns:
+            List[str]: attribute names, every attribute of the dataset when neither
+                argument is given, or None when one of them could not be resolved
+        """
+        raw = GeonodeAttributeHandler(self.gn_credentials).get(pk=dataset_pk)
+        if not raw:
+            logging.error(f"could not read the attributes of dataset {dataset_pk}")
+            return None
+        # the endpoint answers with `attributes`, a patch payload uses `attribute_set`
+        attribute_set = raw.get("attributes") or raw.get("attribute_set") or []
+        if not attribute_set:
+            logging.error(f"dataset {dataset_pk} has no attributes")
+            return None
+
+        by_pk = {attr.get("pk"): attr.get("attribute") for attr in attribute_set}
+        known = {attr.get("attribute") for attr in attribute_set}
+
+        if attribute_ids:
+            unknown_ids = [a_id for a_id in attribute_ids if a_id not in by_pk]
+            if unknown_ids:
+                logging.error(
+                    f"dataset {dataset_pk} has no attribute with pk "
+                    f"{', '.join(str(u) for u in unknown_ids)}"
+                )
+                return None
+            return [by_pk[a_id] for a_id in attribute_ids]
+
+        if attributes:
+            unknown_names = [name for name in attributes if name not in known]
+            if unknown_names:
+                logging.error(
+                    f"dataset {dataset_pk} has no attribute named "
+                    f"{', '.join(unknown_names)}"
+                )
+                return None
+            return list(attributes)
+
+        # neither given: show everything the dataset has
+        return [
+            attr.get("attribute") for attr in attribute_set if attr.get("attribute")
+        ]
+
+    @classmethod
+    def __build_table_widget__(
+        cls,
+        title: Optional[str],
+        description: Optional[str],
+        layer: Dict,
+        properties: List[str],
+        row: int,
+    ) -> Dict:
+        """
+        Build a MapStore table widget bound to a maplayer.
+
+        The columns are written to options.propertyName as plain strings; MapStore
+        normalises a string to {"name": ...} when it reads the widget back.
+
+        Unlike a text widget a table does show its `description`, as a question mark
+        tool in the widget header.
+
+        Args:
+            title (str): widget title, shown in the widget header
+            description (str): shown behind the info tool of the widget
+            layer (Dict): the blob layer the table reads its features from
+            properties (List[str]): attribute names to show as columns
+            row (int): grid row to place the widget in
+
+        Returns:
+            Dict: the widget, ready to be appended to widgetsConfig.widgets
+        """
+        size = cls.WIDGET_DEFAULT_SIZE["table"]
+        return {
+            "id": str(uuid.uuid4()),
+            "widgetType": "table",
+            "title": title or "",
+            "description": description or "",
+            "layer": layer,
+            "url": (layer.get("search") or {}).get("url") or layer.get("url"),
+            "options": {"propertyName": list(properties)},
+            "mapSync": False,
+            "dataGrid": {"x": 0, "y": row, "w": size["w"], "h": size["h"]},
+        }
+
     def get_widgets(self, pk: int) -> Optional[List[Dict]]:
         """
         Return the MapStore widgets of a map.
@@ -827,12 +975,54 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             return None
         return (blob.get("widgetsConfig") or {}).get("widgets") or []
 
+    def __reject_mismatched_widget_flags__(
+        self,
+        widget_type: str,
+        text: Optional[str],
+        description: Optional[str],
+        maplayer: Optional[int],
+        attributes: Optional[List[str]],
+        attribute_ids: Optional[List[int]],
+    ) -> bool:
+        """
+        Complain about flags that do not belong to the widget type being added.
+
+        `add` shares one flag set across all widget types, so a mistyped combination
+        would otherwise be dropped without a word.
+
+        Returns:
+            bool: True when the flags are usable for this widget type
+        """
+        if widget_type == "textbox":
+            wrong = {
+                "--maplayer": maplayer,
+                "--attributes": attributes,
+                "--attribute-ids": attribute_ids,
+                # MapStore excludes text widgets from the description tool
+                "--description": description,
+            }
+        else:
+            wrong = {"--text": text}
+
+        offending = [flag for flag, value in wrong.items() if value]
+        if offending:
+            logging.error(
+                f"{', '.join(sorted(offending))} cannot be used with widget type "
+                f"'{widget_type}'"
+            )
+            return False
+        return True
+
     def add_widget(
         self,
         pk: int,
         widget_type: str = "textbox",
         title: Optional[str] = None,
         text: Optional[str] = None,
+        description: Optional[str] = None,
+        maplayer: Optional[int] = None,
+        attributes: Optional[List[str]] = None,
+        attribute_ids: Optional[List[int]] = None,
         json_path: Optional[str] = None,
         **kwargs,
     ) -> Optional[Dict]:
@@ -846,7 +1036,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             pk (int): pk of the map to modify
             widget_type (str): widget type, see WIDGET_TYPES
             title (str): widget title, ignored when json_path is given
-            text (str): widget body, HTML allowed, ignored when json_path is given
+            text (str): textbox body, HTML allowed
+            description (str): table description, shown behind the widget info tool
+            maplayer (int): dataset pk of the maplayer a table reads its
+                features from, the same way maps maplayers add takes them
+            attributes (List[str]): attribute names to show as table columns
+            attribute_ids (List[int]): attribute pks to show as table columns
             json_path (str): path to a JSON file holding a raw widget definition
 
         Returns:
@@ -859,12 +1054,26 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             )
             return None
 
-        blob = self.get_blob(pk)
-        if blob is None:
+        if not json_path and not self.__reject_mismatched_widget_flags__(
+            widget_type, text, description, maplayer, attributes, attribute_ids
+        ):
+            return None
+
+        # a table needs the maplayers too, to bind the widget to an existing blob layer
+        detail = self.__get_map_detail__(pk)
+        if detail is None:
+            return None
+        blob = detail.get("data") or detail.get("blob")
+        if not blob:
+            logging.error(
+                f"Map {pk} has no blob - the map may not have been configured yet"
+            )
             return None
 
         widgets = blob.setdefault("widgetsConfig", {}).setdefault("widgets", [])
         row = self.__next_widget_row__(widgets)
+        mapstore_type = self.WIDGET_TYPES[widget_type]
+        size = self.WIDGET_DEFAULT_SIZE[mapstore_type]
 
         if json_path:
             with open(json_path, "r") as f:
@@ -878,8 +1087,35 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                 return None
             # a hand written widget may omit the bookkeeping fields
             widget.setdefault("id", str(uuid.uuid4()))
-            widget.setdefault("widgetType", self.WIDGET_TYPES[widget_type])
-            widget.setdefault("dataGrid", {"x": 0, "y": row, "w": 1, "h": 1})
+            widget.setdefault("widgetType", mapstore_type)
+            widget.setdefault(
+                "dataGrid", {"x": 0, "y": row, "w": size["w"], "h": size["h"]}
+            )
+        elif widget_type == "table":
+            if not maplayer:
+                logging.error("--maplayer is required to add a table widget")
+                return None
+
+            layer = self.__find_blob_layer_for_dataset__(
+                blob, detail.get("maplayers") or [], maplayer
+            )
+            if layer is None:
+                logging.error(
+                    f"dataset {maplayer} is not a maplayer of map {pk}, add it "
+                    f"first: geonodectl maps maplayers add {pk} {maplayer}"
+                )
+                return None
+
+            properties = self.__resolve_attributes__(
+                maplayer, attributes, attribute_ids
+            )
+            if properties is None:
+                # __resolve_attributes__ already reported why
+                return None
+
+            widget = self.__build_table_widget__(
+                title, description, layer, properties, row
+            )
         else:
             if not title and not text:
                 logging.error("either --title or --text is required to add a widget")
@@ -964,6 +1200,10 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         widget_type: str = "textbox",
         title: Optional[str] = None,
         text: Optional[str] = None,
+        description: Optional[str] = None,
+        maplayer: Optional[int] = None,
+        attributes: Optional[List[str]] = None,
+        attribute_ids: Optional[List[int]] = None,
         json_path: Optional[str] = None,
         **kwargs,
     ):
@@ -972,19 +1212,29 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
         Args:
             pk (int): pk of the map to modify
-            widget_type (str): widget type, currently only textbox
+            widget_type (str): widget type, textbox or table
             title (str): widget title
-            text (str): widget body, HTML allowed
+            text (str): textbox body, HTML allowed
+            description (str): table description, shown behind the widget info tool
+            maplayer (int): dataset pk of the maplayer a table reads its
+                features from, the same way maps maplayers add takes them
+            attributes (List[str]): attribute names to show as table columns
+            attribute_ids (List[int]): attribute pks to show as table columns
             json_path (str): path to a JSON file holding a raw widget definition
 
         Example:
           geonodectl maps widgets add 2073 textbox --title "test" --text "some text"
+          geonodectl maps widgets add 2073 table --maplayer 2162 --attributes fid name
         """
         obj = self.add_widget(
             pk=pk,
             widget_type=widget_type,
             title=title,
             text=text,
+            description=description,
+            maplayer=maplayer,
+            attributes=attributes,
+            attribute_ids=attribute_ids,
             json_path=json_path,
             **kwargs,
         )
