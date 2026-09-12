@@ -1,8 +1,9 @@
 from typing import List, Dict, Optional
 import logging
-import sys
 
 from geonoderest.geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
+from geonoderest.exceptions import InvalidPkError
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.rest import GeonodeRest
 from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.cmdprint import (
@@ -23,16 +24,17 @@ class GeonodeObjectHandler(GeonodeRest):
     ENDPOINT_NAME: str = ""
     SINGULAR_RESOURCE_NAME: str = ""
 
-    def cmd_list(self, **kwargs):
+    def cmd_list(self, **kwargs) -> int:
         """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
         if obj is None:
-            logging.warning("No results returned from GeoNode API.")
-            return
+            logging.error("No results returned from GeoNode API.")
+            return EXIT_FAILED
         if kwargs["json"]:
             print_json(obj)
         else:
             print_list_on_cmd(obj, self.LIST_CMDOUT_HEADER)
+        return EXIT_OK
 
     def list(self, **kwargs) -> Optional[Dict]:
         """returns dict of datasets from geonode
@@ -54,6 +56,11 @@ class GeonodeObjectHandler(GeonodeRest):
 
         Args:
             pk (str): pk of the object, as string with range or list or single pk
+
+        Raises:
+            InvalidPkError: pk is not a single pk, a range or a list. Raised
+                rather than exiting so this stays usable as a library (#69);
+                the ``cmd_*`` caller turns it into EXIT_USAGE.
         """
 
         pk = str(pk)
@@ -62,32 +69,40 @@ class GeonodeObjectHandler(GeonodeRest):
             try:
                 pk_begin, pk_end = pk.split("-")
             except ValueError:
-                raise SystemExit(f"Invalid pk {pk} found, not a range ...")
+                raise InvalidPkError(f"Invalid pk {pk} found, not a range ...")
             if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
-                raise SystemExit(f"Invalid pk {pk} found, not an integer ...")
+                raise InvalidPkError(f"Invalid pk {pk} found, not an integer ...")
             return [i for i in range(int(pk_begin), int(pk_end) + 1)]
 
         # pk list: 1,2,3,4,5,6,7
         elif "," in pk:
             pk_list = pk.split(",")
             if not all(x.isdigit() for x in pk_list):
-                raise SystemExit(f"Invalid pk {pk} found, not an integer ...")
+                raise InvalidPkError(f"Invalid pk {pk} found, not an integer ...")
             return [int(i) for i in pk_list]
 
         # single pk: 1
         else:
             if not pk.isdigit():
-                raise SystemExit(f"Invalid pk {pk}, is not an integer ...")
+                raise InvalidPkError(f"Invalid pk {pk}, is not an integer ...")
             return [int(pk)]
 
-    def cmd_delete(self, pk: str, **kwargs):
-        for _pk in self.__parse_pk_string__(pk):
+    def cmd_delete(self, pk: str, **kwargs) -> int:
+        try:
+            pks = self.__parse_pk_string__(pk)
+        except InvalidPkError as e:
+            logging.error(str(e))
+            return EXIT_USAGE
 
+        exit_code = EXIT_OK
+        for _pk in pks:
             obj = self.delete(pk=_pk, **kwargs)
             if obj is None:
-                logging.warning(f"deleting {_pk} failed ... ")
+                logging.error(f"deleting {_pk} failed ... ")
+                exit_code = EXIT_FAILED
             else:
                 print(f"{self.JSON_OBJECT_NAME}: {_pk} deleted ...")
+        return exit_code
 
     def delete(self, pk: int, **kwargs):
         """delete geonode resource object"""
@@ -99,7 +114,7 @@ class GeonodeObjectHandler(GeonodeRest):
         fields: Optional[str] = None,
         json_path: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> int:
         """
         Tries to generate object from incoming json string
         Args:
@@ -107,29 +122,30 @@ class GeonodeObjectHandler(GeonodeRest):
             fields (str): string of potential json object
             json_path (str): path to a json file, or a http(s) url serving one
 
-        Raises:
-            ValueError: neither 'fields' nor 'json_path' was provided
-
-        Exits:
-            1 when the json could not be read or is not valid json
+        Returns:
+            int: EXIT_OK, EXIT_FAILED if any object could not be patched, or
+                EXIT_USAGE for a bad pk or unreadable input json
         """
 
         if not (json_path or fields):
-            raise ValueError(
-                "At least one of 'fields' or 'json_path' must be provided."
-            )
+            logging.error("At least one of 'fields' or 'json_path' must be provided.")
+            return EXIT_USAGE
         try:
             json_content = load_json_source(json_path=json_path, fields=fields)
-        except JsonSourceError as e:
+            pks = self.__parse_pk_string__(pk)
+        except (JsonSourceError, InvalidPkError) as e:
             logging.error(str(e))
-            sys.exit(1)
+            return EXIT_USAGE
 
-        for _pk in self.__parse_pk_string__(pk):
+        exit_code = EXIT_OK
+        for _pk in pks:
             obj = self.patch(pk=_pk, json_content=json_content, **kwargs)
             if obj is None:
-                logging.warning(f"patching {_pk} failed ... ")
+                logging.error(f"patching {_pk} failed ... ")
+                exit_code = EXIT_FAILED
             else:
                 print_json(obj)
+        return exit_code
 
     def patch(
         self,
@@ -142,13 +158,22 @@ class GeonodeObjectHandler(GeonodeRest):
         )
         return obj
 
-    def cmd_describe(self, pk: str, **kwargs):
-        for _pk in self.__parse_pk_string__(pk):
+    def cmd_describe(self, pk: str, **kwargs) -> int:
+        try:
+            pks = self.__parse_pk_string__(pk)
+        except InvalidPkError as e:
+            logging.error(str(e))
+            return EXIT_USAGE
+
+        exit_code = EXIT_OK
+        for _pk in pks:
             obj = self.get(pk=_pk, **kwargs)
             if obj is None:
-                logging.warning(f"describing {_pk} failed ... ")
+                logging.error(f"describing {_pk} failed ... ")
+                exit_code = EXIT_FAILED
             else:
                 print_json(obj)
+        return exit_code
 
     def get(self, pk: int, **kwargs) -> Optional[Dict]:
         """get details for a given pk

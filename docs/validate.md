@@ -68,13 +68,14 @@ geonodectl --raw dataset validate 2162 --json_schema ./dataset-schema.json
 
 ## Exit codes
 
-`validate` is meant to be used as a CI gate, so it signals the outcome through its exit code:
+`validate` is meant to be used as a CI gate, so it signals the outcome through its exit code.
+It follows the contract every command shares — see [exit-codes.md](exit-codes.md):
 
 | Code | Meaning |
 |---|---|
 | 0 | every requested object validated |
-| 1 | at least one object violated the schema |
-| 2 | validation could not be carried out — schema missing, unreachable, not JSON, not a valid JSON Schema, or the object could not be fetched |
+| 1 | at least one object violated the schema, or could not be fetched |
+| 2 | validation could not be carried out — schema missing, unreachable, not JSON, or not a valid JSON Schema |
 
 ```bash
 geonodectl dataset validate 1-100 --json_schema ./dataset-schema.json || echo "metadata incomplete"

@@ -1,5 +1,4 @@
 import os
-import sys
 import time
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -11,6 +10,7 @@ from geonoderest.cmdprint import show_list, print_json
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 from geonoderest.exceptions import GeoNodeRestException
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 
 
 class GeonodeDatasetsHandler(GeonodeResourceHandler):
@@ -40,7 +40,7 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
         skip_existing_layers: bool = False,
         wait: bool = False,
         **kwargs,
-    ):
+    ) -> int:
         """upload data and show them on the cmdline
 
         Args:
@@ -49,36 +49,53 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             time (bool, optional): set if data is timeseries data Defaults to False.
             mosaic (bool, optional): declare dataset as mosaic
             wait (bool, optional): wait for upload to finish and show resulting dataset(s). Defaults to False.
+
+        Returns:
+            int: EXIT_OK, EXIT_FAILED when the upload failed or never completed,
+                EXIT_USAGE when the file does not exist
         """
-        r = self.upload(
-            file_path=file_path,
-            charset=charset,
-            time=time,
-            mosaic=mosaic,
-            overwrite_existing_layer=overwrite_existing_layer,
-            skip_existing_layers=skip_existing_layers,
-            **kwargs,
-        )
-        if "execution_id" not in r:
-            raise SystemExit(f"unexpected API response ...\n{r}")
+        try:
+            r = self.upload(
+                file_path=file_path,
+                charset=charset,
+                time=time,
+                mosaic=mosaic,
+                overwrite_existing_layer=overwrite_existing_layer,
+                skip_existing_layers=skip_existing_layers,
+                **kwargs,
+            )
+        except FileNotFoundError:
+            logging.error(f"file not found: {file_path}")
+            return EXIT_USAGE
+        if r is None or "execution_id" not in r:
+            logging.error(f"unexpected API response ...\n{r}")
+            return EXIT_FAILED
 
         execution_request_handler = GeonodeExecutionRequestHandler(
             env=self.gn_credentials
         )
         er = execution_request_handler.get(exec_id=str(r["execution_id"]), **kwargs)
         if er is None:
-            logging.warning("upload failed ... ")
-            return
+            logging.error("upload failed ... ")
+            return EXIT_FAILED
 
         if wait:
-            pks = self.__wait_for_upload__(exec_id=str(r["execution_id"]))
+            try:
+                pks = self.__wait_for_upload__(exec_id=str(r["execution_id"]))
+            except GeoNodeRestException as exc:
+                logging.error(str(exc))
+                return EXIT_FAILED
+            exit_code = EXIT_OK
             for pk in pks:
                 obj = self.get(pk=pk, **kwargs)
-                if kwargs.get("json"):
+                if obj is None:
+                    logging.error(f"describing {pk} failed ... ")
+                    exit_code = EXIT_FAILED
+                elif kwargs.get("json"):
                     print_json(obj)
                 else:
-                    self.cmd_describe(pk=str(pk), **kwargs)
-            return
+                    exit_code = self.cmd_describe(pk=str(pk), **kwargs) or exit_code
+            return exit_code
 
         if kwargs["json"] is True:
             print_json(er)
@@ -91,6 +108,7 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
                 ["link", str(er["link"])],
             ]
             show_list(values=list_items, headers=["key", "value"])
+        return EXIT_OK
 
     def __wait_for_upload__(self, exec_id: str, poll_interval: int = 5) -> List[int]:
         """Wait for an upload execution request to finish and return the resulting dataset PKs.
@@ -103,18 +121,16 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
             List[int]: PKs of the created/updated datasets.
 
         Raises:
-            SystemExit: If the upload fails.
+            GeoNodeRestException: if the upload never completed. Raised rather
+                than exiting, so geonoderest stays usable as a library (#69) -
+                ``cmd_upload`` turns it into an exit code.
         """
         execution_request_handler = GeonodeExecutionRequestHandler(
             env=self.gn_credentials
         )
-        try:
-            er = execution_request_handler.wait_for_completion(
-                exec_id=exec_id, poll_interval=poll_interval
-            )
-        except GeoNodeRestException as exc:
-            logging.error(str(exc))
-            sys.exit(1)
+        er = execution_request_handler.wait_for_completion(
+            exec_id=exec_id, poll_interval=poll_interval
+        )
         logging.info("upload finished ...")
         return [
             resource["id"]
