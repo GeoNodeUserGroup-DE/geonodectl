@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import requests
@@ -242,6 +243,38 @@ class TestRemoteSchema(unittest.TestCase):
         v = build_validator(load_schema(self.SCHEMA_URL), self.SCHEMA_URL)
         with self.assertRaises(SchemaLoadError):
             collect_errors(v, {"title": "x"})
+
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_a_remote_ref_is_fetched_only_once(self, mock_get):
+        """Registry is immutable, so without a cache each object refetches it"""
+        root = {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "allOf": [{"$ref": "common.json"}],
+        }
+        mock_get.side_effect = _serve(
+            {self.SCHEMA_URL: root, self.COMMON_URL: BASELINE_SCHEMA}
+        )
+        v = build_validator(load_schema(self.SCHEMA_URL), self.SCHEMA_URL)
+        for _ in range(5):
+            collect_errors(v, {"title": "a good title"})
+        # one for the root schema, one for common.json, and nothing more
+        self.assertEqual(mock_get.call_count, 2)
+
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_remote_schema_cannot_read_the_local_filesystem(self, mock_get):
+        """a file:// ref in a hosted schema would leak the file into the report"""
+        with tempfile.TemporaryDirectory() as d:
+            secret = _write(
+                d, "secret.json", {"properties": {"title": {"const": "s3cr3t"}}}
+            )
+            root = {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "allOf": [{"$ref": Path(secret).as_uri()}],
+            }
+            mock_get.side_effect = _serve({self.SCHEMA_URL: root})
+            v = build_validator(load_schema(self.SCHEMA_URL), self.SCHEMA_URL)
+            with self.assertRaises(SchemaLoadError):
+                collect_errors(v, {"title": "whatever"})
 
     @patch("geonoderest.jsonsource.requests.get")
     def test_local_schema_still_refuses_a_remote_ref(self, mock_get):

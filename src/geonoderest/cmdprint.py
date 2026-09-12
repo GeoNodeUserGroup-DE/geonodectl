@@ -2,7 +2,6 @@ from typing import List, Union, Dict
 from tabulate import tabulate
 import json
 import logging
-import sys
 
 from .geonodetypes import GeonodeCmdOutObjectKey
 
@@ -58,9 +57,3 @@ def print_json(json_str: Union[str, dict]):
         logging.warning("return from geonode api was broken, not output ...")
         return None
     print(json.dumps(json_str, indent=2, ensure_ascii=False))
-
-
-def json_decode_error_handler(json_str: str, error: json.decoder.JSONDecodeError):
-    logging.error(f"Error decoding json string:\n {json_str} ...")
-    logging.error(f"{error}")
-    sys.exit(1)

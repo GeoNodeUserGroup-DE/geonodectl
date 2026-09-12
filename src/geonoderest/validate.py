@@ -89,17 +89,30 @@ def __retrieve_remote__(uri: str) -> Resource:
 def __make_retriever__(allow_remote: bool) -> Callable[[str], Resource]:
     """Build the ``referencing`` retrieve callback for one validator.
 
-    ``allow_remote`` is on only when the root schema itself was fetched from a
-    URL: a schema read from disk must not make the tool reach out to the network
-    on the strength of a ``$ref`` someone put in a local file.
+    ``allow_remote`` says which world the root schema came from, and a ``$ref``
+    may never leave it: a schema read from disk must not make the tool reach out
+    to the network, and a schema fetched from a url must not be able to read the
+    local filesystem - an absolute ``file://`` ref plus a ``const`` would
+    otherwise print the contents of the named file in the validation report.
+
+    Results are cached for the life of the validator. ``referencing.Registry`` is
+    immutable, so a resource it retrieves during one ``iter_errors()`` never
+    lands back in the validator's own registry - without this, validating a pk
+    range would re-fetch the same ``common.json`` once per object.
     """
+    cache: Dict[str, Resource] = {}
 
     def retrieve(uri: str) -> Resource:
-        if uri.startswith("file://"):
-            return __retrieve_local__(uri)
-        if allow_remote and is_http_url(uri):
-            return __retrieve_remote__(uri)
-        raise NoSuchResource(ref=uri)  # type: ignore[call-arg]
+        if uri not in cache:
+            if allow_remote:
+                if not is_http_url(uri):
+                    raise NoSuchResource(ref=uri)  # type: ignore[call-arg]
+                cache[uri] = __retrieve_remote__(uri)
+            else:
+                if not uri.startswith("file://"):
+                    raise NoSuchResource(ref=uri)  # type: ignore[call-arg]
+                cache[uri] = __retrieve_local__(uri)
+        return cache[uri]
 
     return retrieve
 
