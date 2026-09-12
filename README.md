@@ -142,8 +142,9 @@ The MapStore blob is the JSON configuration that controls how a map is rendered 
 geonodectl maps get-blob 2073
 geonodectl maps get-blob 2073 | jq '.map.layers'
 
-# Replace the blob JSON from a file
+# Replace the blob JSON from a file, or from a url
 geonodectl maps set-blob 2073 --json_path ./my_blob.json
+geonodectl maps set-blob 2073 --json_path https://example.org/blobs/my_blob.json
 ```
 
 ### Map layer commands
@@ -173,6 +174,9 @@ geonodectl dataset validate 2162 --json_schema ./dataset-schema.json
 geonodectl maps    validate 1-5  --json_schema ./map-schema.json
 geonodectl resources validate 2162 --json_schema ./common-baseline.json
 
+# the same flag takes a url, so the schema need not be copied to every machine
+geonodectl dataset validate 2162 --json_schema https://example.org/schemas/dataset-schema.json
+
 # machine readable report for CI
 geonodectl --raw dataset validate 2162 --json_schema ./dataset-schema.json
 ```
@@ -183,7 +187,7 @@ Exit codes make it usable as a CI gate:
 |---|---|
 | 0 | everything validated |
 | 1 | at least one object violated the schema |
-| 2 | validation could not run (schema missing/invalid, object not fetchable) |
+| 2 | validation could not run (schema missing/unreachable/invalid, object not fetchable) |
 
 Worked example schemas live in [json-examples/schemas/](json-examples/schemas/); see
 [docs/validate.md](docs/validate.md) for details.

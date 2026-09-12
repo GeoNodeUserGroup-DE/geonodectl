@@ -99,17 +99,22 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
             return None
         return collect_errors(validator, obj)
 
-    def cmd_validate(self, pk: str, json_schema: str, **kwargs):
+    def cmd_validate(self, pk: str, json_schema: Optional[str] = None, **kwargs):
         """validate metadata of one or more objects against a JSON Schema
 
         Args:
             pk (str): pk of the object(s), as single, range '1-5' or list '1,2,3'
-            json_schema (str): path to a JSON Schema file
+            json_schema (str): path to a JSON Schema file, or a http(s) url
+                serving one. Relative ``$ref``s are resolved against it.
 
         Exits:
             0 when everything validated, 1 when an object violated the schema,
             2 when validation could not be carried out at all
         """
+        if not json_schema:
+            logging.error("--json_schema is required")
+            sys.exit(VALIDATE_EXIT_ERROR)
+
         try:
             schema = load_schema(json_schema)
             validator = build_validator(schema, json_schema)

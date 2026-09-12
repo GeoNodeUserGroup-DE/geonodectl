@@ -21,8 +21,9 @@ geonodectl maps list --ordering title
 # Create with a title
 geonodectl maps create --title "My New Map"
 
-# Create from a JSON file
+# Create from a JSON file, given as a path or a http(s) url
 geonodectl maps create --json_path ./map_metadata.json
+geonodectl maps create --json_path https://example.org/map_metadata.json
 
 # Create with maplayers (space-separated dataset PKs)
 geonodectl maps create --title "My Map" --maplayers 36 42 55
@@ -43,6 +44,7 @@ geonodectl maps describe 2073
 ```bash
 geonodectl maps patch 2073 --set '{"title": "Updated Title"}'
 geonodectl maps patch 2073 --json_path ./metadata.json
+geonodectl maps patch 2073 --json_path https://example.org/metadata.json
 ```
 
 ---
@@ -78,10 +80,11 @@ geonodectl maps get-blob 2073 | jq '.map.zoom'
 
 ## set-blob
 
-Replace the MapStore blob JSON for a map from a JSON file.
+Replace the MapStore blob JSON for a map from a JSON file, given as a path or a http(s) url.
 
 ```bash
 geonodectl maps set-blob 2073 --json_path ./blob.json
+geonodectl maps set-blob 2073 --json_path https://example.org/blobs/blob.json
 ```
 
 ### Typical workflow

@@ -1,13 +1,12 @@
-import json
 import sys
 import logging
 from typing import Dict, List, Optional
 
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey
+from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.cmdprint import (
     print_json,
-    json_decode_error_handler,
 )
 
 
@@ -53,20 +52,19 @@ class GeonodeGroupsHandler(GeonodeObjectHandler):
             name (Optional[str]): Slug/name identifier for the group.
             description (str): Description of the group.
             fields (Optional[str]): JSON string with group data.
-            json_path (Optional[str]): Path to a JSON file with group data.
+            json_path (Optional[str]): Path to a JSON file with group data, or
+                a http(s) url serving one.
+
+        Exits:
+            1 when the json could not be read or is not valid json
         """
         json_content = None
-        if json_path:
-            with open(json_path, "r") as file:
-                try:
-                    json_content = json.load(file)
-                except json.decoder.JSONDecodeError as E:
-                    json_decode_error_handler(str(file), E)
-        elif fields:
+        if json_path or fields:
             try:
-                json_content = json.loads(fields)
-            except json.decoder.JSONDecodeError as E:
-                json_decode_error_handler(fields, E)
+                json_content = load_json_source(json_path=json_path, fields=fields)
+            except JsonSourceError as e:
+                logging.error(str(e))
+                sys.exit(1)
 
         obj = self.create(
             title=title,

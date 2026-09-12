@@ -1,9 +1,10 @@
 from typing import Optional, Dict
 import logging
-import json
+import sys
 
 from geonoderest.rest import GeonodeRest
-from geonoderest.cmdprint import show_list, print_json, json_decode_error_handler
+from geonoderest.jsonsource import JsonSourceError, load_json_source
+from geonoderest.cmdprint import show_list, print_json
 
 
 class GeonodeAttributeHandler(GeonodeRest):
@@ -65,29 +66,24 @@ class GeonodeAttributeHandler(GeonodeRest):
         Args:
             pk (int): pk of the object
             fields (str): string of potential json object
-            json_path (str): path to a json file
+            json_path (str): path to a json file, or a http(s) url serving one
 
         Raises:
-            ValueError: catches json.decoder.JSONDecodeError and raises ValueError as decoding is not working
+            ValueError: neither 'fields' nor 'json_path' was provided
+
+        Exits:
+            1 when the json could not be read or is not valid json
         """
 
-        if json_path:
-            with open(json_path, "r") as file:
-                try:
-                    json_content = json.load(file)
-                except json.decoder.JSONDecodeError as E:
-                    json_decode_error_handler(str(file), E)
-
-        elif fields:
-            try:
-                json_content = json.loads(fields)
-            except json.decoder.JSONDecodeError as E:
-                json_decode_error_handler(fields, E)
-
-        else:
+        if not (json_path or fields):
             raise ValueError(
                 "At least one of 'fields' or 'json_path' must be provided."
             )
+        try:
+            json_content = load_json_source(json_path=json_path, fields=fields)
+        except JsonSourceError as e:
+            logging.error(str(e))
+            sys.exit(1)
 
         if json_content is None:
             raise ValueError("No JSON content provided ...")

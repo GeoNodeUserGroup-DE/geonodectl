@@ -1,11 +1,12 @@
 from pathlib import Path
-import json
 import logging
+import sys
 import uuid
 
 from typing import List, Dict, Optional, Tuple
 
-from geonoderest.cmdprint import print_json, json_decode_error_handler, show_list
+from geonoderest.cmdprint import print_json, show_list
+from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.datasets import GeonodeDatasetsHandler
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodetypes import (
@@ -43,24 +44,19 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         Args:
             title (str): title of the new object
             fields (str): string of potential json object
-            json_path (str): path to a json file
+            json_path (str): path to a json file, or a http(s) url serving one
             maplayers (List[int], optional): list of maplayer pks. Defaults to [].
 
-        Raises:
-            Json.decoder.JSONDecodeError: when decoding is not working
+        Exits:
+            1 when the json could not be read or is not valid json
         """
         json_content = None
-        if json_path:
-            with open(json_path, "r") as file:
-                try:
-                    json_content = json.load(file)
-                except json.decoder.JSONDecodeError as E:
-                    json_decode_error_handler(str(file), E)
-        elif fields:
+        if json_path or fields:
             try:
-                json_content = json.loads(fields)
-            except json.decoder.JSONDecodeError as E:
-                json_decode_error_handler(fields, E)
+                json_content = load_json_source(json_path=json_path, fields=fields)
+            except JsonSourceError as e:
+                logging.error(str(e))
+                sys.exit(1)
 
         obj = self.create(
             title=title, json_content=json_content, maplayers=maplayers, **kwargs
@@ -406,23 +402,27 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         print_json(blob)
 
     def cmd_set_blob(self, pk: int, json_path: Optional[str] = None, **kwargs):
-        """Replace the MapStore blob JSON for a map from a JSON file.
+        """Replace the MapStore blob JSON for a map from a JSON file or URL.
 
         Args:
             pk (int): pk of the map to update
-            json_path (str): path to a JSON file containing the new blob
+            json_path (str): path to a JSON file containing the new blob, or a
+                http(s) url serving one
+
+        Raises:
+            ValueError: json_path was not provided
 
         Example:
           geonodectl maps set-blob 2073 --json_path ./blob.json
+          geonodectl maps set-blob 2073 --json_path https://example.org/blob.json
         """
         if not json_path:
             raise ValueError("--json_path is required for set-blob")
-        with open(json_path, "r") as f:
-            try:
-                blob = json.load(f)
-            except json.decoder.JSONDecodeError as e:
-                json_decode_error_handler(json_path, e)
-                return
+        try:
+            blob = load_json_source(json_path=json_path)
+        except JsonSourceError as e:
+            logging.error(str(e))
+            sys.exit(1)
         result = self.patch(pk=pk, json_content={"blob": blob})
         if result is None:
             logging.error(f"Failed to update blob for map {pk}")
@@ -845,9 +845,10 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         Args:
             pk (int): pk of the map to modify
             widget_type (str): widget type, see WIDGET_TYPES
-            title (str): widget title, ignored when json_path is given
-            text (str): widget body, HTML allowed, ignored when json_path is given
-            json_path (str): path to a JSON file holding a raw widget definition
+            title (str): widget title, ignored when a raw widget definition is given
+            text (str): widget body, HTML allowed, ignored when a raw widget definition is given
+            json_path (str): path to a JSON file holding a raw widget definition,
+                or a http(s) url serving one
 
         Returns:
             Dict: the updated map, or None when nothing was added or the update failed
@@ -867,12 +868,11 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         row = self.__next_widget_row__(widgets)
 
         if json_path:
-            with open(json_path, "r") as f:
-                try:
-                    widget = json.load(f)
-                except json.decoder.JSONDecodeError as e:
-                    json_decode_error_handler(json_path, e)
-                    return None
+            try:
+                widget = load_json_source(json_path=json_path)
+            except JsonSourceError as e:
+                logging.error(str(e))
+                return None
             if not isinstance(widget, dict):
                 logging.error(f"{json_path} must contain a single JSON object")
                 return None
@@ -975,7 +975,8 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             widget_type (str): widget type, currently only textbox
             title (str): widget title
             text (str): widget body, HTML allowed
-            json_path (str): path to a JSON file holding a raw widget definition
+            json_path (str): path to a JSON file holding a raw widget definition,
+                or a http(s) url serving one
 
         Example:
           geonodectl maps widgets add 2073 textbox --title "test" --text "some text"

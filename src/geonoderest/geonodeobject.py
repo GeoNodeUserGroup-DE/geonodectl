@@ -1,13 +1,13 @@
 from typing import List, Dict, Optional
-import json
 import logging
+import sys
 
 from geonoderest.geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
 from geonoderest.rest import GeonodeRest
+from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.cmdprint import (
     print_list_on_cmd,
     print_json,
-    json_decode_error_handler,
 )
 
 
@@ -105,28 +105,24 @@ class GeonodeObjectHandler(GeonodeRest):
         Args:
             pk (str): pk of the object, supports single pk, range (e.g. 5-10) or comma-separated list (e.g. 1,2,3)
             fields (str): string of potential json object
-            json_path (str): path to a json file
+            json_path (str): path to a json file, or a http(s) url serving one
 
         Raises:
-             ValueError: catches json.decoder.JSONDecodeError and raises ValueError as decoding is not working
+            ValueError: neither 'fields' nor 'json_path' was provided
+
+        Exits:
+            1 when the json could not be read or is not valid json
         """
 
-        if json_path:
-            with open(json_path, "r") as file:
-                try:
-                    json_content = json.load(file)
-                except json.decoder.JSONDecodeError as E:
-                    json_decode_error_handler(str(file), E)
-
-        elif fields:
-            try:
-                json_content = json.loads(fields)
-            except json.decoder.JSONDecodeError as E:
-                json_decode_error_handler(fields, E)
-        else:
+        if not (json_path or fields):
             raise ValueError(
                 "At least one of 'fields' or 'json_path' must be provided."
             )
+        try:
+            json_content = load_json_source(json_path=json_path, fields=fields)
+        except JsonSourceError as e:
+            logging.error(str(e))
+            sys.exit(1)
 
         for _pk in self.__parse_pk_string__(pk):
             obj = self.patch(pk=_pk, json_content=json_content, **kwargs)

@@ -1,4 +1,3 @@
-import json
 import sys
 import logging
 from typing import Dict, List, Optional
@@ -7,10 +6,10 @@ from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey
 from geonoderest.exceptions import GeoNodeRestException
+from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.cmdprint import (
     print_list_on_cmd,
     print_json,
-    json_decode_error_handler,
 )
 
 
@@ -100,8 +99,8 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
     def cmd_patch(
         self,
         pk: int,
-        fields: Optional[str] = None,  # JSON string or path to JSON file
-        json_path: Optional[str] = None,  # Path to JSON file
+        fields: Optional[str] = None,  # JSON string
+        json_path: Optional[str] = None,  # Path to a JSON file, or a url serving one
         **kwargs,
     ):
         """Patch user details and print the result.
@@ -109,22 +108,25 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         Args:
             pk (int): User ID.
             fields (Optional[str]): JSON string. Defaults to None.
-            json_path (Optional[str]): Path to JSON file. Defaults to None.
+            json_path (Optional[str]): Path to a JSON file, or a http(s) url
+                serving one. Defaults to None.
             kwargs: Additional keyword arguments.
+
+        Raises:
+            ValueError: neither 'fields' nor 'json_path' was provided
+
+        Exits:
+            1 when the json could not be read or is not valid json
         """
-        # Load JSON content from file or string
-        json_content = None
-        if json_path:
-            with open(json_path, "r") as file:
-                try:
-                    json_content = json.load(file)
-                except json.decoder.JSONDecodeError as E:
-                    json_decode_error_handler(str(file), E)
-        elif fields:
-            try:
-                json_content = json.loads(fields)
-            except json.decoder.JSONDecodeError as E:
-                json_decode_error_handler(fields, E)
+        if not (json_path or fields):
+            raise ValueError(
+                "At least one of 'fields' or 'json_path' must be provided."
+            )
+        try:
+            json_content = load_json_source(json_path=json_path, fields=fields)
+        except JsonSourceError as e:
+            logging.error(str(e))
+            sys.exit(1)
 
         if json_content is None:
             raise ValueError(
@@ -187,20 +189,18 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             is_superuser (bool): if true user will be a superuser
             is_staff (bool): if true user will be staff user
             fields (str): string of potential json object
-            json_path (str): path to a json file
+            json_path (str): path to a json file, or a http(s) url serving one
+
+        Exits:
+            1 when the json could not be read or is not valid json
         """
         json_content = None
-        if json_path:
-            with open(json_path, "r") as file:
-                try:
-                    json_content = json.load(file)
-                except json.decoder.JSONDecodeError as E:
-                    json_decode_error_handler(str(file), E)
-        elif fields:
+        if json_path or fields:
             try:
-                json_content = json.loads(fields)
-            except json.decoder.JSONDecodeError as E:
-                json_decode_error_handler(fields, E)
+                json_content = load_json_source(json_path=json_path, fields=fields)
+            except JsonSourceError as e:
+                logging.error(str(e))
+                sys.exit(1)
 
         obj = self.create(
             username=username,
