@@ -6,6 +6,7 @@ import logging
 
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 from geonoderest.cmdprint import show_list, print_json
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodetypes import GeonodeHTTPFile
 
@@ -31,20 +32,31 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         metadata_only: bool = False,
         charset: str = "UTF-8",
         **kwargs,
-    ):
+    ) -> int:
         """upload data and show them on the cmdline
 
         Args:
             file_path (Path): Path to the file to upload.
             charset (str, optional): charset of data Defaults to "UTF-8".
             metadata_only (bool, optional): set upload as metadata_only
+
+        Returns:
+            int: EXIT_OK, EXIT_FAILED when the upload failed, EXIT_USAGE when
+                the file does not exist
         """
-        r = self.upload(
-            file_path=file_path, metadata_only=metadata_only, charset=charset, **kwargs
-        )
+        try:
+            r = self.upload(
+                file_path=file_path,
+                metadata_only=metadata_only,
+                charset=charset,
+                **kwargs,
+            )
+        except FileNotFoundError:
+            logging.error(f"file not found: {file_path}")
+            return EXIT_USAGE
         if r is None:
-            logging.warning("upload failed ... ")
-            return
+            logging.error("upload failed ... ")
+            return EXIT_FAILED
 
         list_items = [
             ["name", r["title"]],
@@ -59,6 +71,7 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
 
         else:
             show_list(values=list_items, headers=["key", "value"])
+        return EXIT_OK
 
     def upload(
         self,

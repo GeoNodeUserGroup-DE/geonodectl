@@ -159,11 +159,9 @@ class GeonodeRest(object):
             params (Dict, optional): params dict provided with the post
             content_length (Optional[int], optional): content-length header for upload
 
-        Raises:
-            SystemExit: if bad http resonse raise SystemExit with logging
-
         Returns:
-            Dict: returns response json
+            Optional[Dict]: the response json, or None when the request failed -
+                a bad http response is logged rather than raised
         """
         if content_length:
             self.header["content-length"] = content_length
@@ -198,9 +196,6 @@ class GeonodeRest(object):
         Args:
             url (str): url to download
 
-        Raises:
-            SystemExit: if response code is bad exit
-
         Returns:
             object: returns downloaded data
         """
@@ -225,9 +220,6 @@ class GeonodeRest(object):
         Args:
             endpoint (str): The API endpoint to send the GET request to.
             params (Dict, optional): A dictionary of query parameters to include in the request.
-
-        Raises:
-            SystemExit: If a bad HTTP response is received, exits the program with logging.
 
         Returns:
             Dict: The JSON response from the server, or None if an error occurred.
@@ -325,9 +317,6 @@ class GeonodeRest(object):
             json (Dict, optional): A dictionary of JSON data to include in the request body.
             params (Dict, optional): A dictionary of query parameters to include in the request.
 
-        Raises:
-            SystemExit: If a bad HTTP response is received, exits the program with logging.
-
         Returns:
             Dict: The JSON response from the server, or None if an error occurred.
         """
@@ -362,9 +351,6 @@ class GeonodeRest(object):
             endpoint (str): The API endpoint to send the DELETE request to.
             json (Dict, optional): A dictionary of JSON data to include in the request body.
             params (Dict, optional): A dictionary of query parameters to include in the request.
-
-        Raises:
-            SystemExit: If a bad HTTP response is received, exits the program with logging.
 
         Returns:
             Dict: The JSON response from the server, or None if an error occurred.

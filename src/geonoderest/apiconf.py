@@ -3,6 +3,8 @@ import os
 
 from dataclasses import dataclass
 
+from geonoderest.exceptions import ApiConfError
+
 
 @dataclass
 class GeonodeApiConf:
@@ -34,12 +36,16 @@ class GeonodeApiConf:
     def from_env_vars() -> "GeonodeApiConf":
         """
         Creates a new GeonodeApiConf object from environment variables
+
+        Raises:
+            ApiConfError: a required env var is not set. Raised rather than
+                exiting so geonoderest stays usable as a library (#69).
         """
         if (
             "GEONODE_API_URL" not in os.environ
             or "GEONODE_API_BASIC_AUTH" not in os.environ
         ):
-            raise SystemExit(
+            raise ApiConfError(
                 "env vars not set: GEONODE_API_URL, GEONODE_API_BASIC_AUTH"
             )
 

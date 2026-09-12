@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, call, patch
 
 import requests
 
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.maps import GeonodeMapsHandler
 
 BLOB = {
@@ -137,18 +138,28 @@ class TestCmdSetBlob(unittest.TestCase):
 
     @patch.object(GeonodeMapsHandler, "http_patch")
     @patch("geonoderest.jsonsource.requests.get")
-    def test_exits_when_the_url_is_unreachable(self, mock_get, mock_patch):
+    def test_usage_exit_when_the_url_is_unreachable(self, mock_get, mock_patch):
         mock_get.side_effect = requests.exceptions.ConnectionError("nope")
-        with self.assertLogs(level="ERROR"), self.assertRaises(SystemExit) as cm:
-            self._handler().cmd_set_blob(
+        with self.assertLogs(level="ERROR"):
+            code = self._handler().cmd_set_blob(
                 pk=42, json_path="https://example.org/blob.json"
             )
-        self.assertEqual(cm.exception.code, 1)
+        self.assertEqual(code, EXIT_USAGE)
         mock_patch.assert_not_called()
 
-    def test_raises_when_no_json_source(self):
-        with self.assertRaises(ValueError):
-            self._handler().cmd_set_blob(pk=42, json_path=None)
+    def test_usage_exit_when_no_json_source(self):
+        with self.assertLogs(level="ERROR"):
+            code = self._handler().cmd_set_blob(pk=42, json_path=None)
+        self.assertEqual(code, EXIT_USAGE)
+
+    @patch.object(GeonodeMapsHandler, "http_patch", return_value=None)
+    def test_failed_exit_when_the_patch_is_rejected(self, _):
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+            json.dump(BLOB, f)
+            path = f.name
+        with self.assertLogs(level="ERROR"):
+            code = self._handler().cmd_set_blob(pk=42, json_path=path)
+        self.assertEqual(code, EXIT_FAILED)
 
 
 def _background_layer(layer_id):

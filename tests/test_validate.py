@@ -323,12 +323,8 @@ class TestValidateLibraryMethod(unittest.TestCase):
 
 class TestCmdValidate(unittest.TestCase):
     def _run(self, handler, pk, schema_path, **kwargs):
-        """run cmd_validate, returning the exit code (0 when it does not exit)"""
-        try:
-            handler.cmd_validate(pk=pk, json_schema=schema_path, **kwargs)
-        except SystemExit as e:
-            return e.code
-        return 0
+        """run cmd_validate and return the exit code it reports"""
+        return handler.cmd_validate(pk=pk, json_schema=schema_path, **kwargs)
 
     @patch.object(GeonodeDatasetsHandler, "http_get")
     def test_exit_0_when_valid(self, mock_http_get):
@@ -383,13 +379,23 @@ class TestCmdValidate(unittest.TestCase):
         self.assertEqual(code, 2)
 
     @patch.object(GeonodeDatasetsHandler, "http_get", return_value=None)
-    def test_exit_2_when_object_unreachable(self, _):
-        """an unfetchable object is an error, not a validation failure"""
+    def test_exit_1_when_object_unreachable(self, _):
+        """a 404 is a failed operation (1), not a usage error (2) - see #151"""
         with tempfile.TemporaryDirectory() as d:
             path = _write(d, "schema.json", BASELINE_SCHEMA)
             with self.assertLogs(level="ERROR"):
                 code = self._run(
                     GeonodeDatasetsHandler(env={}), "999", path, json=False
+                )
+        self.assertEqual(code, 1)
+
+    @patch.object(GeonodeDatasetsHandler, "http_get")
+    def test_exit_2_on_an_invalid_pk(self, _):
+        with tempfile.TemporaryDirectory() as d:
+            path = _write(d, "schema.json", BASELINE_SCHEMA)
+            with self.assertLogs(level="ERROR"):
+                code = self._run(
+                    GeonodeDatasetsHandler(env={}), "abc", path, json=False
                 )
         self.assertEqual(code, 2)
 

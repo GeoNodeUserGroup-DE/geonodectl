@@ -9,6 +9,8 @@ import requests
 import urllib3
 from geo.Geoserver import Geoserver, GeoserverException
 
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
+
 urllib3.disable_warnings()
 
 SLD_CONTENT_TYPE = "application/vnd.ogc.sld+xml"
@@ -98,20 +100,23 @@ class GeonodeGeoServerStyleHandler:
     # Style management  (geoserver styles …)
     # ------------------------------------------------------------------
 
-    def cmd_style_list(self, workspace: Optional[str] = None, **kwargs):
+    def cmd_style_list(self, workspace: Optional[str] = None, **kwargs) -> int:
         """List styles in GeoServer, optionally filtered to a workspace."""
         try:
             data = self.geo.get_styles(workspace=workspace)
         except GeoserverException as e:
             logging.error(f"Failed to list styles: {_exc_msg(e)}")
-            return
+            return EXIT_FAILED
         styles = data.get("styles", {}).get("style", [])
         if isinstance(styles, dict):
             styles = [styles]
         for s in styles:
             print(s.get("name", ""))
+        return EXIT_OK
 
-    def cmd_style_describe(self, name: str, workspace: Optional[str] = None, **kwargs):
+    def cmd_style_describe(
+        self, name: str, workspace: Optional[str] = None, **kwargs
+    ) -> int:
         """Print the SLD XML for a named style.
 
         geoserver-rest only exposes JSON metadata via get_style(); the raw SLD
@@ -127,6 +132,8 @@ class GeonodeGeoServerStyleHandler:
             print(r.text)
         except requests.RequestException as e:
             logging.error(f"Failed to fetch SLD for '{name}': {e}")
+            return EXIT_FAILED
+        return EXIT_OK
 
     def cmd_style_upload(
         self,
@@ -134,15 +141,23 @@ class GeonodeGeoServerStyleHandler:
         sld_path: str,
         workspace: str = "geonode",
         **kwargs,
-    ):
+    ) -> int:
         """Create or update a style from an SLD file.
 
         Args:
             name (str): style name in GeoServer
             sld_path (str): path to the SLD XML file
             workspace (str): target workspace (default: geonode)
+
+        Returns:
+            int: EXIT_OK, EXIT_FAILED when GeoServer rejected the style, or
+                EXIT_USAGE when the SLD file cannot be read
         """
-        sld_content = Path(sld_path).read_text(encoding="utf-8")
+        try:
+            sld_content = Path(sld_path).read_text(encoding="utf-8")
+        except OSError as e:
+            logging.error(f"could not read SLD file {sld_path}: {e}")
+            return EXIT_USAGE
 
         try:
             self.geo.upload_style(path=sld_content, name=name, workspace=workspace)
@@ -168,9 +183,10 @@ class GeonodeGeoServerStyleHandler:
                 logging.error(
                     f"Failed to upload SLD body for style '{name}': {put_err}"
                 )
-                return
+                return EXIT_FAILED
 
         print(json.dumps({"success": True, "style": name, "workspace": workspace}))
+        return EXIT_OK
 
     def cmd_style_set_default(
         self,
@@ -178,7 +194,7 @@ class GeonodeGeoServerStyleHandler:
         style_name: str,
         workspace: str = "geonode",
         **kwargs,
-    ):
+    ) -> int:
         """Set the default style for a GeoServer layer.
 
         Args:
@@ -204,6 +220,7 @@ class GeonodeGeoServerStyleHandler:
             logging.error(
                 f"Failed to set default style for layer '{layer}': {_exc_msg(e)}"
             )
-            return
+            return EXIT_FAILED
 
         print(json.dumps({"success": True, "layer": layer, "style": style_name}))
+        return EXIT_OK
