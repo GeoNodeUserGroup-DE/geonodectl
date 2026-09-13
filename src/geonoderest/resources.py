@@ -66,16 +66,16 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
 
     def metadata(
         self, pk: int, metadata_type: str = DEFAULT_METADATA_TYPE, **kwargs
-    ) -> requests.models.Response:
+    ) -> Optional[requests.models.Response]:
         """download metadata for a resource in a specified format
 
         Args:
             pk (int): pk id of the resource to get the metadata from
             metadata_type (str, optional): metadatatype to get metadata in. Must be in SUPPORTED_METADATA_TYPES
-        Raises:
-            KeyError: if metadata_type is not in SUPPORTED_METADATA_TYPES
         Returns:
-            response (object): requests response obj of metadata
+            Optional[Response]: the metadata response, or None when the resource
+                could not be fetched or carries no link of that type - reported
+                rather than raised, so cmd_metadata can turn it into an exit code
         """
         response = self.http_get(endpoint=f"resources/{pk}")
         if response is None:
