@@ -87,6 +87,7 @@ geonodectl attributes patch 36 \
 
 # Patch using a JSON file (recommended for larger updates)
 geonodectl attributes patch 36 --json_path ./attributes.json
+geonodectl attributes patch 36 --json_path https://example.org/attributes.json
 ```
 
 ### Example patch file (`attributes.json`)

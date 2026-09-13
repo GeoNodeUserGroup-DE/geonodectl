@@ -1,4 +1,9 @@
+import json
+import os
+import tempfile
 import unittest
+
+import requests
 
 from unittest.mock import patch, call, MagicMock
 from geonoderest.datasets import GeonodeDatasetsHandler
@@ -195,6 +200,78 @@ class TestCmdPatchRange(unittest.TestCase):
         handler.cmd_patch(pk="10,20,30", fields='{"is_published": true}')
         endpoints = [c.kwargs["endpoint"] for c in mock_http_patch.call_args_list]
         self.assertEqual(endpoints, ["datasets/10/", "datasets/20/", "datasets/30/"])
+
+
+class TestCmdPatchJsonSource(unittest.TestCase):
+    """cmd_patch reads its json from --set or --json_path, see #159
+
+    --json_path takes a local path and a http(s) url interchangeably.
+    """
+
+    PATCH = {"is_published": True}
+    URL = "https://example.org/patch.json"
+
+    def _response(self, payload):
+        r = MagicMock()
+        r.raise_for_status.return_value = None
+        r.json.return_value = payload
+        return r
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    def test_patch_from_json_path(self, mock_http_patch):
+        mock_http_patch.return_value = {"pk": 42}
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "patch.json")
+            with open(path, "w") as f:
+                json.dump(self.PATCH, f)
+            GeonodeDatasetsHandler(env={}).cmd_patch(pk="42", json_path=path)
+        mock_http_patch.assert_called_once_with(
+            endpoint="datasets/42/", json_content=self.PATCH
+        )
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_patch_from_a_url(self, mock_get, mock_http_patch):
+        mock_get.return_value = self._response(self.PATCH)
+        mock_http_patch.return_value = {"pk": 42}
+        GeonodeDatasetsHandler(env={}).cmd_patch(pk="42", json_path=self.URL)
+        mock_http_patch.assert_called_once_with(
+            endpoint="datasets/42/", json_content=self.PATCH
+        )
+        self.assertEqual(mock_get.call_args.args[0], self.URL)
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_a_url_is_fetched_once_for_a_pk_range(self, mock_get, mock_http_patch):
+        """the remote json is read before the loop, not per object"""
+        mock_get.return_value = self._response(self.PATCH)
+        mock_http_patch.side_effect = lambda endpoint, json_content: {"pk": 1}
+        GeonodeDatasetsHandler(env={}).cmd_patch(pk="1-3", json_path=self.URL)
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(mock_http_patch.call_count, 3)
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_exits_1_when_the_url_is_unreachable(self, mock_get, mock_http_patch):
+        mock_get.side_effect = requests.exceptions.ConnectionError("nope")
+        with self.assertLogs(level="ERROR"), self.assertRaises(SystemExit) as cm:
+            GeonodeDatasetsHandler(env={}).cmd_patch(pk="42", json_path=self.URL)
+        self.assertEqual(cm.exception.code, 1)
+        mock_http_patch.assert_not_called()
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    def test_exits_1_when_the_json_file_is_missing(self, mock_http_patch):
+        """used to escape as a raw FileNotFoundError traceback"""
+        with self.assertLogs(level="ERROR"), self.assertRaises(SystemExit) as cm:
+            GeonodeDatasetsHandler(env={}).cmd_patch(
+                pk="42", json_path="/nonexistent/nope.json"
+            )
+        self.assertEqual(cm.exception.code, 1)
+        mock_http_patch.assert_not_called()
+
+    def test_raises_when_no_source_is_given(self):
+        with self.assertRaises(ValueError):
+            GeonodeDatasetsHandler(env={}).cmd_patch(pk="42")
 
 
 class TestCmdDescribeRange(unittest.TestCase):

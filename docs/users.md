@@ -47,6 +47,7 @@ geonodectl users create --username alice --is_superuser
 
 # Create from a JSON file
 geonodectl users create --json_path ./user.json
+geonodectl users create --json_path https://example.org/user.json
 ```
 
 ---

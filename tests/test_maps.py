@@ -1,7 +1,9 @@
 import json
 import tempfile
 import unittest
-from unittest.mock import call, patch
+from unittest.mock import MagicMock, call, patch
+
+import requests
 
 from geonoderest.maps import GeonodeMapsHandler
 
@@ -10,6 +12,13 @@ BLOB = {
     "map": {"projection": "EPSG:3857", "layers": []},
     "maplayers": [],
 }
+
+
+def _json_response(payload):
+    r = MagicMock()
+    r.raise_for_status.return_value = None
+    r.json.return_value = payload
+    return r
 
 
 class TestGeonodeMapsHandler(unittest.TestCase):
@@ -114,7 +123,30 @@ class TestCmdSetBlob(unittest.TestCase):
         with self.assertLogs(level="ERROR"):
             self._handler().cmd_set_blob(pk=42, json_path=path)
 
-    def test_raises_when_no_json_path(self):
+    @patch.object(GeonodeMapsHandler, "http_patch")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_patches_map_with_blob_from_url(self, mock_get, mock_patch):
+        """--json_path takes a url just as well as a path"""
+        mock_get.return_value = _json_response(BLOB)
+        mock_patch.return_value = {"map": {"pk": 42}}
+        with patch("geonoderest.maps.print_json"):
+            self._handler().cmd_set_blob(
+                pk=42, json_path="https://example.org/blob.json"
+            )
+        self.assertEqual(mock_patch.call_args.kwargs["json_content"]["blob"], BLOB)
+
+    @patch.object(GeonodeMapsHandler, "http_patch")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_exits_when_the_url_is_unreachable(self, mock_get, mock_patch):
+        mock_get.side_effect = requests.exceptions.ConnectionError("nope")
+        with self.assertLogs(level="ERROR"), self.assertRaises(SystemExit) as cm:
+            self._handler().cmd_set_blob(
+                pk=42, json_path="https://example.org/blob.json"
+            )
+        self.assertEqual(cm.exception.code, 1)
+        mock_patch.assert_not_called()
+
+    def test_raises_when_no_json_source(self):
         with self.assertRaises(ValueError):
             self._handler().cmd_set_blob(pk=42, json_path=None)
 
@@ -524,6 +556,50 @@ class TestWidgets(unittest.TestCase):
         self.assertEqual(
             widgets[0]["dataGrid"]["y"], GeonodeMapsHandler.WIDGET_TOP_OFFSET
         )
+
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_add_widget_from_a_url(self, mock_get, mock_http_get, mock_patch):
+        mock_http_get.return_value = _map_with_widgets([])
+        raw = {"widgetType": "text", "title": "remote", "text": "<b>hi</b>"}
+        mock_get.return_value = _json_response(raw)
+        self._handler().add_widget(pk=42, json_path="https://example.org/widget.json")
+
+        widgets = self._patched_widgets(mock_patch)
+        self.assertEqual(widgets[0]["title"], "remote")
+        self.assertTrue(widgets[0]["id"])
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_add_widget_from_a_url_rejects_a_non_object(
+        self, mock_get, mock_http_get, mock_patch
+    ):
+        mock_http_get.return_value = _map_with_widgets([])
+        mock_get.return_value = _json_response([{"widgetType": "text"}])
+        with self.assertLogs(level="ERROR"):
+            result = self._handler().add_widget(
+                pk=42, json_path="https://example.org/widget.json"
+            )
+        self.assertIsNone(result)
+        mock_patch.assert_not_called()
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_add_widget_from_an_unreachable_url_returns_none(
+        self, mock_get, mock_http_get, mock_patch
+    ):
+        """add_widget is a library method - it reports and returns, never exits"""
+        mock_http_get.return_value = _map_with_widgets([])
+        mock_get.side_effect = requests.exceptions.ConnectionError("nope")
+        with self.assertLogs(level="ERROR"):
+            result = self._handler().add_widget(
+                pk=42, json_path="https://example.org/widget.json"
+            )
+        self.assertIsNone(result)
+        mock_patch.assert_not_called()
 
     @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
     @patch.object(GeonodeMapsHandler, "http_get")

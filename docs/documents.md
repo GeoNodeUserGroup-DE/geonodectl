@@ -56,6 +56,7 @@ geonodectl documents describe 10-15
 ```bash
 geonodectl documents patch 12 --set '{"abstract": "Updated abstract"}'
 geonodectl documents patch 12 --json_path ./metadata.json
+geonodectl documents patch 12 --json_path https://example.org/metadata.json
 ```
 
 ---
