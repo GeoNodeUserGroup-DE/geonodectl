@@ -6,14 +6,26 @@ calling handlers directly.
 """
 
 import os
+import tempfile
 import unittest
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import requests
 
 from geonoderest.datasets import GeonodeDatasetsHandler
+from geonoderest.documents import GeonodeDocumentsHandler
+from geonoderest.exceptions import (
+    GeoNodeRestException,
+    GeonodeUsageError,
+    MissingArgumentError,
+)
+from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.geonodectl import __exit_code__, geonodectl
 from geonoderest.linkedresources import GeonodeLinkedResourcesHandler
 from geonoderest.maps import GeonodeMapsHandler
+from geonoderest.users import GeonodeUsersHandler
 
 ENV = {
     "GEONODE_API_URL": "https://example.org/api/v2/",
@@ -167,6 +179,92 @@ class TestLinkedResourcesEmptyList(unittest.TestCase):
                 EXIT_USAGE,
             )
         mock_delete.assert_not_called()
+
+
+class TestReviewFindings(unittest.TestCase):
+    """regressions found reviewing this change - one case per finding"""
+
+    @patch.dict(os.environ, ENV, clear=True)
+    @patch.object(GeonodeUsersHandler, "http_get", return_value={"user": {}})
+    @patch.object(GeonodeUsersHandler, "http_delete", return_value={"ok": True})
+    def test_users_delete_success_is_0(self, mock_delete, _):
+        """users.delete() swallowed its response, so every delete reported failure"""
+        self.assertEqual(_run("users", "delete", "5"), EXIT_OK)
+        mock_delete.assert_called_once()
+
+    @patch.dict(os.environ, ENV, clear=True)
+    @patch.object(GeonodeUsersHandler, "http_get", return_value={"user": {}})
+    @patch.object(GeonodeUsersHandler, "http_delete", return_value=None)
+    def test_users_delete_failure_is_still_1(self, *_):
+        with self.assertLogs(level="ERROR"):
+            self.assertEqual(_run("users", "delete", "999999"), EXIT_FAILED)
+
+    @patch.dict(os.environ, ENV, clear=True)
+    @patch.object(
+        GeonodeDatasetsHandler, "http_get", side_effect=GeoNodeRestException("no route")
+    )
+    def test_unreachable_api_is_1_not_a_traceback(self, _):
+        """network_exception_handling raises; nothing used to catch it"""
+        with self.assertLogs(level="ERROR"):
+            self.assertEqual(_run("dataset", "list"), EXIT_FAILED)
+
+    @patch.object(GeonodeExecutionRequestHandler, "http_get", return_value=None)
+    def test_executionrequest_describe_404_is_1(self, _):
+        """get() dereferenced None, so the cmd layer's guard was dead code"""
+        with self.assertLogs(level="ERROR"):
+            code = GeonodeExecutionRequestHandler(env={}).cmd_describe(exec_id="bad")
+        self.assertEqual(code, EXIT_FAILED)
+
+    @patch.dict(os.environ, ENV, clear=True)
+    @patch.object(GeonodeDatasetsHandler, "http_delete")
+    def test_reversed_pk_range_is_2_not_a_silent_success(self, mock_delete):
+        """`delete 5-1` yielded an empty range: nothing done, exit 0"""
+        with self.assertLogs(level="ERROR"):
+            self.assertEqual(_run("dataset", "delete", "5-1"), EXIT_USAGE)
+        mock_delete.assert_not_called()
+
+    @patch.object(GeonodeMapsHandler, "http_post")
+    @patch.object(GeonodeMapsHandler, "__build_blob_data__")
+    @patch("geonoderest.datasets.GeonodeDatasetsHandler.get", return_value=None)
+    def test_maps_create_with_unknown_maplayer_is_1(self, _, mock_blob, mock_post):
+        """a missing dataset used to reach __build_maplayer_pair__ as None"""
+        mock_blob.return_value = {"map": {"layers": []}, "maplayers": []}
+        with self.assertLogs(level="ERROR"):
+            code = GeonodeMapsHandler(env={}).cmd_create(
+                title="t", maplayers=[999999], json=False
+            )
+        self.assertEqual(code, EXIT_FAILED)
+        # the map must not be created at all rather than created without the layer
+        mock_post.assert_not_called()
+
+    def test_upload_of_a_directory_is_2(self):
+        """only FileNotFoundError was caught, so a directory tracebacked"""
+        with tempfile.TemporaryDirectory() as d, self.assertLogs(level="ERROR"):
+            code = GeonodeDocumentsHandler(env={}).cmd_upload(
+                file_path=Path(d), json=False
+            )
+        self.assertEqual(code, EXIT_USAGE)
+
+    def test_malformed_api_response_is_1_not_2(self):
+        """JSONDecodeError is a ValueError; it must not read as a usage error"""
+        r = MagicMock()
+        r.raise_for_status.return_value = None
+        r.json.side_effect = requests.exceptions.JSONDecodeError("x", "<html>", 0)
+        r.url, r.text = "https://x/api/v2/datasets/1", "<html>login</html>"
+        env = MagicMock(url="https://x/api/v2/", auth_basic="a", verify=True)
+        with patch("geonoderest.rest.requests.get", return_value=r):
+            with self.assertLogs(level="ERROR"):
+                code = GeonodeDatasetsHandler(env=env).cmd_describe(pk="1")
+        self.assertEqual(code, EXIT_FAILED)
+
+    def test_missing_username_is_a_usage_error_not_a_bare_value_error(self):
+        """the cmd layer catches GeonodeUsageError, deliberately not ValueError"""
+        with self.assertRaises(MissingArgumentError):
+            GeonodeUsersHandler(env={}).create()
+        self.assertTrue(issubclass(MissingArgumentError, GeonodeUsageError))
+        self.assertFalse(
+            issubclass(requests.exceptions.JSONDecodeError, GeonodeUsageError)
+        )
 
 
 class TestLibraryMethodsNeverExit(unittest.TestCase):

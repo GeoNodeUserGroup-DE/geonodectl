@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List, Optional
 
+from geonoderest.exceptions import GeonodeUsageError, MissingArgumentError
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
@@ -75,7 +76,7 @@ class GeonodeGroupsHandler(GeonodeObjectHandler):
                 json_content=json_content,
                 **kwargs,
             )
-        except ValueError as e:
+        except GeonodeUsageError as e:
             logging.error(str(e))
             return EXIT_USAGE
         if obj is None:
@@ -106,7 +107,7 @@ class GeonodeGroupsHandler(GeonodeObjectHandler):
         if json_content is None:
             if title is None:
                 # library method: raise so the caller decides, see #69
-                raise ValueError("missing title for group creation ...")
+                raise MissingArgumentError("missing title for group creation ...")
             json_content = {
                 "title": title,
                 "slug": name if name is not None else title.lower().replace(" ", "-"),

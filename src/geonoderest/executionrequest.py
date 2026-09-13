@@ -35,7 +35,7 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
         print_json(obj)
         return EXIT_OK
 
-    def get(self, exec_id: str, **kwargs) -> Dict:
+    def get(self, exec_id: str, **kwargs) -> Optional[Dict]:
         """
         get details for a given exec_id
 
@@ -43,9 +43,11 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
             exec_id (str): exec_id of the object
 
         Returns:
-            Dict: obj details
+            Optional[Dict]: obj details, or None when it could not be fetched
         """
         r = self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{exec_id}")
+        if r is None:
+            return None
         return r[self.SINGULAR_RESOURCE_NAME]
 
     def cmd_list(self, **kwargs) -> int:

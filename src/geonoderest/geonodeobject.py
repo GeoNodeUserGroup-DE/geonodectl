@@ -72,6 +72,12 @@ class GeonodeObjectHandler(GeonodeRest):
                 raise InvalidPkError(f"Invalid pk {pk} found, not a range ...")
             if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
                 raise InvalidPkError(f"Invalid pk {pk} found, not an integer ...")
+            if int(pk_begin) > int(pk_end):
+                # range() would yield nothing, so the command would report
+                # success having done nothing at all
+                raise InvalidPkError(
+                    f"Invalid pk range {pk}, {pk_begin} is greater than {pk_end} ..."
+                )
             return [i for i in range(int(pk_begin), int(pk_end) + 1)]
 
         # pk list: 1,2,3,4,5,6,7

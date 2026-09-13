@@ -302,6 +302,13 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
                 # get dataset of maplayer pk
                 dataset = gnDatasetsHandler.get(pk=maplayer_pk)
+                if dataset is None:
+                    # creating the map with fewer layers than asked for would be a
+                    # silent partial success, so refuse the whole thing
+                    logging.error(
+                        f"dataset {maplayer_pk} not found, not creating the map ... "
+                    )
+                    return None
 
                 blob_layer, maplayer = self.__build_maplayer_pair__(dataset, order)
 

@@ -4,7 +4,11 @@ from typing import Dict, List, Optional
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey
-from geonoderest.exceptions import GeoNodeRestException
+from geonoderest.exceptions import (
+    GeoNodeRestException,
+    GeonodeUsageError,
+    MissingArgumentError,
+)
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.cmdprint import (
@@ -216,7 +220,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
                 json_content=json_content,
                 **kwargs,
             )
-        except ValueError as e:
+        except GeonodeUsageError as e:
             logging.error(str(e))
             return EXIT_USAGE
         if obj is None:
@@ -252,7 +256,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         if json_content is None:
             if username is None:
                 # library method: raise so the caller decides, see #69
-                raise ValueError("missing username for user creation ...")
+                raise MissingArgumentError("missing username for user creation ...")
 
             json_content = {
                 "username": username,
@@ -268,9 +272,14 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         )
 
     def delete(self, pk: int, **kwargs):
-        """delete geonode resource object"""
+        """delete geonode resource object
+
+        Returns the API response, like every other ``delete()`` - ``cmd_delete``
+        reads ``None`` as failure, so swallowing it reported every successful
+        deletion as a failure.
+        """
         self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{pk}")
-        self.http_delete(endpoint=f"users/{pk}")
+        return self.http_delete(endpoint=f"users/{pk}")
 
     def cmd_transfer_resources(
         self,

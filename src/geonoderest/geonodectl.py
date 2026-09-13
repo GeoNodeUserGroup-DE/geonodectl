@@ -9,7 +9,8 @@ from argparse import RawTextHelpFormatter
 from pathlib import Path
 
 from geonoderest.apiconf import GeonodeApiConf
-from geonoderest.exitcodes import EXIT_OK, EXIT_USAGE
+from geonoderest.exceptions import GeoNodeRestException, GeonodeUsageError
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.datasets import GeonodeDatasetsHandler
 from geonoderest.resources import (
@@ -162,6 +163,29 @@ def __exit_code__(returned) -> int:
 
 
 def geonodectl() -> int:
+    """Entry point: run the requested command and return its exit code.
+
+    The one place allowed to exit the process, so every error the library raises
+    has to be turned into a code here rather than escaping as a traceback (#151).
+    """
+    try:
+        return __geonodectl__()
+    except GeonodeUsageError as e:
+        logging.error(str(e))
+        return EXIT_USAGE
+    except GeoNodeRestException as e:
+        # the API is unreachable or refused the connection
+        logging.error(str(e))
+        return EXIT_FAILED
+    except BrokenPipeError:
+        # `geonodectl ... | head` closes the pipe early; not an error
+        return EXIT_OK
+    except KeyboardInterrupt:
+        logging.error("interrupted ...")
+        return EXIT_FAILED
+
+
+def __geonodectl__() -> int:
     parser = argparse.ArgumentParser(
         prog="geonodectl",
         description=f"""geonodectl is a cmd client for the geonodev4 rest-apiv2.
