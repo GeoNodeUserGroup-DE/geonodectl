@@ -1,7 +1,7 @@
 from typing import Optional, Dict
 import logging
-import sys
 
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.rest import GeonodeRest
 from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.cmdprint import show_list, print_json
@@ -18,16 +18,19 @@ class GeonodeAttributeHandler(GeonodeRest):
 
         return self.http_get(endpoint=endpoint)
 
-    def cmd_describe(self, pk: int, **kwargs) -> Dict:
+    def cmd_describe(self, pk: int, **kwargs) -> int:
         """
         Describe the attributes of a dataset.
 
         :param pk: primary key of the dataset
         :param kwargs: additional keyword arguments
-        :return: dictionary containing the attributes of the dataset
+        :return: EXIT_OK, or EXIT_FAILED when the dataset could not be fetched
         """
 
         obj = self.get(pk, **kwargs)
+        if obj is None:
+            logging.error(f"describing attributes of {pk} failed ... ")
+            return EXIT_FAILED
         if kwargs["json"]:
             print_json(obj)
         else:
@@ -52,7 +55,7 @@ class GeonodeAttributeHandler(GeonodeRest):
                 ],
                 values=attributes,
             )
-        return {}
+        return EXIT_OK
 
     def cmd_patch(
         self,
@@ -60,7 +63,7 @@ class GeonodeAttributeHandler(GeonodeRest):
         fields: Optional[str] = None,
         json_path: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> int:
         """
         Tries to update object from incoming json string
         Args:
@@ -68,28 +71,30 @@ class GeonodeAttributeHandler(GeonodeRest):
             fields (str): string of potential json object
             json_path (str): path to a json file, or a http(s) url serving one
 
-        Raises:
-            ValueError: neither 'fields' nor 'json_path' was provided
-
-        Exits:
-            1 when the json could not be read or is not valid json
+        Returns:
+            int: EXIT_OK, EXIT_FAILED when the patch was rejected, or
+                EXIT_USAGE when no readable json was given
         """
 
         if not (json_path or fields):
-            raise ValueError(
-                "At least one of 'fields' or 'json_path' must be provided."
-            )
+            logging.error("At least one of 'fields' or 'json_path' must be provided.")
+            return EXIT_USAGE
         try:
             json_content = load_json_source(json_path=json_path, fields=fields)
         except JsonSourceError as e:
             logging.error(str(e))
-            sys.exit(1)
+            return EXIT_USAGE
 
         if json_content is None:
-            raise ValueError("No JSON content provided ...")
+            logging.error("No JSON content provided ...")
+            return EXIT_USAGE
 
         obj = self.patch(pk=pk, json_content=json_content, **kwargs)
+        if obj is None:
+            logging.error(f"patching attributes of {pk} failed ... ")
+            return EXIT_FAILED
         print_json(obj)
+        return EXIT_OK
 
     def patch(
         self,

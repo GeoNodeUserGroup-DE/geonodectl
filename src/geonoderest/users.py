@@ -1,11 +1,15 @@
-import sys
 import logging
 from typing import Dict, List, Optional
 
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey
-from geonoderest.exceptions import GeoNodeRestException
+from geonoderest.exceptions import (
+    GeoNodeRestException,
+    GeonodeUsageError,
+    MissingArgumentError,
+)
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.cmdprint import (
     print_list_on_cmd,
@@ -29,7 +33,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
 
     def cmd_describe(
         self, pk: int, user_resources: bool = False, user_groups: bool = False, **kwargs
-    ):
+    ) -> int:
         """show requested user in detail on cmd. Further show groups or accessable items of user
 
         Args:
@@ -40,20 +44,22 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
                                           Defaults to False.
 
         Raises:
-            SystemExit: if user_resource and user_groups are true at the same time this function gets confused and exits
+            AttributeError: if user_resources and user_groups are both true this function gets confused
         """
 
         obj = self.get(
             pk, user_resources=user_resources, user_groups=user_groups, **kwargs
         )
         if obj is None:
-            logging.warning("describe user failed ... ")
-        elif user_resources is True and obj is not None:
+            logging.error("describe user failed ... ")
+            return EXIT_FAILED
+        if user_resources is True:
             print_list_on_cmd(
                 obj["resources"], GeonodeResourceHandler.LIST_CMDOUT_HEADER
             )
         else:
             print_json(obj)
+        return EXIT_OK
 
     def get(
         self, pk: int, user_resources: bool = False, user_groups: bool = False, **kwargs
@@ -102,7 +108,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         fields: Optional[str] = None,  # JSON string
         json_path: Optional[str] = None,  # Path to a JSON file, or a url serving one
         **kwargs,
-    ):
+    ) -> int:
         """Patch user details and print the result.
 
         Args:
@@ -112,30 +118,30 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
                 serving one. Defaults to None.
             kwargs: Additional keyword arguments.
 
-        Raises:
-            ValueError: neither 'fields' nor 'json_path' was provided
-
-        Exits:
-            1 when the json could not be read or is not valid json
+        Returns:
+            int: EXIT_OK, EXIT_FAILED when the patch was rejected, or
+                EXIT_USAGE when no readable json was given
         """
         if not (json_path or fields):
-            raise ValueError(
-                "At least one of 'fields' or 'json_path' must be provided."
-            )
+            logging.error("At least one of 'fields' or 'json_path' must be provided.")
+            return EXIT_USAGE
         try:
             json_content = load_json_source(json_path=json_path, fields=fields)
         except JsonSourceError as e:
             logging.error(str(e))
-            sys.exit(1)
+            return EXIT_USAGE
 
         if json_content is None:
-            raise ValueError(
-                "At least one of 'fields' or 'json_path' must be provided."
-            )
+            logging.error("At least one of 'fields' or 'json_path' must be provided.")
+            return EXIT_USAGE
 
         # Apply patch and print result
         obj = self.patch(pk=pk, json_content=json_content, **kwargs)
+        if obj is None:
+            logging.error(f"patching user {pk} failed ... ")
+            return EXIT_FAILED
         print_json(obj)
+        return EXIT_OK
 
     def patch(
         self,
@@ -176,7 +182,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         fields: Optional[str] = None,
         json_path: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> int:
         """
         creates an user with the given characteristics
 
@@ -191,8 +197,9 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             fields (str): string of potential json object
             json_path (str): path to a json file, or a http(s) url serving one
 
-        Exits:
-            1 when the json could not be read or is not valid json
+        Returns:
+            int: EXIT_OK, EXIT_FAILED when the API rejected the new user, or
+                EXIT_USAGE when the input json or the username was missing
         """
         json_content = None
         if json_path or fields:
@@ -200,19 +207,27 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
                 json_content = load_json_source(json_path=json_path, fields=fields)
             except JsonSourceError as e:
                 logging.error(str(e))
-                sys.exit(1)
+                return EXIT_USAGE
 
-        obj = self.create(
-            username=username,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            is_superuser=is_superuser,
-            is_staff=is_staff,
-            json_content=json_content,
-            **kwargs,
-        )
+        try:
+            obj = self.create(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                is_superuser=is_superuser,
+                is_staff=is_staff,
+                json_content=json_content,
+                **kwargs,
+            )
+        except GeonodeUsageError as e:
+            logging.error(str(e))
+            return EXIT_USAGE
+        if obj is None:
+            logging.error("user creation failed ... ")
+            return EXIT_FAILED
         print_json(obj)
+        return EXIT_OK
 
     def create(
         self,
@@ -240,8 +255,8 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         """
         if json_content is None:
             if username is None:
-                logging.error("missing username for user creation ...")
-                sys.exit(1)
+                # library method: raise so the caller decides, see #69
+                raise MissingArgumentError("missing username for user creation ...")
 
             json_content = {
                 "username": username,
@@ -257,9 +272,14 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         )
 
     def delete(self, pk: int, **kwargs):
-        """delete geonode resource object"""
+        """delete geonode resource object
+
+        Returns the API response, like every other ``delete()`` - ``cmd_delete``
+        reads ``None`` as failure, so swallowing it reported every successful
+        deletion as a failure.
+        """
         self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{pk}")
-        self.http_delete(endpoint=f"users/{pk}")
+        return self.http_delete(endpoint=f"users/{pk}")
 
     def cmd_transfer_resources(
         self,
@@ -267,7 +287,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         new_owner: int,
         resources: Optional[List[int]] = None,
         **kwargs,
-    ):
+    ) -> int:
         """hand resources of a user over to another user and print the result
 
         Args:
@@ -275,12 +295,18 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
             new_owner (int): id of the user to hand them to
             resources (Optional[List[int]]): ids of the resources to move,
                                              all of the users resources if left out
+
+        Returns:
+            int: EXIT_OK, or EXIT_FAILED when the transfer was rejected
         """
-        print_json(
-            self.transfer_resources(
-                pk=pk, new_owner=new_owner, resources=resources, **kwargs
-            )
+        obj = self.transfer_resources(
+            pk=pk, new_owner=new_owner, resources=resources, **kwargs
         )
+        if obj is None:
+            logging.error(f"transferring resources of user {pk} failed ... ")
+            return EXIT_FAILED
+        print_json(obj)
+        return EXIT_OK
 
     def transfer_resources(
         self,

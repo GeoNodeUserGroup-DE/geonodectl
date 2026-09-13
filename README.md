@@ -181,16 +181,27 @@ geonodectl dataset validate 2162 --json_schema https://example.org/schemas/datas
 geonodectl --raw dataset validate 2162 --json_schema ./dataset-schema.json
 ```
 
-Exit codes make it usable as a CI gate:
+Worked example schemas live in [json-examples/schemas/](json-examples/schemas/); see
+[docs/validate.md](docs/validate.md) for details.
+
+### Exit codes
+
+Every command reports its outcome through its exit code, so `$?` is enough to drive a script
+or a CI gate:
 
 | Code | Meaning |
 |---|---|
-| 0 | everything validated |
-| 1 | at least one object violated the schema |
-| 2 | validation could not run (schema missing/unreachable/invalid, object not fetchable) |
+| 0 | success |
+| 1 | the operation failed (not found, rejected by the API, metadata invalid) |
+| 2 | the command could not be run as asked (bad pk, missing env vars, unreadable input JSON) |
 
-Worked example schemas live in [json-examples/schemas/](json-examples/schemas/); see
-[docs/validate.md](docs/validate.md) for details.
+```bash
+geonodectl dataset describe 2162 || echo "not there"
+geonodectl dataset validate 1-100 --json_schema ./dataset-schema.json || exit 1
+```
+
+In a pk range or list, one failure is enough to exit 1. See [docs/exit-codes.md](docs/exit-codes.md)
+for the full contract, including how it keeps `geonoderest` safe to use as a library.
 
 ## Development
 
