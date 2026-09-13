@@ -9,6 +9,8 @@ from argparse import RawTextHelpFormatter
 from pathlib import Path
 
 from geonoderest.apiconf import GeonodeApiConf
+from geonoderest.exceptions import GeoNodeRestException, GeonodeUsageError
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.datasets import GeonodeDatasetsHandler
 from geonoderest.resources import (
@@ -94,6 +96,34 @@ class kwargs_append_action(argparse.Action):
         setattr(args, self.dest, d)
 
 
+def add_json_source_args(
+    target, subject: str, note: str = "", dashed_alias: bool = False
+):
+    """add the ``--json_path`` argument to a parser or argument group
+
+    The argument takes a local path or a http(s) url interchangeably, see #159.
+    It is defined once here instead of being repeated at each of the dozen call
+    sites, so the wording stays identical across every verb.
+
+    Args:
+        target: a parser or a mutually exclusive group to add the argument to
+        subject (str): what the json holds, used in the help text
+            (e.g. "the metadata", "the new blob")
+        note (str): extra remark appended to the help text
+        dashed_alias (bool): also accept the ``--json-path`` spelling, kept for
+            the verbs that already published it
+    """
+    flags = ["--json-path", "--json_path"] if dashed_alias else ["--json_path"]
+    suffix = f" ({note})" if note else ""
+    target.add_argument(
+        *flags,
+        dest="json_path",
+        type=str,
+        default=None,
+        help=f"read {subject} from a json file, given as a path or a http(s) url{suffix}",
+    )
+
+
 def add_validate_parser(subparsers, noun: str):
     """add a `validate` subcommand to a resource's subparsers
 
@@ -117,12 +147,45 @@ def add_validate_parser(subparsers, noun: str):
         dest="json_schema",
         type=str,
         required=True,
-        help="path to a JSON Schema file to validate the metadata against",
+        help="JSON Schema to validate the metadata against, given as a path or a \
+http(s) url, relative $refs inside it are resolved against it",
     )
     return validate
 
 
-def geonodectl():
+def __exit_code__(returned) -> int:
+    """Normalise what a ``cmd_*`` method returned into an exit code.
+
+    A ``cmd_*`` that has nothing to report returns ``None``, which is success -
+    that keeps every not-yet-converted command working unchanged (#151).
+    """
+    return EXIT_OK if returned is None else int(returned)
+
+
+def geonodectl() -> int:
+    """Entry point: run the requested command and return its exit code.
+
+    The one place allowed to exit the process, so every error the library raises
+    has to be turned into a code here rather than escaping as a traceback (#151).
+    """
+    try:
+        return __geonodectl__()
+    except GeonodeUsageError as e:
+        logging.error(str(e))
+        return EXIT_USAGE
+    except GeoNodeRestException as e:
+        # the API is unreachable or refused the connection
+        logging.error(str(e))
+        return EXIT_FAILED
+    except BrokenPipeError:
+        # `geonodectl ... | head` closes the pipe early; not an error
+        return EXIT_OK
+    except KeyboardInterrupt:
+        logging.error("interrupted ...")
+        return EXIT_FAILED
+
+
+def __geonodectl__() -> int:
     parser = argparse.ArgumentParser(
         prog="geonodectl",
         description=f"""geonodectl is a cmd client for the geonodev4 rest-apiv2.
@@ -333,11 +396,8 @@ To use this tool you have to set the following environment variables before star
         # TODO change example
         help='patch parameters by providing a json string like: \'{"category":{"identifier": "farming"}}\'',
     )
-    attributes_patch_mutually_exclusive_group.add_argument(
-        "--json_path",
-        dest="json_path",
-        type=str,
-        help="patch parameters by providing a path to a json file",
+    add_json_source_args(
+        attributes_patch_mutually_exclusive_group, "the patch parameters"
     )
 
     ############################
@@ -450,12 +510,7 @@ To use this tool you have to set the following environment variables before star
         help='patch metadata by providing a json string like: \'{"category":{"identifier": "farming"}}\'',
     )
 
-    datasets_patch_mutually_exclusive_group.add_argument(
-        "--json_path",
-        dest="json_path",
-        type=str,
-        help="patch metadata by providing a path to a json file",
-    )
+    add_json_source_args(datasets_patch_mutually_exclusive_group, "the metadata")
 
     # DESCRIBE
     datasets_describe = datasets_subparsers.add_parser(
@@ -557,12 +612,7 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
     )
-    documents_patch_mutually_exclusive_group.add_argument(
-        "--json_path",
-        dest="json_path",
-        type=str,
-        help="add metadata by providing a path to a json file",
-    )
+    add_json_source_args(documents_patch_mutually_exclusive_group, "the metadata")
 
     # DESCRIBE
     documents_describe = documents_subparsers.add_parser(
@@ -635,12 +685,7 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
     )
-    maps_patch_mutually_exclusive_group.add_argument(
-        "--json_path",
-        dest="json_path",
-        type=str,
-        help="add metadata by providing a path to a json file",
-    )
+    add_json_source_args(maps_patch_mutually_exclusive_group, "the metadata")
 
     # DESCRIBE
     maps_describe = maps_subparsers.add_parser("describe", help="get map details")
@@ -676,12 +721,7 @@ To use this tool you have to set the following environment variables before star
           \'\'{ "category": {"identifier": "farming"}, "abstract": "test abstract" }\'\'',
     )
 
-    maps_create_mutually_exclusive_group.add_argument(
-        "--json_path",
-        dest="json_path",
-        type=str,
-        help="add metadata by providing a path to a json file",
-    )
+    add_json_source_args(maps_create_mutually_exclusive_group, "the metadata")
 
     maps_create.add_argument(
         "--maplayers",
@@ -707,7 +747,7 @@ To use this tool you have to set the following environment variables before star
         dest="json_path",
         type=str,
         required=True,
-        help="path to a JSON file containing the new blob",
+        help="read the new blob from a json file, given as a path or a http(s) url",
     )
 
     # MAPLAYERS
@@ -821,14 +861,11 @@ To use this tool you have to set the following environment variables before star
         default=None,
         help="table only: space seperated list of attribute pks to show as columns",
     )
-    maps_widgets_add.add_argument(
-        "--json-path",
-        "--json_path",
-        dest="json_path",
-        type=str,
-        default=None,
-        help="path to a json file with a raw widget definition, \
-            overrides --title and --text",
+    add_json_source_args(
+        maps_widgets_add,
+        "a raw widget definition",
+        note="overrides --title and --text",
+        dashed_alias=True,
     )
 
     maps_widgets_describe = maps_widgets_subparsers.add_parser(
@@ -1008,12 +1045,7 @@ To use this tool you have to set the following environment variables before star
         help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
     )
 
-    geoapps_patch_mutually_exclusive_group.add_argument(
-        "--json_path",
-        dest="json_path",
-        type=str,
-        help="patch metadata (user credentials) by providing a path to a json file, like --set written in file ...",
-    )
+    add_json_source_args(geoapps_patch_mutually_exclusive_group, "the metadata")
 
     # DESCRIBE
     geoapps_describe = geoapps_subparsers.add_parser(
@@ -1060,11 +1092,8 @@ To use this tool you have to set the following environment variables before star
         help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
     )
 
-    user_patch_mutually_exclusive_group.add_argument(
-        "--json_path",
-        dest="json_path",
-        type=str,
-        help="patch metadata (user credentials) by providing a path to a json file, like --set written in file ...",
+    add_json_source_args(
+        user_patch_mutually_exclusive_group, "the metadata (user credentials)"
     )
 
     # DESCRIBE
@@ -1173,12 +1202,10 @@ To use this tool you have to set the following environment variables before star
         help="set to make the new user a staff user (only working combined with --username) ...",
     )
 
-    user_create_mutually_exclusive_group.add_argument(
-        "--json_path",
-        dest="json_path",
-        type=str,
-        help="add metadata (user credentials) by providing a path to a \
-          json file, like --set written in file ...(mutually exclusive [b])",
+    add_json_source_args(
+        user_create_mutually_exclusive_group,
+        "the metadata (user credentials)",
+        note="mutually exclusive [b]",
     )
 
     user_create_mutually_exclusive_group.add_argument(
@@ -1264,12 +1291,7 @@ To use this tool you have to set the following environment variables before star
         type=str,
         help='patch metadata by providing a json string like: \'{"title": "new title"}\' ',
     )
-    groups_patch_mutually_exclusive_group.add_argument(
-        "--json_path",
-        dest="json_path",
-        type=str,
-        help="patch metadata by providing a path to a json file",
-    )
+    add_json_source_args(groups_patch_mutually_exclusive_group, "the metadata")
 
     # CREATE
     groups_create = groups_subparsers.add_parser("create", help="create a new group")
@@ -1297,11 +1319,10 @@ To use this tool you have to set the following environment variables before star
         default="",
         help="description of the new group (only with --title) ...",
     )
-    groups_create_mutually_exclusive_group.add_argument(
-        "--json_path",
-        dest="json_path",
-        type=str,
-        help="create group by providing a path to a json file ... (mutually exclusive [b])",
+    add_json_source_args(
+        groups_create_mutually_exclusive_group,
+        "the group data",
+        note="mutually exclusive [b]",
     )
     groups_create_mutually_exclusive_group.add_argument(
         "--set",
@@ -1550,12 +1571,13 @@ To use this tool you have to set the following environment variables before star
         logging.error(
             f"Could not find one of the following envvars to rung geonodectl: {GEONODECTL_URL_ENV_VAR}, {GEONODECTL_BASIC_ENV_VAR} "
         )
-        sys.exit(1)
+        return EXIT_USAGE
 
     if not url.endswith("api/v2/"):
-        raise NameError(
+        logging.error(
             f"provided geonode url: {url} not ends with 'api/v2/'. Please make sure to provide full rest v2api url ..."
         )
+        return EXIT_USAGE
     geonode_env = GeonodeApiConf(url=url, auth_basic=basic, verify=args.ssl_verify)
     g_obj: Union[GeonodeObjectHandler, GeonodeExecutionRequestHandler]
     match args.command:
@@ -1598,30 +1620,28 @@ To use this tool you have to set the following environment variables before star
                     f"URL: set {GEOSERVER_URL_ENV_VAR} or {GEONODE_API_URL_ENV_VAR} "
                     f"(defaults to <geonode-base>/geoserver)."
                 )
-                sys.exit(1)
+                return EXIT_USAGE
             if args.subcommand == "styles":
                 gs_func = getattr(
                     gs_handler,
                     "cmd_style_" + args.styles_subcommand.replace("-", "_"),
                 )
-                gs_func(**args.__dict__)
-            return
+                return __exit_code__(gs_func(**args.__dict__))
+            return EXIT_OK
         case _:
-            raise NotImplemented
+            raise NotImplementedError(f"unknown command: {args.command}")
     if args.command == "maps" and args.subcommand == "maplayers":
         g_obj_func = getattr(
             g_obj, "cmd_maplayers_" + args.maplayers_subcommand.replace("-", "_")
         )
-        g_obj_func(**args.__dict__)
-        return
+        return __exit_code__(g_obj_func(**args.__dict__))
     if args.command == "maps" and args.subcommand == "widgets":
         g_obj_func = getattr(
             g_obj, "cmd_widgets_" + args.widgets_subcommand.replace("-", "_")
         )
-        g_obj_func(**args.__dict__)
-        return
+        return __exit_code__(g_obj_func(**args.__dict__))
     g_obj_func = getattr(g_obj, "cmd_" + args.subcommand.replace("-", "_"))
-    g_obj_func(**args.__dict__)
+    return __exit_code__(g_obj_func(**args.__dict__))
 
 
 if __name__ == "__main__":

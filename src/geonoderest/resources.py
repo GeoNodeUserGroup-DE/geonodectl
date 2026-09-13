@@ -1,24 +1,20 @@
 from typing import List, Dict, Optional
 import requests
 import logging
-import sys
 
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 from geonoderest.exceptions import GeoNodeRestException
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 from geonoderest.cmdprint import print_json, show_list
+from geonoderest.exceptions import InvalidPkError
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.validate import (
     SchemaLoadError,
     build_validator,
     collect_errors,
     load_schema,
 )
-
-# exit codes used by cmd_validate
-VALIDATE_EXIT_OK: int = 0
-VALIDATE_EXIT_INVALID: int = 1
-VALIDATE_EXIT_ERROR: int = 2
 
 SUPPORTED_METADATA_TYPES: List[str] = [
     "Atom",
@@ -48,18 +44,22 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
 
     def cmd_metadata(
         self, pk: int, metadata_type: str = DEFAULT_METADATA_TYPE, **kwargs
-    ):
+    ) -> int:
         """show metadata on cmdline
 
         Args:
             pk (int): pk id of the resource to get the metadata from
             metadata_type (str, optional): metadatatype to get metadata in. Must be in SUPPORTED_METADATA_TYPES
+
+        Returns:
+            int: EXIT_OK, or EXIT_FAILED when the metadata could not be fetched
         """
         r = self.metadata(pk=pk, metadata_type=metadata_type, **kwargs)
         if r is None:
-            logging.warning("metadata download failed ... ")
-            return None
+            logging.error("metadata download failed ... ")
+            return EXIT_FAILED
         print(r.text)
+        return EXIT_OK
 
     def metadata(
         self, pk: int, metadata_type: str = DEFAULT_METADATA_TYPE, **kwargs
@@ -99,34 +99,41 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
             return None
         return collect_errors(validator, obj)
 
-    def cmd_validate(self, pk: str, json_schema: str, **kwargs):
+    def cmd_validate(self, pk: str, json_schema: Optional[str] = None, **kwargs) -> int:
         """validate metadata of one or more objects against a JSON Schema
 
         Args:
             pk (str): pk of the object(s), as single, range '1-5' or list '1,2,3'
-            json_schema (str): path to a JSON Schema file
+            json_schema (str): path to a JSON Schema file, or a http(s) url
+                serving one. Relative ``$ref``s are resolved against it.
 
-        Exits:
-            0 when everything validated, 1 when an object violated the schema,
-            2 when validation could not be carried out at all
+        Returns:
+            int: EXIT_OK when everything validated, EXIT_FAILED when an object
+                violated the schema or could not be fetched, EXIT_USAGE when the
+                schema itself is missing or unusable
         """
+        if not json_schema:
+            logging.error("--json_schema is required")
+            return EXIT_USAGE
+
         try:
             schema = load_schema(json_schema)
             validator = build_validator(schema, json_schema)
-        except SchemaLoadError as e:
+            pks = self.__parse_pk_string__(pk)
+        except (SchemaLoadError, InvalidPkError) as e:
             logging.error(str(e))
-            sys.exit(VALIDATE_EXIT_ERROR)
+            return EXIT_USAGE
 
         report: List[Dict] = []
         unreachable: List[int] = []
 
-        for _pk in self.__parse_pk_string__(pk):
+        for _pk in pks:
             try:
                 errors = self.validate(pk=_pk, validator=validator, **kwargs)
             except SchemaLoadError as e:
                 # $refs resolve lazily, so an unusable schema only shows up here
                 logging.error(str(e))
-                sys.exit(VALIDATE_EXIT_ERROR)
+                return EXIT_USAGE
             if errors is None:
                 logging.error(f"could not fetch {self.SINGULAR_RESOURCE_NAME} {_pk}")
                 unreachable.append(_pk)
@@ -138,10 +145,9 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
         else:
             self.__print_validation_report__(report)
 
-        if unreachable:
-            sys.exit(VALIDATE_EXIT_ERROR)
-        if any(not entry["valid"] for entry in report):
-            sys.exit(VALIDATE_EXIT_INVALID)
+        if unreachable or any(not entry["valid"] for entry in report):
+            return EXIT_FAILED
+        return EXIT_OK
 
     def __print_validation_report__(self, report: List[Dict]):
         """print a human readable validation report on the cmdline"""

@@ -1,13 +1,13 @@
-import json
-import sys
 import logging
 from typing import Dict, List, Optional
 
+from geonoderest.exceptions import GeonodeUsageError, MissingArgumentError
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
+from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.cmdprint import (
     print_json,
-    json_decode_error_handler,
 )
 
 
@@ -45,7 +45,7 @@ class GeonodeGroupsHandler(GeonodeObjectHandler):
         fields: Optional[str] = None,
         json_path: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> int:
         """Create a new group and print the result.
 
         Args:
@@ -53,29 +53,37 @@ class GeonodeGroupsHandler(GeonodeObjectHandler):
             name (Optional[str]): Slug/name identifier for the group.
             description (str): Description of the group.
             fields (Optional[str]): JSON string with group data.
-            json_path (Optional[str]): Path to a JSON file with group data.
+            json_path (Optional[str]): Path to a JSON file with group data, or
+                a http(s) url serving one.
+
+        Returns:
+            int: EXIT_OK, EXIT_FAILED when the API rejected the new group, or
+                EXIT_USAGE when the input json or the title was missing
         """
         json_content = None
-        if json_path:
-            with open(json_path, "r") as file:
-                try:
-                    json_content = json.load(file)
-                except json.decoder.JSONDecodeError as E:
-                    json_decode_error_handler(str(file), E)
-        elif fields:
+        if json_path or fields:
             try:
-                json_content = json.loads(fields)
-            except json.decoder.JSONDecodeError as E:
-                json_decode_error_handler(fields, E)
+                json_content = load_json_source(json_path=json_path, fields=fields)
+            except JsonSourceError as e:
+                logging.error(str(e))
+                return EXIT_USAGE
 
-        obj = self.create(
-            title=title,
-            name=name,
-            description=description,
-            json_content=json_content,
-            **kwargs,
-        )
+        try:
+            obj = self.create(
+                title=title,
+                name=name,
+                description=description,
+                json_content=json_content,
+                **kwargs,
+            )
+        except GeonodeUsageError as e:
+            logging.error(str(e))
+            return EXIT_USAGE
+        if obj is None:
+            logging.error("group creation failed ... ")
+            return EXIT_FAILED
         print_json(obj)
+        return EXIT_OK
 
     def create(
         self,
@@ -98,8 +106,8 @@ class GeonodeGroupsHandler(GeonodeObjectHandler):
         """
         if json_content is None:
             if title is None:
-                logging.error("missing title for group creation ...")
-                sys.exit(1)
+                # library method: raise so the caller decides, see #69
+                raise MissingArgumentError("missing title for group creation ...")
             json_content = {
                 "title": title,
                 "slug": name if name is not None else title.lower().replace(" ", "-"),

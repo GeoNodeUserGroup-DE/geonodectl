@@ -26,6 +26,7 @@ geonodectl groups describe 3
 ```bash
 geonodectl groups create --title "Data Editors" --set '{"description": "Can edit datasets"}'
 geonodectl groups create --json_path ./group.json
+geonodectl groups create --json_path https://example.org/group.json
 ```
 
 ---

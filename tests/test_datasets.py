@@ -1,7 +1,15 @@
+import json
+import os
+import tempfile
 import unittest
+from pathlib import Path
+
+import requests
 
 from unittest.mock import patch, call, MagicMock
 from geonoderest.datasets import GeonodeDatasetsHandler
+from geonoderest.exceptions import GeoNodeRestException, InvalidPkError
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.cmdprint import print_list_on_cmd
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 
@@ -137,23 +145,36 @@ class TestPkRangeParsing(unittest.TestCase):
     def test_parse_pk_list(self):
         self.assertEqual(self.handler.__parse_pk_string__("1,2,3"), [1, 2, 3])
 
-    def test_invalid_single_pk_exits_cleanly(self):
-        """a bad pk must exit with a message, not escape as a ValueError"""
-        with self.assertRaises(SystemExit):
+    def test_invalid_single_pk_raises(self):
+        """a bad pk must raise, not escape as a ValueError or kill the process"""
+        with self.assertRaises(InvalidPkError):
             self.handler.__parse_pk_string__("abc")
 
-    def test_invalid_range_bounds_exit_cleanly(self):
-        with self.assertRaises(SystemExit):
+    def test_invalid_range_bounds_raise(self):
+        with self.assertRaises(InvalidPkError):
             self.handler.__parse_pk_string__("a-b")
 
-    def test_malformed_range_exits_cleanly(self):
+    def test_malformed_range_raises(self):
         """'1-2-3' used to escape as UnboundLocalError"""
-        with self.assertRaises(SystemExit):
+        with self.assertRaises(InvalidPkError):
             self.handler.__parse_pk_string__("1-2-3")
 
-    def test_invalid_pk_list_exits_cleanly(self):
-        with self.assertRaises(SystemExit):
+    def test_invalid_pk_list_raises(self):
+        with self.assertRaises(InvalidPkError):
             self.handler.__parse_pk_string__("1,a")
+
+    def test_invalid_pk_is_a_value_error(self):
+        """subclassing ValueError keeps existing `except ValueError` callers working"""
+        self.assertTrue(issubclass(InvalidPkError, ValueError))
+
+    def test_parse_never_exits_the_process(self):
+        """library code must not kill its host, see #69"""
+        try:
+            self.handler.__parse_pk_string__("abc")
+        except SystemExit:  # pragma: no cover - the regression we guard against
+            self.fail("__parse_pk_string__ must not raise SystemExit")
+        except InvalidPkError:
+            pass
 
 
 class TestCmdPatchRange(unittest.TestCase):
@@ -195,6 +216,88 @@ class TestCmdPatchRange(unittest.TestCase):
         handler.cmd_patch(pk="10,20,30", fields='{"is_published": true}')
         endpoints = [c.kwargs["endpoint"] for c in mock_http_patch.call_args_list]
         self.assertEqual(endpoints, ["datasets/10/", "datasets/20/", "datasets/30/"])
+
+
+class TestCmdPatchJsonSource(unittest.TestCase):
+    """cmd_patch reads its json from --set or --json_path, see #159
+
+    --json_path takes a local path and a http(s) url interchangeably.
+    """
+
+    PATCH = {"is_published": True}
+    URL = "https://example.org/patch.json"
+
+    def _response(self, payload):
+        r = MagicMock()
+        r.raise_for_status.return_value = None
+        r.json.return_value = payload
+        return r
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    def test_patch_from_json_path(self, mock_http_patch):
+        mock_http_patch.return_value = {"pk": 42}
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "patch.json")
+            with open(path, "w") as f:
+                json.dump(self.PATCH, f)
+            GeonodeDatasetsHandler(env={}).cmd_patch(pk="42", json_path=path)
+        mock_http_patch.assert_called_once_with(
+            endpoint="datasets/42/", json_content=self.PATCH
+        )
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_patch_from_a_url(self, mock_get, mock_http_patch):
+        mock_get.return_value = self._response(self.PATCH)
+        mock_http_patch.return_value = {"pk": 42}
+        GeonodeDatasetsHandler(env={}).cmd_patch(pk="42", json_path=self.URL)
+        mock_http_patch.assert_called_once_with(
+            endpoint="datasets/42/", json_content=self.PATCH
+        )
+        self.assertEqual(mock_get.call_args.args[0], self.URL)
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_a_url_is_fetched_once_for_a_pk_range(self, mock_get, mock_http_patch):
+        """the remote json is read before the loop, not per object"""
+        mock_get.return_value = self._response(self.PATCH)
+        mock_http_patch.side_effect = lambda endpoint, json_content: {"pk": 1}
+        GeonodeDatasetsHandler(env={}).cmd_patch(pk="1-3", json_path=self.URL)
+        self.assertEqual(mock_get.call_count, 1)
+        self.assertEqual(mock_http_patch.call_count, 3)
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    @patch("geonoderest.jsonsource.requests.get")
+    def test_usage_exit_when_the_url_is_unreachable(self, mock_get, mock_http_patch):
+        mock_get.side_effect = requests.exceptions.ConnectionError("nope")
+        with self.assertLogs(level="ERROR"):
+            code = GeonodeDatasetsHandler(env={}).cmd_patch(pk="42", json_path=self.URL)
+        self.assertEqual(code, EXIT_USAGE)
+        mock_http_patch.assert_not_called()
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    def test_usage_exit_when_the_json_file_is_missing(self, mock_http_patch):
+        """used to escape as a raw FileNotFoundError traceback"""
+        with self.assertLogs(level="ERROR"):
+            code = GeonodeDatasetsHandler(env={}).cmd_patch(
+                pk="42", json_path="/nonexistent/nope.json"
+            )
+        self.assertEqual(code, EXIT_USAGE)
+        mock_http_patch.assert_not_called()
+
+    def test_usage_exit_when_no_source_is_given(self):
+        with self.assertLogs(level="ERROR"):
+            code = GeonodeDatasetsHandler(env={}).cmd_patch(pk="42")
+        self.assertEqual(code, EXIT_USAGE)
+
+    @patch.object(GeonodeDatasetsHandler, "http_patch")
+    def test_usage_exit_on_an_invalid_pk(self, mock_http_patch):
+        with self.assertLogs(level="ERROR"):
+            code = GeonodeDatasetsHandler(env={}).cmd_patch(
+                pk="abc", fields='{"is_published": true}'
+            )
+        self.assertEqual(code, EXIT_USAGE)
+        mock_http_patch.assert_not_called()
 
 
 class TestCmdDescribeRange(unittest.TestCase):
@@ -272,12 +375,28 @@ class TestWaitForUpload(unittest.TestCase):
         self.assertEqual(pks, [7])
 
     @patch.object(GeonodeExecutionRequestHandler, "get")
-    def test_wait_for_upload_exits_on_failure(self, mock_get):
-        """__wait_for_upload__ calls sys.exit when upload fails."""
+    def test_wait_for_upload_raises_on_failure(self, mock_get):
+        """library method raises instead of exiting the process, see #69"""
         mock_get.return_value = self._make_er("failed")
         handler = GeonodeDatasetsHandler(env={})
-        with self.assertRaises(SystemExit):
+        with self.assertRaises(GeoNodeRestException):
             handler.__wait_for_upload__(exec_id="abc-123", poll_interval=0)
+
+    @patch.object(GeonodeDatasetsHandler, "upload")
+    @patch.object(GeonodeExecutionRequestHandler, "get")
+    @patch.object(GeonodeDatasetsHandler, "__wait_for_upload__")
+    def test_cmd_upload_returns_exit_failed_when_wait_fails(
+        self, mock_wait, mock_er_get, mock_upload
+    ):
+        """the cmd layer turns that exception into an exit code"""
+        mock_upload.return_value = {"execution_id": "abc-123"}
+        mock_er_get.return_value = {"exec_id": "abc-123"}
+        mock_wait.side_effect = GeoNodeRestException("upload failed")
+        with self.assertLogs(level="ERROR"):
+            code = GeonodeDatasetsHandler(env={}).cmd_upload(
+                file_path=Path("x.tif"), wait=True, json=False
+            )
+        self.assertEqual(code, EXIT_FAILED)
 
     @patch.object(GeonodeDatasetsHandler, "__wait_for_upload__")
     @patch.object(GeonodeDatasetsHandler, "get")

@@ -5,6 +5,7 @@ import time
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutObjectKey
 from geonoderest.rest import GeonodeRest
 from geonoderest.exceptions import GeoNodeRestException
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK
 
 from geonoderest.cmdprint import print_list_on_cmd, print_json
 
@@ -26,11 +27,15 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
         GeonodeCmdOutListKey(key="log"),
     ]
 
-    def cmd_describe(self, exec_id: str, **kwargs):
+    def cmd_describe(self, exec_id: str, **kwargs) -> int:
         obj = self.get(exec_id=exec_id, **kwargs)
+        if obj is None:
+            logging.error(f"describing execution request {exec_id} failed ... ")
+            return EXIT_FAILED
         print_json(obj)
+        return EXIT_OK
 
-    def get(self, exec_id: str, **kwargs) -> Dict:
+    def get(self, exec_id: str, **kwargs) -> Optional[Dict]:
         """
         get details for a given exec_id
 
@@ -38,21 +43,24 @@ class GeonodeExecutionRequestHandler(GeonodeRest):
             exec_id (str): exec_id of the object
 
         Returns:
-            Dict: obj details
+            Optional[Dict]: obj details, or None when it could not be fetched
         """
         r = self.http_get(endpoint=f"{self.ENDPOINT_NAME}/{exec_id}")
+        if r is None:
+            return None
         return r[self.SINGULAR_RESOURCE_NAME]
 
-    def cmd_list(self, **kwargs):
+    def cmd_list(self, **kwargs) -> int:
         """show list of geonode obj on the cmdline"""
         obj = self.list(**kwargs)
         if obj is None:
-            logging.warning("getting list failed ...")
-            return None
+            logging.error("getting list failed ...")
+            return EXIT_FAILED
         if kwargs["json"]:
             print_json(obj)
         else:
             print_list_on_cmd(obj, self.LIST_CMDOUT_HEADER)
+        return EXIT_OK
 
     def list(self, **kwargs) -> Optional[Dict]:
         """returns dict of execution requests from geonode

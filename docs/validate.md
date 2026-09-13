@@ -19,11 +19,14 @@ geonodectl dataset validate 1,2,3   --json_schema ./dataset-schema.json
 
 # any resource type, using only the shared baseline
 geonodectl resources validate 2162 --json_schema ./common-baseline.json
+
+# the same flag takes a http(s) url, so the schema need not live on disk
+geonodectl dataset validate 2162 --json_schema https://example.org/schemas/dataset-schema.json
 ```
 
 | Flag | Description |
 |---|---|
-| `--json_schema` | path to a JSON Schema file (required) |
+| `--json_schema` | JSON Schema to validate against, as a path or a http(s) url (required) |
 
 Output is a table of violations per object:
 
@@ -65,13 +68,14 @@ geonodectl --raw dataset validate 2162 --json_schema ./dataset-schema.json
 
 ## Exit codes
 
-`validate` is meant to be used as a CI gate, so it signals the outcome through its exit code:
+`validate` is meant to be used as a CI gate, so it signals the outcome through its exit code.
+It follows the contract every command shares — see [exit-codes.md](exit-codes.md):
 
 | Code | Meaning |
 |---|---|
 | 0 | every requested object validated |
-| 1 | at least one object violated the schema |
-| 2 | validation could not be carried out — schema file missing, not JSON, not a valid JSON Schema, or the object could not be fetched |
+| 1 | at least one object violated the schema, or could not be fetched |
+| 2 | validation could not be carried out — schema missing, unreachable, not JSON, or not a valid JSON Schema |
 
 ```bash
 geonodectl dataset validate 1-100 --json_schema ./dataset-schema.json || echo "metadata incomplete"
@@ -162,6 +166,22 @@ A map's layers come back in `maplayers`, each with the dataset embedded:
 
 ---
 
+## Hosting schemas centrally
+
+A whole schema set can be served over http(s) instead of copied to every machine that runs
+`geonodectl` — a git forge raw url, an intranet web server, an object store. Keep the files
+next to each other so the relative `$ref`s keep working:
+
+```bash
+# https://example.org/schemas/ serves dataset-schema.json and common-baseline.json
+geonodectl dataset validate 1-100 --json_schema https://example.org/schemas/dataset-schema.json
+```
+
+`geonodectl` fetches the url anonymously — your GeoNode credentials are never sent to it — so
+the schema has to be readable without authentication.
+
+---
+
 ## Sharing a baseline across object types
 
 Metadata common to every object type belongs in one file that the per-type schemas pull in
@@ -175,10 +195,13 @@ with a relative `$ref`:
 }
 ```
 
-References are resolved relative to the directory of the schema you pass to `--json_schema`.
+References are resolved relative to whatever you passed to `--json_schema`: the directory the
+schema was read from, or the url it was fetched from.
 
-> **Note:** only local files are resolved. Remote `http(s)` references are **not** fetched, so
-> schemas stay usable offline and validation cannot be changed by a third party.
+> **Note:** a schema read from **disk** resolves local files only — remote `http(s)` references
+> are not fetched, so a local schema stays usable offline and validation cannot be changed by a
+> third party. A schema you already pointed at a url has been trusted, so its relative refs are
+> fetched over http(s) against that url.
 
 Worked examples are in [json-examples/schemas/](https://github.com/GeoNodeUserGroup-DE/geonodectl/tree/main/json-examples/schemas):
 `common-baseline.json`, `dataset-schema.json` and `map-schema.json`.
@@ -196,6 +219,7 @@ from geonoderest.validate import build_validator, load_schema
 
 conf = GeonodeApiConf.from_env_vars()
 schema_path = "dataset-schema.json"
+# schema_path may equally be "https://example.org/schemas/dataset-schema.json"
 validator = build_validator(load_schema(schema_path), schema_path)
 
 datasets = GeonodeDatasetsHandler(env=conf)

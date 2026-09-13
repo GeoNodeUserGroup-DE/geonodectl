@@ -1,12 +1,13 @@
 from pathlib import Path
-import json
 import logging
 import uuid
 
 from typing import List, Dict, Optional, Tuple
 
-from geonoderest.cmdprint import print_json, json_decode_error_handler, show_list
 from geonoderest.attributes import GeonodeAttributeHandler
+from geonoderest.cmdprint import print_json, show_list
+from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
+from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.datasets import GeonodeDatasetsHandler
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodetypes import (
@@ -37,36 +38,36 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         json_path: Optional[str] = None,
         maplayers: Optional[List[int]] = [],
         **kwargs,
-    ):
+    ) -> int:
         """
         creates an (empty) map with the given title and optional maplayers
 
         Args:
             title (str): title of the new object
             fields (str): string of potential json object
-            json_path (str): path to a json file
+            json_path (str): path to a json file, or a http(s) url serving one
             maplayers (List[int], optional): list of maplayer pks. Defaults to [].
 
-        Raises:
-            Json.decoder.JSONDecodeError: when decoding is not working
+        Returns:
+            int: EXIT_OK, EXIT_FAILED when the map could not be created, or
+                EXIT_USAGE when the input json was unreadable
         """
         json_content = None
-        if json_path:
-            with open(json_path, "r") as file:
-                try:
-                    json_content = json.load(file)
-                except json.decoder.JSONDecodeError as E:
-                    json_decode_error_handler(str(file), E)
-        elif fields:
+        if json_path or fields:
             try:
-                json_content = json.loads(fields)
-            except json.decoder.JSONDecodeError as E:
-                json_decode_error_handler(fields, E)
+                json_content = load_json_source(json_path=json_path, fields=fields)
+            except JsonSourceError as e:
+                logging.error(str(e))
+                return EXIT_USAGE
 
         obj = self.create(
             title=title, json_content=json_content, maplayers=maplayers, **kwargs
         )
+        if obj is None:
+            logging.error("map creation failed ... ")
+            return EXIT_FAILED
         print_json(obj)
+        return EXIT_OK
 
     def __build_blob_data__(self):
 
@@ -302,6 +303,13 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
                 # get dataset of maplayer pk
                 dataset = gnDatasetsHandler.get(pk=maplayer_pk)
+                if dataset is None:
+                    # creating the map with fewer layers than asked for would be a
+                    # silent partial success, so refuse the whole thing
+                    logging.error(
+                        f"dataset {maplayer_pk} not found, not creating the map ... "
+                    )
+                    return None
 
                 blob_layer, maplayer = self.__build_maplayer_pair__(dataset, order)
 
@@ -395,7 +403,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             return None
         return result.get("maplayers", [])
 
-    def cmd_get_blob(self, pk: int, **kwargs):
+    def cmd_get_blob(self, pk: int, **kwargs) -> int:
         """Print the MapStore blob JSON for a map to stdout.
 
         Useful for inspection and shell pipelines:
@@ -403,32 +411,41 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         """
         blob = self.get_blob(pk=pk)
         if blob is None:
-            return
+            # get_blob already reported why
+            return EXIT_FAILED
         print_json(blob)
+        return EXIT_OK
 
-    def cmd_set_blob(self, pk: int, json_path: Optional[str] = None, **kwargs):
-        """Replace the MapStore blob JSON for a map from a JSON file.
+    def cmd_set_blob(self, pk: int, json_path: Optional[str] = None, **kwargs) -> int:
+        """Replace the MapStore blob JSON for a map from a JSON file or URL.
 
         Args:
             pk (int): pk of the map to update
-            json_path (str): path to a JSON file containing the new blob
+            json_path (str): path to a JSON file containing the new blob, or a
+                http(s) url serving one
+
+        Returns:
+            int: EXIT_OK, EXIT_FAILED when the map could not be updated, or
+                EXIT_USAGE when no readable json was given
 
         Example:
           geonodectl maps set-blob 2073 --json_path ./blob.json
+          geonodectl maps set-blob 2073 --json_path https://example.org/blob.json
         """
         if not json_path:
-            raise ValueError("--json_path is required for set-blob")
-        with open(json_path, "r") as f:
-            try:
-                blob = json.load(f)
-            except json.decoder.JSONDecodeError as e:
-                json_decode_error_handler(json_path, e)
-                return
+            logging.error("--json_path is required for set-blob")
+            return EXIT_USAGE
+        try:
+            blob = load_json_source(json_path=json_path)
+        except JsonSourceError as e:
+            logging.error(str(e))
+            return EXIT_USAGE
         result = self.patch(pk=pk, json_content={"blob": blob})
         if result is None:
             logging.error(f"Failed to update blob for map {pk}")
-            return
+            return EXIT_FAILED
         print_json(result)
+        return EXIT_OK
 
     @staticmethod
     def __maplayer_dataset_pk__(maplayer: Dict) -> Optional[int]:
@@ -671,7 +688,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         # unwrap the dynamic-rest envelope, like create() does
         return result.get(self.SINGULAR_RESOURCE_NAME, result)
 
-    def cmd_maplayers_list(self, pk: int, **kwargs):
+    def cmd_maplayers_list(self, pk: int, **kwargs) -> int:
         """
         Show the maplayers of a map on the command line.
 
@@ -680,11 +697,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         """
         maplayers = self.get_maplayers(pk=pk)
         if maplayers is None:
-            return
+            # get_maplayers already reported why
+            return EXIT_FAILED
 
         if kwargs.get("json"):
             print_json(maplayers)
-            return
+            return EXIT_OK
 
         maplayers = self.__sorted_maplayers__(maplayers)
         show_list(
@@ -708,8 +726,9 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                 for maplayer in maplayers
             ],
         )
+        return EXIT_OK
 
-    def cmd_maplayers_add(self, pk: int, datasets: List[int] = [], **kwargs):
+    def cmd_maplayers_add(self, pk: int, datasets: List[int] = [], **kwargs) -> int:
         """
         Add datasets as maplayers to an existing map.
 
@@ -721,15 +740,16 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
           geonodectl maps maplayers add 2073 36 42
         """
         if len(datasets) == 0:
-            logging.warning("no datasets given to add, doing nothing ... ")
-            return
+            logging.error("no datasets given to add, doing nothing ... ")
+            return EXIT_USAGE
         obj = self.add_maplayers(pk=pk, datasets=datasets, **kwargs)
         if obj is None:
             # add_maplayers already reported why
-            return
+            return EXIT_FAILED
         print_json(obj)
+        return EXIT_OK
 
-    def cmd_maplayers_remove(self, pk: int, datasets: List[int] = [], **kwargs):
+    def cmd_maplayers_remove(self, pk: int, datasets: List[int] = [], **kwargs) -> int:
         """
         Remove the maplayers pointing to the given datasets from an existing map.
 
@@ -741,13 +761,14 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
           geonodectl maps maplayers remove 2073 36
         """
         if len(datasets) == 0:
-            logging.warning("no datasets given to remove, doing nothing ... ")
-            return
+            logging.error("no datasets given to remove, doing nothing ... ")
+            return EXIT_USAGE
         obj = self.remove_maplayers(pk=pk, datasets=datasets, **kwargs)
         if obj is None:
             # remove_maplayers already reported why
-            return
+            return EXIT_FAILED
         print_json(obj)
+        return EXIT_OK
 
     # MapStore widget types, keyed by the name used on the command line. MapStore's
     # own name for a textbox is "text"; "textbox" reads better as a CLI verb.
@@ -1042,7 +1063,8 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                 features from, the same way maps maplayers add takes them
             attributes (List[str]): attribute names to show as table columns
             attribute_ids (List[int]): attribute pks to show as table columns
-            json_path (str): path to a JSON file holding a raw widget definition
+            json_path (str): path to a JSON file holding a raw widget definition,
+                or a http(s) url serving one
 
         Returns:
             Dict: the updated map, or None when nothing was added or the update failed
@@ -1076,12 +1098,11 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         size = self.WIDGET_DEFAULT_SIZE[mapstore_type]
 
         if json_path:
-            with open(json_path, "r") as f:
-                try:
-                    widget = json.load(f)
-                except json.decoder.JSONDecodeError as e:
-                    json_decode_error_handler(json_path, e)
-                    return None
+            try:
+                widget = load_json_source(json_path=json_path)
+            except JsonSourceError as e:
+                logging.error(str(e))
+                return None
             if not isinstance(widget, dict):
                 logging.error(f"{json_path} must contain a single JSON object")
                 return None
@@ -1164,7 +1185,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         # unwrap the dynamic-rest envelope, like create() does
         return result.get(self.SINGULAR_RESOURCE_NAME, result)
 
-    def cmd_widgets_list(self, pk: int, **kwargs):
+    def cmd_widgets_list(self, pk: int, **kwargs) -> int:
         """
         Show the MapStore widgets of a map on the command line.
 
@@ -1176,11 +1197,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         """
         widgets = self.get_widgets(pk=pk)
         if widgets is None:
-            return
+            # get_widgets already reported why
+            return EXIT_FAILED
 
         if kwargs.get("json"):
             print_json(widgets)
-            return
+            return EXIT_OK
 
         show_list(
             headers=["id", "widgetType", "title"],
@@ -1193,6 +1215,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                 for widget in widgets
             ],
         )
+        return EXIT_OK
 
     def cmd_widgets_add(
         self,
@@ -1206,7 +1229,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         attribute_ids: Optional[List[int]] = None,
         json_path: Optional[str] = None,
         **kwargs,
-    ):
+    ) -> int:
         """
         Add a widget to an existing map.
 
@@ -1214,13 +1237,15 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             pk (int): pk of the map to modify
             widget_type (str): widget type, textbox or table
             title (str): widget title
-            text (str): textbox body, HTML allowed
+            text (str): widget body, HTML allowed
             description (str): table description, shown behind the widget info tool
             maplayer (int): dataset pk of the maplayer a table reads its
                 features from, the same way maps maplayers add takes them
             attributes (List[str]): attribute names to show as table columns
             attribute_ids (List[int]): attribute pks to show as table columns
-            json_path (str): path to a JSON file holding a raw widget definition
+            json_path (str): path to a JSON file holding a raw widget definition,
+                or a http(s) url serving one
+
 
         Example:
           geonodectl maps widgets add 2073 textbox --title "test" --text "some text"
@@ -1240,10 +1265,11 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         )
         if obj is None:
             # add_widget already reported why
-            return
+            return EXIT_FAILED
         print_json(obj)
+        return EXIT_OK
 
-    def cmd_widgets_describe(self, pk: int, widget_id: str, **kwargs):
+    def cmd_widgets_describe(self, pk: int, widget_id: str, **kwargs) -> int:
         """
         Show a single widget of a map.
 
@@ -1256,15 +1282,17 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         """
         widgets = self.get_widgets(pk=pk)
         if widgets is None:
-            return
+            # get_widgets already reported why
+            return EXIT_FAILED
 
         for widget in widgets:
             if widget.get("id") == widget_id:
                 print_json(widget)
-                return
+                return EXIT_OK
         logging.error(f"map {pk} has no widget with id {widget_id}")
+        return EXIT_FAILED
 
-    def cmd_widgets_remove(self, pk: int, widget_id: str, **kwargs):
+    def cmd_widgets_remove(self, pk: int, widget_id: str, **kwargs) -> int:
         """
         Remove a widget from an existing map.
 
@@ -1278,5 +1306,6 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         obj = self.remove_widget(pk=pk, widget_id=widget_id, **kwargs)
         if obj is None:
             # remove_widget already reported why
-            return
+            return EXIT_FAILED
         print_json(obj)
+        return EXIT_OK

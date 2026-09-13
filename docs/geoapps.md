@@ -30,6 +30,7 @@ geonodectl geoapps describe 7
 ```bash
 geonodectl geoapps patch 7 --set '{"title": "Updated App"}'
 geonodectl geoapps patch 7 --json_path ./geoapp_patch.json
+geonodectl geoapps patch 7 --json_path https://example.org/geoapp_patch.json
 ```
 
 ---

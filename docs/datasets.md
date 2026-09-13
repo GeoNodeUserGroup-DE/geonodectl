@@ -80,6 +80,9 @@ geonodectl dataset patch 36 --set '{"category": {"identifier": "biota"}}'
 # Patch using a JSON file
 geonodectl dataset patch 36 --json_path ./metadata.json
 
+# The same flag takes a http(s) url
+geonodectl dataset patch 36 --json_path https://example.org/metadata.json
+
 # Patch multiple datasets at once
 geonodectl dataset patch 1-5 --set '{"is_published": true}'
 ```
