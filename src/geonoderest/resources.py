@@ -16,12 +16,6 @@ from geonoderest.validate import (
     load_schema,
 )
 
-# cmd_validate predates the shared contract (#151) and used its own names;
-# they are kept as aliases so nothing that imported them breaks
-VALIDATE_EXIT_OK: int = EXIT_OK
-VALIDATE_EXIT_INVALID: int = EXIT_FAILED
-VALIDATE_EXIT_ERROR: int = EXIT_USAGE
-
 SUPPORTED_METADATA_TYPES: List[str] = [
     "Atom",
     "DIF",
