@@ -4,15 +4,11 @@ from typing import Dict, List, Optional
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey
-<<<<<<< HEAD
 from geonoderest.exceptions import (
     GeoNodeRestException,
     GeonodeUsageError,
     MissingArgumentError,
 )
-=======
-from geonoderest.exceptions import GeoNodeRestException
->>>>>>> 8469f2f77f06012b6e93b29a0598a006cb45aca5
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.cmdprint import (
@@ -224,11 +220,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
                 json_content=json_content,
                 **kwargs,
             )
-<<<<<<< HEAD
         except GeonodeUsageError as e:
-=======
-        except ValueError as e:
->>>>>>> 8469f2f77f06012b6e93b29a0598a006cb45aca5
             logging.error(str(e))
             return EXIT_USAGE
         if obj is None:
@@ -264,11 +256,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         if json_content is None:
             if username is None:
                 # library method: raise so the caller decides, see #69
-<<<<<<< HEAD
                 raise MissingArgumentError("missing username for user creation ...")
-=======
-                raise ValueError("missing username for user creation ...")
->>>>>>> 8469f2f77f06012b6e93b29a0598a006cb45aca5
 
             json_content = {
                 "username": username,

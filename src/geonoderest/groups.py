@@ -76,11 +76,7 @@ class GeonodeGroupsHandler(GeonodeObjectHandler):
                 json_content=json_content,
                 **kwargs,
             )
-<<<<<<< HEAD
         except GeonodeUsageError as e:
-=======
-        except ValueError as e:
->>>>>>> 8469f2f77f06012b6e93b29a0598a006cb45aca5
             logging.error(str(e))
             return EXIT_USAGE
         if obj is None:
@@ -111,11 +107,7 @@ class GeonodeGroupsHandler(GeonodeObjectHandler):
         if json_content is None:
             if title is None:
                 # library method: raise so the caller decides, see #69
-<<<<<<< HEAD
                 raise MissingArgumentError("missing title for group creation ...")
-=======
-                raise ValueError("missing title for group creation ...")
->>>>>>> 8469f2f77f06012b6e93b29a0598a006cb45aca5
             json_content = {
                 "title": title,
                 "slug": name if name is not None else title.lower().replace(" ", "-"),

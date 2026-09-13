@@ -51,14 +51,9 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
                 charset=charset,
                 **kwargs,
             )
-<<<<<<< HEAD
         except OSError as e:
             # not just FileNotFoundError - a directory or an unreadable file too
             logging.error(f"could not read {file_path}: {e}")
-=======
-        except FileNotFoundError:
-            logging.error(f"file not found: {file_path}")
->>>>>>> 8469f2f77f06012b6e93b29a0598a006cb45aca5
             return EXIT_USAGE
         if r is None:
             logging.error("upload failed ... ")
