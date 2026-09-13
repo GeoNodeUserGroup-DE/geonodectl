@@ -64,9 +64,14 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
                 skip_existing_layers=skip_existing_layers,
                 **kwargs,
             )
+<<<<<<< HEAD
         except OSError as e:
             # not just FileNotFoundError - a directory or an unreadable file too
             logging.error(f"could not read {file_path}: {e}")
+=======
+        except FileNotFoundError:
+            logging.error(f"file not found: {file_path}")
+>>>>>>> 8469f2f77f06012b6e93b29a0598a006cb45aca5
             return EXIT_USAGE
         if r is None or "execution_id" not in r:
             logging.error(f"unexpected API response ...\n{r}")

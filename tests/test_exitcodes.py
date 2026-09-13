@@ -6,6 +6,7 @@ calling handlers directly.
 """
 
 import os
+<<<<<<< HEAD
 import tempfile
 import unittest
 from pathlib import Path
@@ -21,11 +22,20 @@ from geonoderest.exceptions import (
     MissingArgumentError,
 )
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
+=======
+import unittest
+from unittest.mock import patch
+
+from geonoderest.datasets import GeonodeDatasetsHandler
+>>>>>>> 8469f2f77f06012b6e93b29a0598a006cb45aca5
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.geonodectl import __exit_code__, geonodectl
 from geonoderest.linkedresources import GeonodeLinkedResourcesHandler
 from geonoderest.maps import GeonodeMapsHandler
+<<<<<<< HEAD
 from geonoderest.users import GeonodeUsersHandler
+=======
+>>>>>>> 8469f2f77f06012b6e93b29a0598a006cb45aca5
 
 ENV = {
     "GEONODE_API_URL": "https://example.org/api/v2/",
@@ -181,6 +191,7 @@ class TestLinkedResourcesEmptyList(unittest.TestCase):
         mock_delete.assert_not_called()
 
 
+<<<<<<< HEAD
 class TestReviewFindings(unittest.TestCase):
     """regressions found reviewing this change - one case per finding"""
 
@@ -267,6 +278,8 @@ class TestReviewFindings(unittest.TestCase):
         )
 
 
+=======
+>>>>>>> 8469f2f77f06012b6e93b29a0598a006cb45aca5
 class TestLibraryMethodsNeverExit(unittest.TestCase):
     """issue #69: geonoderest is also a library and must not kill its host"""
 
