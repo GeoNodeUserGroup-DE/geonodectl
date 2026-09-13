@@ -37,6 +37,7 @@ geonodectl dataset list
 | [linked-resources.md](linked-resources.md) | `linked-resources describe/add/delete` |
 | [attributes.md](attributes.md) | `attributes describe/patch` |
 | [geoserver.md](geoserver.md) | `geoserver styles list/describe/upload/set-default` |
+| [identifiers.md](identifiers.md) | naming objects by pk or uuid |
 | [exit-codes.md](exit-codes.md) | the exit code contract shared by every command |
 
 See [example.md](example.md) for worked end-to-end examples.

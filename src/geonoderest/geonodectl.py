@@ -140,7 +140,7 @@ def add_validate_parser(subparsers, noun: str):
     validate.add_argument(
         type=str,
         dest="pk",
-        help=f"pk of {noun}(s) to validate (range '1-5', list '1,2,3,4,5', single '1') ...",
+        help=f"pk or uuid of {noun}(s) to validate (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
     validate.add_argument(
         "--json_schema",
@@ -278,7 +278,7 @@ To use this tool you have to set the following environment variables before star
     resource_delete.add_argument(
         type=str,
         dest="pk",
-        help="pk of resource(s) to delete (range '1-5',list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of resource(s) to delete (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
 
     # METADATA
@@ -286,10 +286,10 @@ To use this tool you have to set the following environment variables before star
         "metadata", help="download metadata for resource"
     )
     resource_metadata.add_argument(
-        type=int,
+        type=str,
         dest="pk",
         metavar="{pk}",
-        help="pk of resource to show metadata",
+        help="pk or uuid of resource to show metadata",
     )
     resource_metadata.add_argument(
         "--metadata-type",
@@ -297,7 +297,7 @@ To use this tool you have to set the following environment variables before star
         dest="metadata_type",
         choices=SUPPORTED_METADATA_TYPES,
         default=DEFAULT_METADATA_TYPE,
-        help="pk of resource to show metadata",
+        help="pk or uuid of resource to show metadata",
     )
 
     # VALIDATE
@@ -320,16 +320,16 @@ To use this tool you have to set the following environment variables before star
         help="pks of resource to delete linked-resource from linked-to",
     )
     linked_resource_delete_subparser.add_argument(
-        type=int, dest="pk", help="pk of dataset to describe ..."
+        type=str, dest="pk", help="pk or uuid of the resource ..."
     )
 
     linked_resource_delete_subparser.add_argument(
         "--linked-to",
         nargs="+",
         dest="linked_to",
-        type=int,
+        type=str,
         required=False,
-        help="space seperate list of integers of pks to delete as linked-to (target) resources to the provided resource",
+        help="space seperated list of resource pks or uuids to delete as linked-to (target) resources",
     )
 
     # ADD
@@ -338,16 +338,16 @@ To use this tool you have to set the following environment variables before star
         help="pks of resources to add linked-resource as linked-to",
     )
     linked_resource_add_subparser.add_argument(
-        type=int, dest="pk", help="pk of dataset to describe ..."
+        type=str, dest="pk", help="pk or uuid of the resource ..."
     )
 
     linked_resource_add_subparser.add_argument(
         "--linked-to",
         nargs="+",
         dest="linked_to",
-        type=int,
+        type=str,
         required=False,
-        help="space seperate list of integers of pks to add as linked-to resources to the provided resource",
+        help="space seperated list of resource pks or uuids to add as linked-to resources",
     )
 
     # DESCRIBE
@@ -356,7 +356,7 @@ To use this tool you have to set the following environment variables before star
         help="list linked_resource of resource",
     )
     linked_resource_describe_subparser.add_argument(
-        type=int, dest="pk", help="pk of dataset to describe ..."
+        type=str, dest="pk", help="pk or uuid of the resource ..."
     )
 
     ####################################
@@ -378,14 +378,18 @@ To use this tool you have to set the following environment variables before star
         "describe", help="describe attribute table"
     )
     attributes_describe.add_argument(
-        type=int, dest="pk", help="pk of attribute to describe ..."
+        type=str,
+        dest="pk",
+        help="pk or uuid of the dataset to describe attributes of ...",
     )
 
     # PATCH
     attributes_patch = attributes_subparsers.add_parser(
         "patch", help="patch attributes parameter values"
     )
-    attributes_patch.add_argument(type=int, dest="pk", help="pk of dataset to patch")
+    attributes_patch.add_argument(
+        type=str, dest="pk", help="pk or uuid of dataset to patch"
+    )
     attributes_patch_mutually_exclusive_group = (
         attributes_patch.add_mutually_exclusive_group()
     )
@@ -497,7 +501,7 @@ To use this tool you have to set the following environment variables before star
     datasets_patch.add_argument(
         type=str,
         dest="pk",
-        help="pk of dataset(s) to patch (range '1-5', list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of dataset(s) to patch (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
     datasets_patch_mutually_exclusive_group = (
         datasets_patch.add_mutually_exclusive_group()
@@ -519,7 +523,7 @@ To use this tool you have to set the following environment variables before star
     datasets_describe.add_argument(
         type=str,
         dest="pk",
-        help="pk of dataset(s) to describe (range '1-5', list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of dataset(s) to describe (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
 
     # DELETE
@@ -529,7 +533,7 @@ To use this tool you have to set the following environment variables before star
     datasets_delete.add_argument(
         type=str,
         dest="pk",
-        help="pk of dataset(s) to delete (range '1-5',list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of dataset(s) to delete (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
 
     # VALIDATE
@@ -600,7 +604,7 @@ To use this tool you have to set the following environment variables before star
     documents_patch.add_argument(
         type=str,
         dest="pk",
-        help="pk of document(s) to patch (range '1-5', list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of document(s) to patch (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
     documents_patch_mutually_exclusive_group = (
         documents_patch.add_mutually_exclusive_group()
@@ -621,7 +625,7 @@ To use this tool you have to set the following environment variables before star
     documents_describe.add_argument(
         type=str,
         dest="pk",
-        help="pk of document(s) to describe (range '1-5', list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of document(s) to describe (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
 
     # DELETE
@@ -631,7 +635,7 @@ To use this tool you have to set the following environment variables before star
     documents_delete.add_argument(
         type=str,
         dest="pk",
-        help="pk of document(s) to delete (range '1-5',list '1,2,3,4,5', single '1')...",
+        help="pk or uuid of document(s) to delete (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
 
     # VALIDATE
@@ -675,7 +679,7 @@ To use this tool you have to set the following environment variables before star
     maps_patch.add_argument(
         type=str,
         dest="pk",
-        help="pk of map(s) to patch (range '1-5', list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of map(s) to patch (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
     maps_patch_mutually_exclusive_group = maps_patch.add_mutually_exclusive_group()
 
@@ -692,7 +696,7 @@ To use this tool you have to set the following environment variables before star
     maps_describe.add_argument(
         type=str,
         dest="pk",
-        help="pk of map(s) to describe (range '1-5', list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of map(s) to describe (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
 
     # DELETE
@@ -700,7 +704,7 @@ To use this tool you have to set the following environment variables before star
     maps_delete.add_argument(
         type=str,
         dest="pk",
-        help="pk of map(s) to delete (range '1-5',list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of map(s) to delete (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
 
     # CREATE
@@ -727,21 +731,23 @@ To use this tool you have to set the following environment variables before star
         "--maplayers",
         nargs="+",
         dest="maplayers",
-        type=int,
-        help="space seperate list of integers of pks to add as maplayer to the map",
+        type=str,
+        help="space seperated list of dataset pks or uuids to add as maplayer to the map",
     )
 
     # GET-BLOB
     maps_get_blob = maps_subparsers.add_parser(
         "get-blob", help="print the MapStore blob JSON for a map (pipe-friendly)"
     )
-    maps_get_blob.add_argument(type=int, dest="pk", help="pk of map to fetch blob from")
+    maps_get_blob.add_argument(
+        type=str, dest="pk", help="pk or uuid of map to fetch blob from"
+    )
 
     # SET-BLOB
     maps_set_blob = maps_subparsers.add_parser(
         "set-blob", help="replace the MapStore blob JSON for a map from a file"
     )
-    maps_set_blob.add_argument(type=int, dest="pk", help="pk of map to update")
+    maps_set_blob.add_argument(type=str, dest="pk", help="pk or uuid of map to update")
     maps_set_blob.add_argument(
         "--json_path",
         dest="json_path",
@@ -764,29 +770,33 @@ To use this tool you have to set the following environment variables before star
         "list", help="list the maplayers of a map"
     )
     maps_maplayers_list.add_argument(
-        type=int, dest="pk", help="pk of map to list maplayers of"
+        type=str, dest="pk", help="pk or uuid of map to list maplayers of"
     )
 
     maps_maplayers_add = maps_maplayers_subparsers.add_parser(
         "add", help="add datasets as maplayers to an existing map"
     )
-    maps_maplayers_add.add_argument(type=int, dest="pk", help="pk of map to modify")
+    maps_maplayers_add.add_argument(
+        type=str, dest="pk", help="pk or uuid of map to modify"
+    )
     maps_maplayers_add.add_argument(
         nargs="+",
-        type=int,
+        type=str,
         dest="datasets",
-        help="space seperated list of dataset pks to add as maplayers to the map",
+        help="space seperated list of dataset pks or uuids to add as maplayers to the map",
     )
 
     maps_maplayers_remove = maps_maplayers_subparsers.add_parser(
         "remove", help="remove maplayers from an existing map"
     )
-    maps_maplayers_remove.add_argument(type=int, dest="pk", help="pk of map to modify")
+    maps_maplayers_remove.add_argument(
+        type=str, dest="pk", help="pk or uuid of map to modify"
+    )
     maps_maplayers_remove.add_argument(
         nargs="+",
-        type=int,
+        type=str,
         dest="datasets",
-        help="space seperated list of dataset pks to remove as maplayers from the map",
+        help="space seperated list of dataset pks or uuids to remove as maplayers from the map",
     )
 
     # WIDGETS
@@ -803,13 +813,15 @@ To use this tool you have to set the following environment variables before star
         "list", help="list the widgets of a map"
     )
     maps_widgets_list.add_argument(
-        type=int, dest="pk", help="pk of map to list widgets of"
+        type=str, dest="pk", help="pk or uuid of map to list widgets of"
     )
 
     maps_widgets_add = maps_widgets_subparsers.add_parser(
         "add", help="add a widget to an existing map"
     )
-    maps_widgets_add.add_argument(type=int, dest="pk", help="pk of map to modify")
+    maps_widgets_add.add_argument(
+        type=str, dest="pk", help="pk or uuid of map to modify"
+    )
     maps_widgets_add.add_argument(
         nargs="?",
         default="textbox",
@@ -837,7 +849,7 @@ To use this tool you have to set the following environment variables before star
     maps_widgets_add.add_argument(
         "--maplayer",
         dest="maplayer",
-        type=int,
+        type=str,
         default=None,
         help="table only: dataset pk of the maplayer to build the table from, \
             the same way maps maplayers add takes them. \
@@ -872,7 +884,7 @@ To use this tool you have to set the following environment variables before star
         "describe", help="show a single widget of a map"
     )
     maps_widgets_describe.add_argument(
-        type=int, dest="pk", help="pk of map the widget belongs to"
+        type=str, dest="pk", help="pk or uuid of map the widget belongs to"
     )
     maps_widgets_describe.add_argument(
         type=str, dest="widget_id", help="id of the widget to describe"
@@ -881,7 +893,9 @@ To use this tool you have to set the following environment variables before star
     maps_widgets_remove = maps_widgets_subparsers.add_parser(
         "remove", help="remove a widget from an existing map"
     )
-    maps_widgets_remove.add_argument(type=int, dest="pk", help="pk of map to modify")
+    maps_widgets_remove.add_argument(
+        type=str, dest="pk", help="pk or uuid of map to modify"
+    )
     maps_widgets_remove.add_argument(
         type=str, dest="widget_id", help="id of the widget to remove"
     )
@@ -1032,7 +1046,7 @@ To use this tool you have to set the following environment variables before star
     geoapps_patch.add_argument(
         type=str,
         dest="pk",
-        help="pk of geoapp(s) to patch (range '1-5', list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of geoapp(s) to patch (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
 
     geoapps_patch_mutually_exclusive_group = (
@@ -1054,7 +1068,7 @@ To use this tool you have to set the following environment variables before star
     geoapps_describe.add_argument(
         type=str,
         dest="pk",
-        help="pk of geoapp(s) to describe (range '1-5', list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of geoapp(s) to describe (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
 
     # DELETE
@@ -1064,7 +1078,7 @@ To use this tool you have to set the following environment variables before star
     geoapps_delete.add_argument(
         type=str,
         dest="pk",
-        help="pk of geoapp(s) to delete (range '1-5',list '1,2,3,4,5', single '1') ...",
+        help="pk or uuid of geoapp(s) to delete (uuid, single '1', range '1-5', list '1,2,3') ...",
     )
 
     # VALIDATE
@@ -1234,7 +1248,7 @@ To use this tool you have to set the following environment variables before star
     users_transfer_resources.add_argument(
         "--resources",
         nargs="+",
-        type=int,
+        type=str,
         dest="resources",
         help="pks of the resources to move, like --resources 1 2 3. Moves every resource \
         of the user if left out. Needs GeoNode 5, GeoNode 4.4 can only move all of them ...",

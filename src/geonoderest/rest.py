@@ -4,9 +4,20 @@ import urllib3
 import requests
 import logging
 
-from geonoderest.exceptions import GeoNodeRestException
+from geonoderest.exceptions import (
+    GeoNodeRestException,
+    InvalidPkError,
+    ResourceNotFoundError,
+    UuidTypeMismatchError,
+)
 from geonoderest.geonodetypes import GeonodeHTTPFile
 from geonoderest.apiconf import GeonodeApiConf
+from geonoderest.identifier import (
+    canonical_uuid,
+    describe_resource_type,
+    is_uuid,
+    resource_type_matches,
+)
 
 urllib3.disable_warnings()
 
@@ -47,11 +58,120 @@ def __response_json__(r: requests.Response) -> Optional[Dict]:
         return None
 
 
+def _normalised(value: str) -> Optional[str]:
+    """Canonical form of ``value``, or None when it is not a uuid at all.
+
+    Used only to compare what the API returned against what was asked for, so a
+    malformed value has to come back as "does not match" rather than raising.
+    """
+    try:
+        return canonical_uuid(value)
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+
 class GeonodeRest(object):
     DEFAULTS = {"page_size": 100, "page": 1}
 
+    #: ``resource_type`` the objects this handler addresses are, used to check a
+    #: uuid names the right kind of object. ``ANY_RESOURCE_TYPE`` accepts every
+    #: resource type; ``None`` means these objects have no uuid at all - users
+    #: and groups are not ``ResourceBase``, so they stay pk-only (#160).
+    UUID_RESOURCE_TYPE: Optional[str] = None
+
     def __init__(self, env: GeonodeApiConf):
         self.gn_credentials = env
+
+    def __resolve_identifier__(self, identifier, expected: Optional[str] = None) -> int:
+        """Return the pk named by ``identifier``, which may be a pk or a uuid.
+
+        A pk costs nothing - it is returned as-is. A uuid costs exactly one GET:
+        there is no uuid route on the GeoNode API (no viewset overrides
+        ``lookup_field``), so a uuid is reachable only as a list filter, and the
+        row it returns carries ``resource_type`` for the type check.
+
+        Args:
+            identifier: a pk (int or digit string) or a resource uuid
+            expected (Optional[str]): resource_type the uuid must name; defaults
+                to this handler's ``UUID_RESOURCE_TYPE``. Pass it when an
+                argument names a different kind of object than the handler does -
+                ``maps maplayers add`` takes *dataset* identifiers, for instance.
+
+        Raises:
+            InvalidPkError: not a pk and not a uuid, or a uuid was given for an
+                object type that has none
+            UuidTypeMismatchError: the uuid names a different kind of object
+            ResourceNotFoundError: no object has that uuid
+        """
+        if isinstance(identifier, int):
+            return identifier
+
+        value = str(identifier)
+        if value.isdigit():
+            return int(value)
+
+        if not is_uuid(value):
+            raise InvalidPkError(
+                f"Invalid identifier {value}, is neither a pk nor a uuid ..."
+            )
+
+        if expected is None:
+            expected = self.UUID_RESOURCE_TYPE
+        if expected is None:
+            raise InvalidPkError(
+                f"{self.__class__.__name__} objects are identified by pk, "
+                f"not by uuid: {value}"
+            )
+
+        # the filter is an exact match, so send the canonical spelling
+        wanted = canonical_uuid(value)
+
+        # advertised=all because AdvertisedFilter applies to list but is skipped
+        # on retrieve - without it a non-advertised resource would be invisible
+        # here while GET resources/<pk> still returns it, making a uuid lookup
+        # narrower than the direct fetch it stands in for
+        r = self.http_get(
+            endpoint="resources/",
+            params={"filter{uuid}": wanted, "advertised": "all"},
+        )
+        if r is None:
+            raise GeoNodeRestException(f"could not look up uuid {value} ...")
+
+        resources = r.get("resources") or []
+        if not resources:
+            raise ResourceNotFoundError(f"no resource found with uuid {value} ...")
+
+        resource = resources[0]
+        # never trust the first row blindly: if the filter were ever dropped - a
+        # proxy stripping the brace syntax, an older filter backend - this would
+        # otherwise resolve to an arbitrary resource and act on the wrong object
+        returned = resource.get("uuid")
+        if returned is not None and _normalised(str(returned)) != wanted:
+            raise ResourceNotFoundError(
+                f"uuid lookup for {value} returned {returned} instead - "
+                "the API ignored the uuid filter ..."
+            )
+
+        actual = resource.get("resource_type") or ""
+        if not resource_type_matches(actual, expected):
+            raise UuidTypeMismatchError(
+                f"uuid {value} is a {actual or 'resource of unknown type'}, "
+                f"not a {describe_resource_type(expected)} ..."
+            )
+
+        pk = resource.get("pk")
+        if pk is None:
+            raise GeoNodeRestException(
+                f"uuid {value} resolved to a resource without a pk ..."
+            )
+        # the API serializes pk as a string
+        return int(pk)
+
+    def __resolve_identifiers__(
+        self, identifiers, expected: Optional[str] = None
+    ) -> List[int]:
+        """Resolve a list of pks/uuids, in order. See __resolve_identifier__."""
+        return [self.__resolve_identifier__(i, expected) for i in identifiers or []]
 
     def __handle_http_params__(self, params: Dict, kwargs: Dict) -> Dict:
         """

@@ -10,6 +10,9 @@ from geonoderest.cmdprint import show_list, print_json
 class GeonodeAttributeHandler(GeonodeRest):
     """docstring for GeonodeAttributeHandler"""
 
+    # attributes always belong to a dataset
+    UUID_RESOURCE_TYPE = "dataset"
+
     def get(self, pk, **kwargs) -> Dict:
         """
         Get the attributes for a dataset.
@@ -18,7 +21,7 @@ class GeonodeAttributeHandler(GeonodeRest):
 
         return self.http_get(endpoint=endpoint)
 
-    def cmd_describe(self, pk: int, **kwargs) -> int:
+    def cmd_describe(self, pk, **kwargs) -> int:
         """
         Describe the attributes of a dataset.
 
@@ -27,6 +30,7 @@ class GeonodeAttributeHandler(GeonodeRest):
         :return: EXIT_OK, or EXIT_FAILED when the dataset could not be fetched
         """
 
+        pk = self.__resolve_identifier__(pk)
         obj = self.get(pk, **kwargs)
         if obj is None:
             logging.error(f"describing attributes of {pk} failed ... ")
@@ -59,7 +63,7 @@ class GeonodeAttributeHandler(GeonodeRest):
 
     def cmd_patch(
         self,
-        pk: int,
+        pk,
         fields: Optional[str] = None,
         json_path: Optional[str] = None,
         **kwargs,
@@ -76,9 +80,12 @@ class GeonodeAttributeHandler(GeonodeRest):
                 EXIT_USAGE when no readable json was given
         """
 
+        # validated before resolving, so a missing argument is reported as such
+        # rather than as a failed uuid lookup - and costs no HTTP call
         if not (json_path or fields):
             logging.error("At least one of 'fields' or 'json_path' must be provided.")
             return EXIT_USAGE
+        pk = self.__resolve_identifier__(pk)
         try:
             json_content = load_json_source(json_path=json_path, fields=fields)
         except JsonSourceError as e:

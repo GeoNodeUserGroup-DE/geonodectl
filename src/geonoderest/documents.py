@@ -14,6 +14,7 @@ from geonoderest.geonodetypes import GeonodeHTTPFile
 class GeonodeDocumentsHandler(GeonodeResourceHandler):
     ENDPOINT_NAME = JSON_OBJECT_NAME = "documents"
     SINGULAR_RESOURCE_NAME = "document"
+    UUID_RESOURCE_TYPE = "document"
 
     LIST_CMDOUT_HEADER = [
         GeonodeCmdOutListKey(key="pk"),
