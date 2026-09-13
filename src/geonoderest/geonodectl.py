@@ -813,7 +813,7 @@ To use this tool you have to set the following environment variables before star
     maps_widgets_add.add_argument(
         nargs="?",
         default="textbox",
-        choices=["textbox"],
+        choices=["textbox", "table"],
         dest="widget_type",
         help="type of widget to add (default: textbox)",
     )
@@ -825,7 +825,41 @@ To use this tool you have to set the following environment variables before star
         dest="text",
         type=str,
         default=None,
-        help="body of the widget, HTML is passed through to MapStore",
+        help="textbox only: body of the widget, HTML is passed through to MapStore",
+    )
+    maps_widgets_add.add_argument(
+        "--description",
+        dest="description",
+        type=str,
+        default=None,
+        help="table only: shown behind the info tool of the widget",
+    )
+    maps_widgets_add.add_argument(
+        "--maplayer",
+        dest="maplayer",
+        type=int,
+        default=None,
+        help="table only: dataset pk of the maplayer to build the table from, \
+            the same way maps maplayers add takes them. \
+            has to be a maplayer of the map already",
+    )
+    maps_widgets_add.add_argument(
+        "--attributes",
+        nargs="+",
+        dest="attributes",
+        type=str,
+        default=None,
+        help="table only: space seperated list of attribute names to show as columns, \
+            defaults to all attributes of the dataset",
+    )
+    maps_widgets_add.add_argument(
+        "--attribute-ids",
+        "--attribute_ids",
+        nargs="+",
+        dest="attribute_ids",
+        type=int,
+        default=None,
+        help="table only: space seperated list of attribute pks to show as columns",
     )
     add_json_source_args(
         maps_widgets_add,

@@ -664,5 +664,203 @@ class TestWidgets(unittest.TestCase):
         mock_print.assert_called_once_with(widget)
 
 
+ATTRIBUTE_SET = {
+    "attributes": [
+        {"pk": 63, "attribute": "fid", "attribute_type": "xsd:int"},
+        {"pk": 58, "attribute": "name", "attribute_type": "xsd:string"},
+        {"pk": 59, "attribute": "ror", "attribute_type": "xsd:string"},
+    ]
+}
+
+
+def _map_detail_with_table_layer():
+    """a map carrying dataset 101 as a maplayer, with the matching blob layer"""
+    layer = {
+        "id": "msid-101",
+        "name": "geonode:ds101",
+        "type": "wfs",
+        "title": "ds101",
+        "url": "https://geonode.example.com/geoserver/wfs",
+        "search": {"url": "https://geonode.example.com/geoserver/wfs", "type": "wfs"},
+        "extendedParams": {"pk": 101},
+    }
+    return {
+        "map": {
+            "pk": 42,
+            "data": {
+                "version": 2,
+                "map": {"layers": [_background_layer("mapnik__0"), layer]},
+                "widgetsConfig": {"widgets": []},
+            },
+            "maplayers": [_maplayer(901, 101, "msid-101", 0)],
+        }
+    }
+
+
+class TestTableWidget(unittest.TestCase):
+    def _handler(self):
+        return GeonodeMapsHandler(env={})
+
+    @staticmethod
+    def _patched_widgets(mock_patch):
+        json_content = mock_patch.call_args.kwargs["json_content"]
+        return json_content["data"]["widgetsConfig"]["widgets"]
+
+    @patch("geonoderest.maps.GeonodeAttributeHandler")
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_add_table_binds_to_the_existing_blob_layer(
+        self, mock_http_get, mock_patch, mock_attrs
+    ):
+        mock_http_get.return_value = _map_detail_with_table_layer()
+        mock_attrs.return_value.get.return_value = ATTRIBUTE_SET
+
+        self._handler().add_widget(
+            pk=42,
+            widget_type="table",
+            maplayer=101,
+            title="Stations",
+            description="measurement sites",
+            attributes=["fid", "name"],
+        )
+
+        widget = self._patched_widgets(mock_patch)[0]
+        self.assertEqual(widget["widgetType"], "table")
+        self.assertEqual(widget["title"], "Stations")
+        self.assertEqual(widget["description"], "measurement sites")
+        self.assertEqual(widget["options"]["propertyName"], ["fid", "name"])
+        # the widget embeds the layer that is already on the map
+        self.assertEqual(widget["layer"]["id"], "msid-101")
+        self.assertEqual(widget["url"], "https://geonode.example.com/geoserver/wfs")
+
+    @patch("geonoderest.maps.GeonodeAttributeHandler")
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_attributes_default_to_all(self, mock_http_get, mock_patch, mock_attrs):
+        mock_http_get.return_value = _map_detail_with_table_layer()
+        mock_attrs.return_value.get.return_value = ATTRIBUTE_SET
+
+        self._handler().add_widget(pk=42, widget_type="table", maplayer=101)
+
+        widget = self._patched_widgets(mock_patch)[0]
+        self.assertEqual(widget["options"]["propertyName"], ["fid", "name", "ror"])
+
+    @patch("geonoderest.maps.GeonodeAttributeHandler")
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_attribute_ids_are_resolved_to_names(
+        self, mock_http_get, mock_patch, mock_attrs
+    ):
+        mock_http_get.return_value = _map_detail_with_table_layer()
+        mock_attrs.return_value.get.return_value = ATTRIBUTE_SET
+
+        self._handler().add_widget(
+            pk=42, widget_type="table", maplayer=101, attribute_ids=[59, 63]
+        )
+
+        widget = self._patched_widgets(mock_patch)[0]
+        # order follows the ids as given, not the attribute_set order
+        self.assertEqual(widget["options"]["propertyName"], ["ror", "fid"])
+
+    @patch("geonoderest.maps.GeonodeAttributeHandler")
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_unknown_attribute_name_is_rejected(
+        self, mock_http_get, mock_patch, mock_attrs
+    ):
+        """a typo must not silently produce an empty column in the viewer"""
+        mock_http_get.return_value = _map_detail_with_table_layer()
+        mock_attrs.return_value.get.return_value = ATTRIBUTE_SET
+
+        result = self._handler().add_widget(
+            pk=42, widget_type="table", maplayer=101, attributes=["fid", "nmae"]
+        )
+        self.assertIsNone(result)
+        mock_patch.assert_not_called()
+
+    @patch("geonoderest.maps.GeonodeAttributeHandler")
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_unknown_attribute_id_is_rejected(
+        self, mock_http_get, mock_patch, mock_attrs
+    ):
+        mock_http_get.return_value = _map_detail_with_table_layer()
+        mock_attrs.return_value.get.return_value = ATTRIBUTE_SET
+
+        result = self._handler().add_widget(
+            pk=42, widget_type="table", maplayer=101, attribute_ids=[63, 999]
+        )
+        self.assertIsNone(result)
+        mock_patch.assert_not_called()
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_dataset_not_a_maplayer_is_rejected(self, mock_http_get, mock_patch):
+        """a table binds to a maplayer, so the dataset has to be on the map"""
+        mock_http_get.return_value = _map_detail_with_table_layer()
+        result = self._handler().add_widget(pk=42, widget_type="table", maplayer=999)
+        self.assertIsNone(result)
+        mock_patch.assert_not_called()
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_table_requires_a_dataset(self, mock_http_get, mock_patch):
+        mock_http_get.return_value = _map_detail_with_table_layer()
+        result = self._handler().add_widget(pk=42, widget_type="table", title="t")
+        self.assertIsNone(result)
+        mock_patch.assert_not_called()
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_text_flag_is_rejected_for_a_table(self, mock_http_get, mock_patch):
+        mock_http_get.return_value = _map_detail_with_table_layer()
+        result = self._handler().add_widget(
+            pk=42, widget_type="table", maplayer=101, text="<p>nope</p>"
+        )
+        self.assertIsNone(result)
+        mock_patch.assert_not_called()
+
+    @patch.object(GeonodeMapsHandler, "patch")
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_table_flags_are_rejected_for_a_textbox(self, mock_http_get, mock_patch):
+        mock_http_get.return_value = _map_detail_with_table_layer()
+        for kwargs in (
+            {"maplayer": 101},
+            {"attributes": ["fid"]},
+            {"attribute_ids": [63]},
+            # MapStore does not show a description on a text widget
+            {"description": "nope"},
+        ):
+            result = self._handler().add_widget(
+                pk=42, widget_type="textbox", title="t", text="x", **kwargs
+            )
+            self.assertIsNone(result, f"{kwargs} should have been rejected")
+        mock_patch.assert_not_called()
+
+    @patch("geonoderest.maps.GeonodeAttributeHandler")
+    @patch.object(GeonodeMapsHandler, "patch", return_value={"map": {"pk": 42}})
+    @patch.object(GeonodeMapsHandler, "http_get")
+    def test_table_is_bigger_than_a_textbox(
+        self, mock_http_get, mock_patch, mock_attrs
+    ):
+        """a 1x1 table shows nothing useful"""
+        mock_http_get.return_value = _map_detail_with_table_layer()
+        mock_attrs.return_value.get.return_value = ATTRIBUTE_SET
+
+        self._handler().add_widget(pk=42, widget_type="table", maplayer=101)
+        table = self._patched_widgets(mock_patch)[0]
+
+        self.assertEqual(
+            (table["dataGrid"]["w"], table["dataGrid"]["h"]),
+            (
+                GeonodeMapsHandler.WIDGET_DEFAULT_SIZE["table"]["w"],
+                GeonodeMapsHandler.WIDGET_DEFAULT_SIZE["table"]["h"],
+            ),
+        )
+        self.assertEqual(
+            GeonodeMapsHandler.WIDGET_DEFAULT_SIZE["text"], {"w": 1, "h": 1}
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
