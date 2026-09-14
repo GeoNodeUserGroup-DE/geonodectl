@@ -18,6 +18,7 @@ class GeonodeDatasetsHandler(GeonodeResourceHandler):
 
     ENDPOINT_NAME = JSON_OBJECT_NAME = "datasets"
     SINGULAR_RESOURCE_NAME = "dataset"
+    UUID_RESOURCE_TYPE = "dataset"
 
     LIST_CMDOUT_HEADER = [
         GeonodeCmdOutListKey(key="pk"),

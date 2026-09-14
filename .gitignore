@@ -134,6 +134,3 @@ dmypy.json
 # JSON
 /*.json
 
-
-# UV
-uv.lock

@@ -2,7 +2,8 @@ from typing import List, Dict, Optional
 import logging
 
 from geonoderest.geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
-from geonoderest.exceptions import InvalidPkError
+from geonoderest.exceptions import GeonodeUsageError, InvalidPkError
+from geonoderest.identifier import is_uuid
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.rest import GeonodeRest
 from geonoderest.jsonsource import JsonSourceError, load_json_source
@@ -52,24 +53,47 @@ class GeonodeObjectHandler(GeonodeRest):
 
     def __parse_pk_string__(self, pk) -> List[int]:
         """
-        differentiate between pk range, pk list or single pk
+        differentiate between a uuid, a pk range, a pk list and a single pk
 
         Args:
-            pk (str): pk of the object, as string with range or list or single pk
+            pk (str): identifier of the object(s) - a uuid, or a pk as a single
+                value, a range (``5-10``) or a list (``1,2,3``)
 
         Raises:
-            InvalidPkError: pk is not a single pk, a range or a list. Raised
-                rather than exiting so this stays usable as a library (#69);
-                the ``cmd_*`` caller turns it into EXIT_USAGE.
+            InvalidPkError: not a uuid and not a pk, range or list. Raised rather
+                than exiting so this stays usable as a library (#69); the
+                ``cmd_*`` caller turns it into EXIT_USAGE.
+            UuidTypeMismatchError: a uuid naming a different kind of object
+            ResourceNotFoundError: a uuid no object has
         """
 
         pk = str(pk)
+        # a uuid, which must be checked before the range branch below: a uuid
+        # contains dashes, so it would otherwise be read as a malformed range
+        if is_uuid(pk):
+            return [self.__resolve_identifier__(pk)]
+
+        # pk list: 1,2,3,4,5,6,7 - checked before the range branch, because a
+        # list of uuids contains both commas and dashes and "not an integer in a
+        # list" explains it far better than "not a range"
+        if "," in pk:
+            pk_list = pk.split(",")
+            if not all(x.isdigit() for x in pk_list):
+                raise InvalidPkError(
+                    f"Invalid pk {pk} found, not an integer ... "
+                    "(a uuid must be given on its own, not in a list)"
+                )
+            return [int(i) for i in pk_list]
+
         # pk range: 5-10
-        if "-" in pk:
+        elif "-" in pk:
             try:
                 pk_begin, pk_end = pk.split("-")
             except ValueError:
-                raise InvalidPkError(f"Invalid pk {pk} found, not a range ...")
+                raise InvalidPkError(
+                    f"Invalid pk {pk} found, not a range ... "
+                    "(a uuid must be given on its own, not in a range)"
+                )
             if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
                 raise InvalidPkError(f"Invalid pk {pk} found, not an integer ...")
             if int(pk_begin) > int(pk_end):
@@ -80,23 +104,18 @@ class GeonodeObjectHandler(GeonodeRest):
                 )
             return [i for i in range(int(pk_begin), int(pk_end) + 1)]
 
-        # pk list: 1,2,3,4,5,6,7
-        elif "," in pk:
-            pk_list = pk.split(",")
-            if not all(x.isdigit() for x in pk_list):
-                raise InvalidPkError(f"Invalid pk {pk} found, not an integer ...")
-            return [int(i) for i in pk_list]
-
         # single pk: 1
         else:
             if not pk.isdigit():
-                raise InvalidPkError(f"Invalid pk {pk}, is not an integer ...")
+                raise InvalidPkError(
+                    f"Invalid pk {pk}, is neither an integer nor a uuid ..."
+                )
             return [int(pk)]
 
     def cmd_delete(self, pk: str, **kwargs) -> int:
         try:
             pks = self.__parse_pk_string__(pk)
-        except InvalidPkError as e:
+        except GeonodeUsageError as e:
             logging.error(str(e))
             return EXIT_USAGE
 
@@ -139,7 +158,7 @@ class GeonodeObjectHandler(GeonodeRest):
         try:
             json_content = load_json_source(json_path=json_path, fields=fields)
             pks = self.__parse_pk_string__(pk)
-        except (JsonSourceError, InvalidPkError) as e:
+        except (JsonSourceError, GeonodeUsageError) as e:
             logging.error(str(e))
             return EXIT_USAGE
 
@@ -167,7 +186,7 @@ class GeonodeObjectHandler(GeonodeRest):
     def cmd_describe(self, pk: str, **kwargs) -> int:
         try:
             pks = self.__parse_pk_string__(pk)
-        except InvalidPkError as e:
+        except GeonodeUsageError as e:
             logging.error(str(e))
             return EXIT_USAGE
 

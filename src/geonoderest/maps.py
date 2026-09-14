@@ -22,6 +22,7 @@ OGC_WCS_LINK_TYPE = "OGC:WCS"
 class GeonodeMapsHandler(GeonodeResourceHandler):
     ENDPOINT_NAME = JSON_OBJECT_NAME = "maps"
     SINGULAR_RESOURCE_NAME = "map"
+    UUID_RESOURCE_TYPE = "map"
 
     LIST_CMDOUT_HEADER = [
         GeonodeCmdOutListKey(key="pk"),
@@ -36,7 +37,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         title: Path,
         fields: Optional[str] = None,
         json_path: Optional[str] = None,
-        maplayers: Optional[List[int]] = [],
+        maplayers=[],
         **kwargs,
     ) -> int:
         """
@@ -46,7 +47,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             title (str): title of the new object
             fields (str): string of potential json object
             json_path (str): path to a json file, or a http(s) url serving one
-            maplayers (List[int], optional): list of maplayer pks. Defaults to [].
+            maplayers (optional): list of dataset pks or uuids. Defaults to [].
 
         Returns:
             int: EXIT_OK, EXIT_FAILED when the map could not be created, or
@@ -60,6 +61,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
                 logging.error(str(e))
                 return EXIT_USAGE
 
+        maplayers = self.__resolve_identifiers__(maplayers, expected="dataset")
         obj = self.create(
             title=title, json_content=json_content, maplayers=maplayers, **kwargs
         )
@@ -403,12 +405,16 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
             return None
         return result.get("maplayers", [])
 
-    def cmd_get_blob(self, pk: int, **kwargs) -> int:
+    def cmd_get_blob(self, pk, **kwargs) -> int:
         """Print the MapStore blob JSON for a map to stdout.
+
+        Args:
+            pk: pk or uuid of the map
 
         Useful for inspection and shell pipelines:
           geonodectl maps get-blob 2073 | jq '.map.layers'
         """
+        pk = self.__resolve_identifier__(pk)
         blob = self.get_blob(pk=pk)
         if blob is None:
             # get_blob already reported why
@@ -416,7 +422,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         print_json(blob)
         return EXIT_OK
 
-    def cmd_set_blob(self, pk: int, json_path: Optional[str] = None, **kwargs) -> int:
+    def cmd_set_blob(self, pk, json_path: Optional[str] = None, **kwargs) -> int:
         """Replace the MapStore blob JSON for a map from a JSON file or URL.
 
         Args:
@@ -435,6 +441,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         if not json_path:
             logging.error("--json_path is required for set-blob")
             return EXIT_USAGE
+        pk = self.__resolve_identifier__(pk)
         try:
             blob = load_json_source(json_path=json_path)
         except JsonSourceError as e:
@@ -688,13 +695,14 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         # unwrap the dynamic-rest envelope, like create() does
         return result.get(self.SINGULAR_RESOURCE_NAME, result)
 
-    def cmd_maplayers_list(self, pk: int, **kwargs) -> int:
+    def cmd_maplayers_list(self, pk, **kwargs) -> int:
         """
         Show the maplayers of a map on the command line.
 
         Args:
-            pk (int): pk of the map
+            pk: pk or uuid of the map
         """
+        pk = self.__resolve_identifier__(pk)
         maplayers = self.get_maplayers(pk=pk)
         if maplayers is None:
             # get_maplayers already reported why
@@ -728,20 +736,23 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         )
         return EXIT_OK
 
-    def cmd_maplayers_add(self, pk: int, datasets: List[int] = [], **kwargs) -> int:
+    def cmd_maplayers_add(self, pk, datasets=[], **kwargs) -> int:
         """
         Add datasets as maplayers to an existing map.
 
         Args:
-            pk (int): pk of the map to modify
-            datasets (List[int]): list of dataset pks to add
+            pk: pk or uuid of the map to modify
+            datasets: list of dataset pks or uuids to add
 
         Example:
           geonodectl maps maplayers add 2073 36 42
         """
+        # checked before resolving, so an unset shell variable costs no HTTP call
         if len(datasets) == 0:
             logging.error("no datasets given to add, doing nothing ... ")
             return EXIT_USAGE
+        pk = self.__resolve_identifier__(pk)
+        datasets = self.__resolve_identifiers__(datasets, expected="dataset")
         obj = self.add_maplayers(pk=pk, datasets=datasets, **kwargs)
         if obj is None:
             # add_maplayers already reported why
@@ -749,20 +760,23 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         print_json(obj)
         return EXIT_OK
 
-    def cmd_maplayers_remove(self, pk: int, datasets: List[int] = [], **kwargs) -> int:
+    def cmd_maplayers_remove(self, pk, datasets=[], **kwargs) -> int:
         """
         Remove the maplayers pointing to the given datasets from an existing map.
 
         Args:
-            pk (int): pk of the map to modify
-            datasets (List[int]): list of dataset pks to remove
+            pk: pk or uuid of the map to modify
+            datasets: list of dataset pks or uuids to remove
 
         Example:
           geonodectl maps maplayers remove 2073 36
         """
+        # checked before resolving, so an unset shell variable costs no HTTP call
         if len(datasets) == 0:
             logging.error("no datasets given to remove, doing nothing ... ")
             return EXIT_USAGE
+        pk = self.__resolve_identifier__(pk)
+        datasets = self.__resolve_identifiers__(datasets, expected="dataset")
         obj = self.remove_maplayers(pk=pk, datasets=datasets, **kwargs)
         if obj is None:
             # remove_maplayers already reported why
@@ -1081,6 +1095,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         ):
             return None
 
+        # resolved only once the widget itself makes sense, so `--maplayer` on a
+        # textbox reports the wrong flag rather than a uuid type mismatch
+        pk = self.__resolve_identifier__(pk)
+        if maplayer is not None:
+            maplayer = self.__resolve_identifier__(maplayer, expected="dataset")
+
         # a table needs the maplayers too, to bind the widget to an existing blob layer
         detail = self.__get_map_detail__(pk)
         if detail is None:
@@ -1185,7 +1205,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         # unwrap the dynamic-rest envelope, like create() does
         return result.get(self.SINGULAR_RESOURCE_NAME, result)
 
-    def cmd_widgets_list(self, pk: int, **kwargs) -> int:
+    def cmd_widgets_list(self, pk, **kwargs) -> int:
         """
         Show the MapStore widgets of a map on the command line.
 
@@ -1195,6 +1215,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         Example:
           geonodectl maps widgets list 2073
         """
+        pk = self.__resolve_identifier__(pk)
         widgets = self.get_widgets(pk=pk)
         if widgets is None:
             # get_widgets already reported why
@@ -1219,12 +1240,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
 
     def cmd_widgets_add(
         self,
-        pk: int,
+        pk,
         widget_type: str = "textbox",
         title: Optional[str] = None,
         text: Optional[str] = None,
         description: Optional[str] = None,
-        maplayer: Optional[int] = None,
+        maplayer=None,
         attributes: Optional[List[str]] = None,
         attribute_ids: Optional[List[int]] = None,
         json_path: Optional[str] = None,
@@ -1234,12 +1255,12 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         Add a widget to an existing map.
 
         Args:
-            pk (int): pk of the map to modify
+            pk: pk or uuid of the map to modify
             widget_type (str): widget type, textbox or table
             title (str): widget title
             text (str): widget body, HTML allowed
             description (str): table description, shown behind the widget info tool
-            maplayer (int): dataset pk of the maplayer a table reads its
+            maplayer: dataset pk or uuid of the maplayer a table reads its
                 features from, the same way maps maplayers add takes them
             attributes (List[str]): attribute names to show as table columns
             attribute_ids (List[int]): attribute pks to show as table columns
@@ -1269,7 +1290,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         print_json(obj)
         return EXIT_OK
 
-    def cmd_widgets_describe(self, pk: int, widget_id: str, **kwargs) -> int:
+    def cmd_widgets_describe(self, pk, widget_id: str, **kwargs) -> int:
         """
         Show a single widget of a map.
 
@@ -1280,6 +1301,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         Example:
           geonodectl maps widgets describe 2073 3fa85f64-5717-4562-b3fc-2c963f66afa6
         """
+        pk = self.__resolve_identifier__(pk)
         widgets = self.get_widgets(pk=pk)
         if widgets is None:
             # get_widgets already reported why
@@ -1292,7 +1314,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         logging.error(f"map {pk} has no widget with id {widget_id}")
         return EXIT_FAILED
 
-    def cmd_widgets_remove(self, pk: int, widget_id: str, **kwargs) -> int:
+    def cmd_widgets_remove(self, pk, widget_id: str, **kwargs) -> int:
         """
         Remove a widget from an existing map.
 
@@ -1303,6 +1325,7 @@ class GeonodeMapsHandler(GeonodeResourceHandler):
         Example:
           geonodectl maps widgets remove 2073 3fa85f64-5717-4562-b3fc-2c963f66afa6
         """
+        pk = self.__resolve_identifier__(pk)
         obj = self.remove_widget(pk=pk, widget_id=widget_id, **kwargs)
         if obj is None:
             # remove_widget already reported why

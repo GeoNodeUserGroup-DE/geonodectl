@@ -8,6 +8,13 @@ class GeoNodeRestException(Exception):
     pass
 
 
+class ResourceNotFoundError(GeoNodeRestException):
+    """No object exists with the given uuid.
+
+    A failed lookup, like a 404 on a pk - ``EXIT_FAILED``, not ``EXIT_USAGE``.
+    """
+
+
 class GeonodeUsageError(ValueError):
     """The command cannot be carried out as asked - bad or missing arguments.
 
@@ -22,7 +29,15 @@ class GeonodeUsageError(ValueError):
 
 
 class InvalidPkError(GeonodeUsageError):
-    """A pk argument is not a single pk, a range (``5-10``) or a list (``1,2,3``)."""
+    """An identifier is not a pk, a range (``5-10``), a list (``1,2,3``) or a uuid."""
+
+
+class UuidTypeMismatchError(GeonodeUsageError):
+    """A uuid resolved, but to a different kind of object than the command is about.
+
+    ``geonodectl dataset describe <uuid-of-a-map>`` - the uuid is real, the verb
+    is wrong, so this is a usage error rather than a failed lookup (#160).
+    """
 
 
 class MissingArgumentError(GeonodeUsageError):

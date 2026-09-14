@@ -184,6 +184,20 @@ geonodectl --raw dataset validate 2162 --json_schema ./dataset-schema.json
 Worked example schemas live in [json-examples/schemas/](json-examples/schemas/); see
 [docs/validate.md](docs/validate.md) for details.
 
+### Identifiers: pk or uuid
+
+Anywhere an object is named you can give its pk or its uuid — `geonodectl` works out which and
+resolves a uuid internally, refusing one that belongs to a different kind of object:
+
+```bash
+geonodectl dataset describe 2162
+geonodectl dataset describe 550e8400-e29b-41d4-a716-446655440000
+geonodectl maps maplayers add <map-uuid> <dataset-uuid> 42
+```
+
+Users and groups are not GeoNode resources and stay pk-only. A uuid is given on its own; ranges
+and comma lists remain integer-only. See [docs/identifiers.md](docs/identifiers.md).
+
 ### Exit codes
 
 Every command reports its outcome through its exit code, so `$?` is enough to drive a script

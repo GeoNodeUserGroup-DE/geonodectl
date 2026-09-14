@@ -4,10 +4,10 @@ import logging
 
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
-from geonoderest.exceptions import GeoNodeRestException
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 from geonoderest.cmdprint import print_json, show_list
-from geonoderest.exceptions import InvalidPkError
+from geonoderest.identifier import ANY_RESOURCE_TYPE
+from geonoderest.exceptions import GeonodeUsageError
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.validate import (
     SchemaLoadError,
@@ -29,6 +29,8 @@ DEFAULT_METADATA_TYPE: str = "ISO"
 class GeonodeResourceHandler(GeonodeObjectHandler):
     ENDPOINT_NAME = JSON_OBJECT_NAME = "resources"
     SINGULAR_RESOURCE_NAME = "resource"
+    # these verbs span every resource type, so any uuid resolves
+    UUID_RESOURCE_TYPE = ANY_RESOURCE_TYPE
 
     LIST_CMDOUT_HEADER = [
         GeonodeCmdOutListKey(key="pk"),
@@ -43,17 +45,18 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
         return self.http_delete(endpoint=f"resources/{pk}/delete")
 
     def cmd_metadata(
-        self, pk: int, metadata_type: str = DEFAULT_METADATA_TYPE, **kwargs
+        self, pk, metadata_type: str = DEFAULT_METADATA_TYPE, **kwargs
     ) -> int:
         """show metadata on cmdline
 
         Args:
-            pk (int): pk id of the resource to get the metadata from
+            pk: pk or uuid of the resource to get the metadata from
             metadata_type (str, optional): metadatatype to get metadata in. Must be in SUPPORTED_METADATA_TYPES
 
         Returns:
             int: EXIT_OK, or EXIT_FAILED when the metadata could not be fetched
         """
+        pk = self.__resolve_identifier__(pk)
         r = self.metadata(pk=pk, metadata_type=metadata_type, **kwargs)
         if r is None:
             logging.error("metadata download failed ... ")
@@ -63,22 +66,33 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
 
     def metadata(
         self, pk: int, metadata_type: str = DEFAULT_METADATA_TYPE, **kwargs
-    ) -> requests.models.Response:
+    ) -> Optional[requests.models.Response]:
         """download metadata for a resource in a specified format
 
         Args:
             pk (int): pk id of the resource to get the metadata from
             metadata_type (str, optional): metadatatype to get metadata in. Must be in SUPPORTED_METADATA_TYPES
-        Raises:
-            KeyError: if metadata_type is not in SUPPORTED_METADATA_TYPES
         Returns:
-            response (object): requests response obj of metadata
+            Optional[Response]: the metadata response, or None when the resource
+                could not be fetched or carries no link of that type - reported
+                rather than raised, so cmd_metadata can turn it into an exit code
         """
-        r = self.http_get(endpoint=f"resources/{pk}")["resource"]
+        response = self.http_get(endpoint=f"resources/{pk}")
+        if response is None:
+            return None
+        r = response.get("resource")
+        if r is None:
+            logging.error(f"unexpected API response for resource {pk} ...")
+            return None
 
-        link: str
-        link = [m for m in r["links"] if m["name"] == metadata_type][0]["url"]
-        return self.http_get_download(link)
+        links = [m for m in r.get("links", []) if m.get("name") == metadata_type]
+        if not links:
+            logging.error(
+                f"resource {pk} has no {metadata_type} metadata link - "
+                f"available: {', '.join(m.get('name', '?') for m in r.get('links', []))}"
+            )
+            return None
+        return self.http_get_download(links[0]["url"])
 
     def validate(self, pk: int, validator, **kwargs) -> Optional[List[Dict]]:
         """validate a single object's metadata against a prepared validator
@@ -120,7 +134,7 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
             schema = load_schema(json_schema)
             validator = build_validator(schema, json_schema)
             pks = self.__parse_pk_string__(pk)
-        except (SchemaLoadError, InvalidPkError) as e:
+        except (SchemaLoadError, GeonodeUsageError) as e:
             logging.error(str(e))
             return EXIT_USAGE
 

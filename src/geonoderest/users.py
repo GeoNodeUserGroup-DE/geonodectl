@@ -285,7 +285,7 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         self,
         pk: int,
         new_owner: int,
-        resources: Optional[List[int]] = None,
+        resources=None,
         **kwargs,
     ) -> int:
         """hand resources of a user over to another user and print the result
@@ -293,12 +293,17 @@ class GeonodeUsersHandler(GeonodeObjectHandler):
         Args:
             pk (int): id of the user currently owning the resources
             new_owner (int): id of the user to hand them to
-            resources (Optional[List[int]]): ids of the resources to move,
-                                             all of the users resources if left out
+            resources (optional): pks or uuids of the resources to move,
+                                  all of the users resources if left out
 
         Returns:
             int: EXIT_OK, or EXIT_FAILED when the transfer was rejected
         """
+        # users have no uuid, but the resources they own do
+        if resources is not None:
+            resources = GeonodeResourceHandler(
+                env=self.gn_credentials
+            ).__resolve_identifiers__(resources)
         obj = self.transfer_resources(
             pk=pk, new_owner=new_owner, resources=resources, **kwargs
         )
