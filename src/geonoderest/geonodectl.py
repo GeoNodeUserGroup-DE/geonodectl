@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import argparse
-from typing import Union
+from typing import Optional, Union
 from argparse import RawTextHelpFormatter
 from pathlib import Path
 
@@ -96,6 +96,118 @@ class kwargs_append_action(argparse.Action):
         setattr(args, self.dest, d)
 
 
+# ---------------------------------------------------------------------------
+# Argument helpers
+#
+# The same handful of arguments - an identifier, the list filters, --set - are
+# taken by most verbs, and each used to be spelled out at every call site. That
+# had grown to ~39 copies of the pk argument alone, with the wording drifting
+# between them (#163). Each shape is defined once here; what genuinely differs
+# per verb is passed in.
+# ---------------------------------------------------------------------------
+
+#: how an identifier argument that accepts a range or a list describes itself.
+#: the uuid form is only offered for objects that actually have one (#160).
+PK_RANGE_HINT = "single '1', range '1-5', list '1,2,3'"
+PK_RANGE_HINT_UUID = f"uuid, {PK_RANGE_HINT}"
+
+
+def add_pk_arg(
+    target,
+    noun: str,
+    verb: Optional[str] = None,
+    multiple: bool = False,
+    uuid: bool = True,
+    metavar: Optional[str] = None,
+):
+    """add the positional identifier argument a verb acts on
+
+    Args:
+        target: the parser to add the argument to
+        noun (str): what is addressed, singular, e.g. "dataset", "map"
+        verb (str): what is done to it, e.g. "describe", "fetch blob from".
+            None when the verb is obvious from the command itself.
+        multiple (bool): a range or comma list is accepted as well as one value
+        uuid (bool): the object has a uuid, so either identifier is accepted.
+            False for users and groups, which are not GeoNode resources (#160).
+        metavar (str): override how the argument is shown in the usage line
+    """
+    kind = "pk or uuid" if uuid else "pk"
+    subject = f"{noun}(s)" if multiple else noun
+    if verb is None:
+        text = f"{kind} of {subject} ..."
+    elif multiple:
+        hint = PK_RANGE_HINT_UUID if uuid else PK_RANGE_HINT
+        text = f"{kind} of {subject} to {verb} ({hint}) ..."
+    else:
+        text = f"{kind} of {subject} to {verb}"
+    kwargs = {"metavar": metavar} if metavar else {}
+    target.add_argument(type=str if uuid else int, dest="pk", help=text, **kwargs)
+
+
+def add_list_args(
+    target,
+    noun: str,
+    ordering_default: str,
+    search_example: str,
+    filter_example: Optional[str] = None,
+    ordering_example: str = "title",
+):
+    """add the ``--ordering``/``--search``/``--filter`` trio a list verb takes
+
+    Args:
+        target: the list parser to add the arguments to
+        noun (str): plural name used in the help texts, e.g. "datasets"
+        ordering_default (str): field the endpoint sorts by by default
+        search_example (str): a plausible ``--search`` term for this noun
+        filter_example (str): a plausible ``--filter`` expression; when omitted
+            the verb gets no ``--filter`` at all
+        ordering_example (str): a field worth ordering by, for the help text
+    """
+    target.add_argument(
+        "--ordering",
+        dest="ordering",
+        default=ordering_default,
+        type=str,
+        help=f"Which field to use when ordering the results. "
+        f"--ordering {ordering_example} (default: {ordering_default})",
+    )
+    target.add_argument(
+        "--search",
+        dest="search",
+        type=str,
+        required=False,
+        help=f"A search term to filter the results by. --search {search_example}",
+    )
+    if filter_example is not None:
+        target.add_argument(
+            "--filter",
+            nargs="*",
+            action=kwargs_append_action,
+            dest="filter",
+            type=str,
+            help=f"filter {noun} by key value pairs. E.g. --filter {filter_example}",
+        )
+
+
+def add_fields_arg(target, action: str, example: str, note: str = ""):
+    """add the ``--set`` argument that takes an inline json string
+
+    Args:
+        target: a parser or a mutually exclusive group
+        action (str): what the json does, e.g. "patch metadata"
+        example (str): a json string showing the shape, without quotes
+        note (str): extra remark appended to the help text
+    """
+    suffix = f" ... ({note})" if note else ""
+    target.add_argument(
+        "--set",
+        dest="fields",
+        type=str,
+        help=f"{action} by providing a json string like: '{example}'{suffix}",
+    )
+
+
 def add_json_source_args(
     target, subject: str, note: str = "", dashed_alias: bool = False
 ):
@@ -137,11 +249,7 @@ def add_validate_parser(subparsers, noun: str):
     validate = subparsers.add_parser(
         "validate", help=f"validate {noun} metadata against a JSON schema"
     )
-    validate.add_argument(
-        type=str,
-        dest="pk",
-        help=f"pk or uuid of {noun}(s) to validate (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
+    add_pk_arg(validate, noun, "validate", multiple=True)
     validate.add_argument(
         "--json_schema",
         dest="json_schema",
@@ -258,46 +366,27 @@ To use this tool you have to set the following environment variables before star
 
     # LIST
     resource_list = resource_subparsers.add_parser("list", help="list resource")
-    resource_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="date_updated",
-        type=str,
-        help="Which field to use when ordering the results. --ordering title (default: date_updated)",
+    add_list_args(
+        resource_list,
+        "resources",
+        ordering_default="date_updated",
+        search_example="uuid",
     )
-    resource_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search uuid",
-    )
-
     # DELETE
     resource_delete = resource_subparsers.add_parser("delete", help="delete resource")
-    resource_delete.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of resource(s) to delete (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-
+    add_pk_arg(resource_delete, "resource", "delete", multiple=True)
     # METADATA
     resource_metadata = resource_subparsers.add_parser(
         "metadata", help="download metadata for resource"
     )
-    resource_metadata.add_argument(
-        type=str,
-        dest="pk",
-        metavar="{pk}",
-        help="pk or uuid of resource to show metadata",
-    )
+    add_pk_arg(resource_metadata, "resource", "show metadata", metavar="{pk}")
     resource_metadata.add_argument(
         "--metadata-type",
         type=str,
         dest="metadata_type",
         choices=SUPPORTED_METADATA_TYPES,
         default=DEFAULT_METADATA_TYPE,
-        help="pk or uuid of resource to show metadata",
+        help=f"metadata format to download (default: {DEFAULT_METADATA_TYPE})",
     )
 
     # VALIDATE
@@ -319,10 +408,7 @@ To use this tool you have to set the following environment variables before star
         "delete",
         help="pks of resource to delete linked-resource from linked-to",
     )
-    linked_resource_delete_subparser.add_argument(
-        type=str, dest="pk", help="pk or uuid of the resource ..."
-    )
-
+    add_pk_arg(linked_resource_delete_subparser, "the resource")
     linked_resource_delete_subparser.add_argument(
         "--linked-to",
         nargs="+",
@@ -337,10 +423,7 @@ To use this tool you have to set the following environment variables before star
         "add",
         help="pks of resources to add linked-resource as linked-to",
     )
-    linked_resource_add_subparser.add_argument(
-        type=str, dest="pk", help="pk or uuid of the resource ..."
-    )
-
+    add_pk_arg(linked_resource_add_subparser, "the resource")
     linked_resource_add_subparser.add_argument(
         "--linked-to",
         nargs="+",
@@ -355,10 +438,7 @@ To use this tool you have to set the following environment variables before star
         "describe",
         help="list linked_resource of resource",
     )
-    linked_resource_describe_subparser.add_argument(
-        type=str, dest="pk", help="pk or uuid of the resource ..."
-    )
-
+    add_pk_arg(linked_resource_describe_subparser, "the resource")
     ####################################
     # ATTRIBUTE_TABLE ARGUMENT PARSING #
     ####################################
@@ -377,28 +457,19 @@ To use this tool you have to set the following environment variables before star
     attributes_describe = attributes_subparsers.add_parser(
         "describe", help="describe attribute table"
     )
-    attributes_describe.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of the dataset to describe attributes of ...",
-    )
-
+    add_pk_arg(attributes_describe, "dataset", "describe attributes of")
     # PATCH
     attributes_patch = attributes_subparsers.add_parser(
         "patch", help="patch attributes parameter values"
     )
-    attributes_patch.add_argument(
-        type=str, dest="pk", help="pk or uuid of dataset to patch"
-    )
+    add_pk_arg(attributes_patch, "dataset", "patch")
     attributes_patch_mutually_exclusive_group = (
         attributes_patch.add_mutually_exclusive_group()
     )
-    attributes_patch_mutually_exclusive_group.add_argument(
-        "--set",
-        dest="fields",
-        type=str,
-        # TODO change example
-        help='patch parameters by providing a json string like: \'{"category":{"identifier": "farming"}}\'',
+    add_fields_arg(
+        attributes_patch_mutually_exclusive_group,
+        "patch parameters",
+        '{"category": {"identifier": "farming"}}',
     )
     add_json_source_args(
         attributes_patch_mutually_exclusive_group, "the patch parameters"
@@ -419,29 +490,13 @@ To use this tool you have to set the following environment variables before star
 
     # LIST
     datasets_list = datasets_subparsers.add_parser("list", help="list datasets")
-    datasets_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter datasets by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
+    add_list_args(
+        datasets_list,
+        "datasets",
+        ordering_default="date_updated",
+        search_example="water",
+        filter_example="is_published=true owner.username=admin, or --filter title=test",
     )
-    datasets_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="date_updated",
-        type=str,
-        help="Which field to use when ordering the results. --ordering title (default: date_updated)",
-    )
-    datasets_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search water",
-    )
-
     # UPLOAD
     datasets_upload = datasets_subparsers.add_parser(
         "upload", help="upload new datasets"
@@ -498,44 +553,28 @@ To use this tool you have to set the following environment variables before star
     datasets_patch = datasets_subparsers.add_parser(
         "patch", help="patch datasets metadata"
     )
-    datasets_patch.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of dataset(s) to patch (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
+    add_pk_arg(datasets_patch, "dataset", "patch", multiple=True)
     datasets_patch_mutually_exclusive_group = (
         datasets_patch.add_mutually_exclusive_group()
     )
 
-    datasets_patch_mutually_exclusive_group.add_argument(
-        "--set",
-        dest="fields",
-        type=str,
-        help='patch metadata by providing a json string like: \'{"category":{"identifier": "farming"}}\'',
+    add_fields_arg(
+        datasets_patch_mutually_exclusive_group,
+        "patch metadata",
+        '{"category": {"identifier": "farming"}}',
     )
-
     add_json_source_args(datasets_patch_mutually_exclusive_group, "the metadata")
 
     # DESCRIBE
     datasets_describe = datasets_subparsers.add_parser(
         "describe", help="get dataset details"
     )
-    datasets_describe.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of dataset(s) to describe (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-
+    add_pk_arg(datasets_describe, "dataset", "describe", multiple=True)
     # DELETE
     datasets_delete = datasets_subparsers.add_parser(
         "delete", help="delete existing datasets"
     )
-    datasets_delete.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of dataset(s) to delete (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-
+    add_pk_arg(datasets_delete, "dataset", "delete", multiple=True)
     # VALIDATE
     add_validate_parser(datasets_subparsers, "dataset")
 
@@ -552,30 +591,13 @@ To use this tool you have to set the following environment variables before star
 
     # LIST
     documents_list = documents_subparsers.add_parser("list", help="list documents")
-    documents_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter document by key value pairs. E.g. --filter \
-          is_published=true owner.username=admin, or --filter title=test",
+    add_list_args(
+        documents_list,
+        "document",
+        ordering_default="date_updated",
+        search_example="water",
+        filter_example="is_published=true owner.username=admin, or --filter title=test",
     )
-    documents_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="date_updated",
-        type=str,
-        help="Which field to use when ordering the results. --ordering title (default: date_updated)",
-    )
-    documents_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search water",
-    )
-
     # UPLOAD
     documents_upload = documents_subparsers.add_parser(
         "upload", help="upload new datasets"
@@ -601,20 +623,15 @@ To use this tool you have to set the following environment variables before star
     documents_patch = documents_subparsers.add_parser(
         "patch", help="patch documents metadata"
     )
-    documents_patch.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of document(s) to patch (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
+    add_pk_arg(documents_patch, "document", "patch", multiple=True)
     documents_patch_mutually_exclusive_group = (
         documents_patch.add_mutually_exclusive_group()
     )
 
-    documents_patch_mutually_exclusive_group.add_argument(
-        "--set",
-        dest="fields",
-        type=str,
-        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
+    add_fields_arg(
+        documents_patch_mutually_exclusive_group,
+        "patch metadata",
+        '{"category": {"identifier": "farming"}}',
     )
     add_json_source_args(documents_patch_mutually_exclusive_group, "the metadata")
 
@@ -622,22 +639,12 @@ To use this tool you have to set the following environment variables before star
     documents_describe = documents_subparsers.add_parser(
         "describe", help="get document details"
     )
-    documents_describe.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of document(s) to describe (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-
+    add_pk_arg(documents_describe, "document", "describe", multiple=True)
     # DELETE
     documents_delete = documents_subparsers.add_parser(
         "delete", help="delete existing document"
     )
-    documents_delete.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of document(s) to delete (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-
+    add_pk_arg(documents_delete, "document", "delete", multiple=True)
     # VALIDATE
     add_validate_parser(documents_subparsers, "document")
 
@@ -650,63 +657,31 @@ To use this tool you have to set the following environment variables before star
     )
     # LIST
     maps_list = maps_subparsers.add_parser("list", help="list documents")
-    maps_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter maps by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
+    add_list_args(
+        maps_list,
+        "maps",
+        ordering_default="date_updated",
+        search_example="water",
+        filter_example="is_published=true owner.username=admin, or --filter title=test",
     )
-    maps_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="date_updated",
-        type=str,
-        help="Which field to use when ordering the results. --ordering title (default: date_updated)",
-    )
-
-    maps_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search water",
-    )
-
     # PATCH
     maps_patch = maps_subparsers.add_parser("patch", help="patch maps metadata")
-    maps_patch.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of map(s) to patch (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
+    add_pk_arg(maps_patch, "map", "patch", multiple=True)
     maps_patch_mutually_exclusive_group = maps_patch.add_mutually_exclusive_group()
 
-    maps_patch_mutually_exclusive_group.add_argument(
-        "--set",
-        dest="fields",
-        type=str,
-        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
+    add_fields_arg(
+        maps_patch_mutually_exclusive_group,
+        "patch metadata",
+        '{"category": {"identifier": "farming"}}',
     )
     add_json_source_args(maps_patch_mutually_exclusive_group, "the metadata")
 
     # DESCRIBE
     maps_describe = maps_subparsers.add_parser("describe", help="get map details")
-    maps_describe.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of map(s) to describe (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-
+    add_pk_arg(maps_describe, "map", "describe", multiple=True)
     # DELETE
     maps_delete = maps_subparsers.add_parser("delete", help="delete existing map")
-    maps_delete.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of map(s) to delete (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-
+    add_pk_arg(maps_delete, "map", "delete", multiple=True)
     # CREATE
     maps_create = maps_subparsers.add_parser("create", help="create an (empty) map")
 
@@ -717,14 +692,11 @@ To use this tool you have to set the following environment variables before star
         dest="title",
         help="title of the new dataset ...",
     )
-    maps_create_mutually_exclusive_group.add_argument(
-        "--set",
-        dest="fields",
-        type=str,
-        help='add metadata by providing a json string like: \
-          \'\'{ "category": {"identifier": "farming"}, "abstract": "test abstract" }\'\'',
+    add_fields_arg(
+        maps_create_mutually_exclusive_group,
+        "add metadata",
+        '{"category": {"identifier": "farming"}, "abstract": "test abstract"}',
     )
-
     add_json_source_args(maps_create_mutually_exclusive_group, "the metadata")
 
     maps_create.add_argument(
@@ -739,15 +711,12 @@ To use this tool you have to set the following environment variables before star
     maps_get_blob = maps_subparsers.add_parser(
         "get-blob", help="print the MapStore blob JSON for a map (pipe-friendly)"
     )
-    maps_get_blob.add_argument(
-        type=str, dest="pk", help="pk or uuid of map to fetch blob from"
-    )
-
+    add_pk_arg(maps_get_blob, "map", "fetch blob from")
     # SET-BLOB
     maps_set_blob = maps_subparsers.add_parser(
         "set-blob", help="replace the MapStore blob JSON for a map from a file"
     )
-    maps_set_blob.add_argument(type=str, dest="pk", help="pk or uuid of map to update")
+    add_pk_arg(maps_set_blob, "map", "update")
     maps_set_blob.add_argument(
         "--json_path",
         dest="json_path",
@@ -769,16 +738,11 @@ To use this tool you have to set the following environment variables before star
     maps_maplayers_list = maps_maplayers_subparsers.add_parser(
         "list", help="list the maplayers of a map"
     )
-    maps_maplayers_list.add_argument(
-        type=str, dest="pk", help="pk or uuid of map to list maplayers of"
-    )
-
+    add_pk_arg(maps_maplayers_list, "map", "list maplayers of")
     maps_maplayers_add = maps_maplayers_subparsers.add_parser(
         "add", help="add datasets as maplayers to an existing map"
     )
-    maps_maplayers_add.add_argument(
-        type=str, dest="pk", help="pk or uuid of map to modify"
-    )
+    add_pk_arg(maps_maplayers_add, "map", "modify")
     maps_maplayers_add.add_argument(
         nargs="+",
         type=str,
@@ -789,9 +753,7 @@ To use this tool you have to set the following environment variables before star
     maps_maplayers_remove = maps_maplayers_subparsers.add_parser(
         "remove", help="remove maplayers from an existing map"
     )
-    maps_maplayers_remove.add_argument(
-        type=str, dest="pk", help="pk or uuid of map to modify"
-    )
+    add_pk_arg(maps_maplayers_remove, "map", "modify")
     maps_maplayers_remove.add_argument(
         nargs="+",
         type=str,
@@ -812,16 +774,11 @@ To use this tool you have to set the following environment variables before star
     maps_widgets_list = maps_widgets_subparsers.add_parser(
         "list", help="list the widgets of a map"
     )
-    maps_widgets_list.add_argument(
-        type=str, dest="pk", help="pk or uuid of map to list widgets of"
-    )
-
+    add_pk_arg(maps_widgets_list, "map", "list widgets of")
     maps_widgets_add = maps_widgets_subparsers.add_parser(
         "add", help="add a widget to an existing map"
     )
-    maps_widgets_add.add_argument(
-        type=str, dest="pk", help="pk or uuid of map to modify"
-    )
+    add_pk_arg(maps_widgets_add, "map", "modify")
     maps_widgets_add.add_argument(
         nargs="?",
         default="textbox",
@@ -883,9 +840,7 @@ To use this tool you have to set the following environment variables before star
     maps_widgets_describe = maps_widgets_subparsers.add_parser(
         "describe", help="show a single widget of a map"
     )
-    maps_widgets_describe.add_argument(
-        type=str, dest="pk", help="pk or uuid of map the widget belongs to"
-    )
+    add_pk_arg(maps_widgets_describe, "map", "describe a widget of")
     maps_widgets_describe.add_argument(
         type=str, dest="widget_id", help="id of the widget to describe"
     )
@@ -893,9 +848,7 @@ To use this tool you have to set the following environment variables before star
     maps_widgets_remove = maps_widgets_subparsers.add_parser(
         "remove", help="remove a widget from an existing map"
     )
-    maps_widgets_remove.add_argument(
-        type=str, dest="pk", help="pk or uuid of map to modify"
-    )
+    add_pk_arg(maps_widgets_remove, "map", "modify")
     maps_widgets_remove.add_argument(
         type=str, dest="widget_id", help="id of the widget to remove"
     )
@@ -1016,71 +969,38 @@ To use this tool you have to set the following environment variables before star
 
     # LIST
     geoapps_list = geoapps_subparsers.add_parser("list", help="list geoapps")
-    geoapps_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter geoapps by key value pairs. E.g. --filter is_published=true owner.username=admin, or --filter title=test",
+    add_list_args(
+        geoapps_list,
+        "geoapps",
+        ordering_default="date_updated",
+        search_example="water",
+        filter_example="is_published=true owner.username=admin, or --filter title=test",
     )
-    geoapps_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="date_updated",
-        type=str,
-        help="Which field to use when ordering the results. --ordering title (default: date_updated)",
-    )
-    geoapps_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search water",
-    )
-
     # PATCH
     geoapps_patch = geoapps_subparsers.add_parser(
         "patch", help="patch geoapps metadata"
     )
-    geoapps_patch.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of geoapp(s) to patch (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-
+    add_pk_arg(geoapps_patch, "geoapp", "patch", multiple=True)
     geoapps_patch_mutually_exclusive_group = (
         geoapps_patch.add_mutually_exclusive_group()
     )
-    geoapps_patch_mutually_exclusive_group.add_argument(
-        "--set",
-        dest="fields",
-        type=str,
-        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
+    add_fields_arg(
+        geoapps_patch_mutually_exclusive_group,
+        "patch metadata",
+        '{"category": {"identifier": "farming"}}',
     )
-
     add_json_source_args(geoapps_patch_mutually_exclusive_group, "the metadata")
 
     # DESCRIBE
     geoapps_describe = geoapps_subparsers.add_parser(
         "describe", help="get geoapp details"
     )
-    geoapps_describe.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of geoapp(s) to describe (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-
+    add_pk_arg(geoapps_describe, "geoapp", "describe", multiple=True)
     # DELETE
     geoapps_delete = geoapps_subparsers.add_parser(
         "delete", help="delete existing geoapp"
     )
-    geoapps_delete.add_argument(
-        type=str,
-        dest="pk",
-        help="pk or uuid of geoapp(s) to delete (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-
+    add_pk_arg(geoapps_delete, "geoapp", "delete", multiple=True)
     # VALIDATE
     add_validate_parser(geoapps_subparsers, "geoapp")
 
@@ -1096,23 +1016,20 @@ To use this tool you have to set the following environment variables before star
 
     # PATCH
     users_patch = users_subparsers.add_parser("patch", help="patch users metadata")
-    users_patch.add_argument(type=int, dest="pk", help="pk of user to patch")
-
+    add_pk_arg(users_patch, "user", "patch", uuid=False)
     user_patch_mutually_exclusive_group = users_patch.add_mutually_exclusive_group()
-    user_patch_mutually_exclusive_group.add_argument(
-        "--set",
-        dest="fields",
-        type=str,
-        help='patch metadata by providing a json string like: \'{"category":"{"identifier": "farming"}}\'',
+    add_fields_arg(
+        user_patch_mutually_exclusive_group,
+        "patch metadata",
+        '{"category": {"identifier": "farming"}}',
     )
-
     add_json_source_args(
         user_patch_mutually_exclusive_group, "the metadata (user credentials)"
     )
 
     # DESCRIBE
     users_describe = users_subparsers.add_parser("describe", help="get users details")
-    users_describe.add_argument(type=int, dest="pk", help="pk of users to describe ...")
+    add_pk_arg(users_describe, "user", "describe", uuid=False)
     users_describe_subgroup = users_describe.add_mutually_exclusive_group(
         required=False
     )
@@ -1133,37 +1050,17 @@ To use this tool you have to set the following environment variables before star
 
     # LIST
     users_list = users_subparsers.add_parser("list", help="list documents")
-    users_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter users by key value pairs. E.g. --filter last_name=svenson or --filter username=svenson",
+    add_list_args(
+        users_list,
+        "users",
+        ordering_default="pk",
+        search_example="sven",
+        filter_example="last_name=svenson or --filter username=svenson",
+        ordering_example="username",
     )
-    users_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="pk",
-        type=str,
-        help="Which field to use when ordering the results. --ordering username (default: pk)",
-    )
-    users_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search sven",
-    )
-
     # DELETE
     users_delete = users_subparsers.add_parser("delete", help="delete existing user")
-    users_delete.add_argument(
-        type=str,
-        dest="pk",
-        help="pk of user(s) to delete (range '1-5',list '1,2,3,4,5', single '1') ...",
-    )
-
+    add_pk_arg(users_delete, "user", "delete", multiple=True, uuid=False)
     # CREATE
     users_create = users_subparsers.add_parser("create", help="create a new user")
     user_create_mutually_exclusive_group = users_create.add_mutually_exclusive_group()
@@ -1222,21 +1119,18 @@ To use this tool you have to set the following environment variables before star
         note="mutually exclusive [b]",
     )
 
-    user_create_mutually_exclusive_group.add_argument(
-        "--set",
-        dest="fields",
-        type=str,
-        help='create user by providing a json string like: \'{"username":"test_user", \
-        "email":"test_email@gmail.com", "first_name": "test_first_name", "last_name":"test_last_name",\
-        "is_staff": true, "is_superuser": true}\' ... (mutually exclusive [c])',
+    add_fields_arg(
+        user_create_mutually_exclusive_group,
+        "create user",
+        '{"username": "test_user", "email": "test@example.com", "first_name": "test_first_name", "last_name": "test_last_name", "is_staff": true, "is_superuser": true}',
+        note="mutually exclusive [c]",
     )
-
     # TRANSFER RESOURCES
     users_transfer_resources = users_subparsers.add_parser(
         "transfer_resources", help="hand resources of a user over to another user"
     )
-    users_transfer_resources.add_argument(
-        type=int, dest="pk", help="pk of the user currently owning the resources"
+    add_pk_arg(
+        users_transfer_resources, "the user currently owning the resources", uuid=False
     )
     users_transfer_resources.add_argument(
         "--new_owner",
@@ -1266,44 +1160,24 @@ To use this tool you have to set the following environment variables before star
 
     # LIST
     groups_list = groups_subparsers.add_parser("list", help="list groups")
-    groups_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter groups by key value pairs. E.g. --filter title=mygroup",
+    add_list_args(
+        groups_list,
+        "groups",
+        ordering_default="pk",
+        search_example="mygroup",
+        filter_example="title=mygroup",
     )
-    groups_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="pk",
-        type=str,
-        help="Which field to use when ordering the results. --ordering title (default: pk)",
-    )
-    groups_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search mygroup",
-    )
-
     # DESCRIBE
     groups_describe = groups_subparsers.add_parser("describe", help="get group details")
-    groups_describe.add_argument(
-        type=int, dest="pk", help="pk of group to describe ..."
-    )
-
+    add_pk_arg(groups_describe, "group", "describe", uuid=False)
     # PATCH
     groups_patch = groups_subparsers.add_parser("patch", help="patch group metadata")
-    groups_patch.add_argument(type=int, dest="pk", help="pk of group to patch")
+    add_pk_arg(groups_patch, "group", "patch", uuid=False)
     groups_patch_mutually_exclusive_group = groups_patch.add_mutually_exclusive_group()
-    groups_patch_mutually_exclusive_group.add_argument(
-        "--set",
-        dest="fields",
-        type=str,
-        help='patch metadata by providing a json string like: \'{"title": "new title"}\' ',
+    add_fields_arg(
+        groups_patch_mutually_exclusive_group,
+        "patch metadata",
+        '{"title": "new title"}',
     )
     add_json_source_args(groups_patch_mutually_exclusive_group, "the metadata")
 
@@ -1338,21 +1212,15 @@ To use this tool you have to set the following environment variables before star
         "the group data",
         note="mutually exclusive [b]",
     )
-    groups_create_mutually_exclusive_group.add_argument(
-        "--set",
-        dest="fields",
-        type=str,
-        help='create group by providing a json string like: \'{"title": "mygroup", "description": "my desc"}\' ... (mutually exclusive [c])',
+    add_fields_arg(
+        groups_create_mutually_exclusive_group,
+        "create group",
+        '{"title": "mygroup", "description": "my desc"}',
+        note="mutually exclusive [c]",
     )
-
     # DELETE
     groups_delete = groups_subparsers.add_parser("delete", help="delete existing group")
-    groups_delete.add_argument(
-        type=str,
-        dest="pk",
-        help="pk of group(s) to delete (range '1-5', list '1,2,3', single '1') ...",
-    )
-
+    add_pk_arg(groups_delete, "group", "delete", multiple=True, uuid=False)
     ###########################
     # UPLOAD ARGUMENT PARSING #
     ###########################
@@ -1363,29 +1231,13 @@ To use this tool you have to set the following environment variables before star
 
     # LIST
     uploads_list = uploads_subparsers.add_parser("list", help="list uploads")
-    uploads_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter uploads by key value pairs. E.g. --filter title=test",
+    add_list_args(
+        uploads_list,
+        "uploads",
+        ordering_default="date_updated",
+        search_example="uuid",
+        filter_example="title=test",
     )
-    uploads_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="date_updated",
-        type=str,
-        help="Which field to use when ordering the results. --ordering title",
-    )
-    uploads_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search uuid",
-    )
-
     #####################################
     # EXECUTIONREQUEST ARGUMENT PARSING #
     #####################################
@@ -1400,29 +1252,13 @@ To use this tool you have to set the following environment variables before star
     executionrequest_list = executionrequest_subparsers.add_parser(
         "list", help="list executionrequests"
     )
-    executionrequest_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter execution requests by key value pairs. E.g. --filter status=ready",
+    add_list_args(
+        executionrequest_list,
+        "execution requests",
+        ordering_default="created",
+        search_example="uuid",
+        filter_example="status=ready",
     )
-    executionrequest_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="created",
-        type=str,
-        help="Which field to use when ordering the results. --ordering title (default: created)",
-    )
-    executionrequest_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search uuid",
-    )
-
     # DESCRIBE
     executionrequest_describe = executionrequest_subparsers.add_parser(
         "describe", help="get executionrequest details"
@@ -1441,29 +1277,14 @@ To use this tool you have to set the following environment variables before star
 
     # LIST
     keywords_list = keywords_subparsers.add_parser("list", help="list keywords")
-    keywords_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter keywords requests by key value pairs. E.g. --filter name=soil",
+    add_list_args(
+        keywords_list,
+        "keywords requests",
+        ordering_default="id",
+        search_example="uuid",
+        filter_example="name=soil",
+        ordering_example="name",
     )
-    keywords_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="id",
-        type=str,
-        help="Which field to use when ordering the results. --ordering name (default: id)",
-    )
-    keywords_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search uuid",
-    )
-
     # DESCRIBE
     keywords_describe = keywords_subparsers.add_parser(
         "describe", help="get thesaurikeyword details"
@@ -1487,29 +1308,14 @@ To use this tool you have to set the following environment variables before star
     thesaurikeywords_list = thesaurikeywords_subparsers.add_parser(
         "list", help="list thesaurikeywords"
     )
-    thesaurikeywords_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter thesaurikeywords requests by key value pairs. E.g. --filter alt_label=soil",
+    add_list_args(
+        thesaurikeywords_list,
+        "thesaurikeywords requests",
+        ordering_default="keyword",
+        search_example="uuid",
+        filter_example="alt_label=soil",
+        ordering_example="keyword",
     )
-    thesaurikeywords_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="keyword",
-        type=str,
-        help="Which field to use when ordering the results. --ordering keyword (default: keyword)",
-    )
-    thesaurikeywords_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search uuid",
-    )
-
     # DESCRIBE
     thesaurikeywords_describe = thesaurikeywords_subparsers.add_parser(
         "describe", help="get thesaurikeyword details"
@@ -1535,29 +1341,14 @@ To use this tool you have to set the following environment variables before star
     thesaurikeywordlabels_list = thesaurikeywordlabels_subparsers.add_parser(
         "list", help="list thesaurikeywordlabels"
     )
-    thesaurikeywordlabels_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter thesaurikeywordlabels requests by key value pairs. E.g. --filter lang=de label=Abbau",
+    add_list_args(
+        thesaurikeywordlabels_list,
+        "thesaurikeywordlabels requests",
+        ordering_default="keyword",
+        search_example="uuid",
+        filter_example="lang=de label=Abbau",
+        ordering_example="keyword",
     )
-    thesaurikeywordlabels_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="keyword",
-        type=str,
-        help="Which field to use when ordering the results. --ordering keyword (default: keyword)",
-    )
-    thesaurikeywordlabels_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search uuid",
-    )
-
     # DESCRIBE
     hesaurikeywordlabels_describe = thesaurikeywordlabels_subparsers.add_parser(
         "describe", help="get thesaurikeywordlabels details"
