@@ -22,13 +22,18 @@ geonodectl tkeywords list
 geonodectl tkeywords describe 3
 ```
 
+With the `geonodectl-zalf` extension installed, `tkeywords list` also shows the `keyword`
+identifier the ZALF GeoNode backend returns.
+
 ---
 
-## Thesaurus keyword labels (`tkeywordlabels` / `thesaurikeywordlabels`)
+## Thesaurus keyword labels (`tkeywordlabels`)
 
-Language-specific labels for thesaurus keywords.
+Language-specific labels for thesaurus keywords. Vanilla GeoNode does not offer this endpoint,
+so the command comes from the `geonodectl-zalf` extension, see [extensions.md](extensions.md).
 
 ```bash
+pip install geonodectl-zalf
 geonodectl tkeywordlabels list
-geonodectl tkeywordlabels describe 8
+geonodectl tkeywordlabels describe soil
 ```

@@ -100,9 +100,23 @@ See [docs/example.md](docs/example.md) for worked examples.
 | `executionrequest` | `execrequest` | list, describe |
 | `keywords` | — | list, describe |
 | `tkeywords` | `thesaurikeywords` | list, describe |
-| `tkeywordlabels` | `thesaurikeywordlabels` | list, describe |
 | `linked-resources` | `linkedresources` | delete, add, describe |
 | `attributes` | `attr`, `attribute` | describe, patch |
+| `extensions` | — | list |
+
+### Commands from extensions
+
+geonodectl only ships commands that work against a vanilla GeoNode. Commands for a customised
+GeoNode come from extension packages, which plug into geonodectl as soon as they are installed.
+For example [geonodectl-zalf](https://github.com/zalf-rdm/geonodectl-extensions) adds `tkeywordlabels` and the keyword column of `tkeywords list`
+for the ZALF GeoNode backend.
+
+```bash
+pip install geonodectl-zalf
+geonodectl extensions list   # which extensions are installed, and did they load?
+```
+
+See [docs/extensions.md](docs/extensions.md) for how to write an extension.
 
 ### GeoServer commands
 
