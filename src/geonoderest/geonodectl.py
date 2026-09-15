@@ -4,14 +4,27 @@ import logging
 import os
 import sys
 import argparse
-from typing import Union
+from typing import List, Optional
 from argparse import RawTextHelpFormatter
 from pathlib import Path
 
 from geonoderest.apiconf import GeonodeApiConf
+from geonoderest.cliutils import (
+    AliasedSubParsersAction,
+    SubParsers,
+    add_json_source_args,
+    add_validate_parser,
+    kwargs_append_action,
+    route_subcommands,
+)
 from geonoderest.exceptions import GeoNodeRestException, GeonodeUsageError
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
-from geonoderest.geonodeobject import GeonodeObjectHandler
+from geonoderest.extensions import (
+    CommandRegistry,
+    CommandSpec,
+    GeonodeExtensionsHandler,
+    build_registry,
+)
 from geonoderest.datasets import GeonodeDatasetsHandler
 from geonoderest.resources import (
     GeonodeResourceHandler,
@@ -27,7 +40,6 @@ from geonoderest.uploads import GeonodeUploadsHandler
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 from geonoderest.keywords import GeonodeKeywordsRequestHandler
 from geonoderest.tkeywords import GeonodeThesauriKeywordsRequestHandler
-from geonoderest.tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
 from geonoderest.linkedresources import GeonodeLinkedResourcesHandler
 from geonoderest.attributes import GeonodeAttributeHandler
 from geonoderest.geoserver import (
@@ -45,112 +57,6 @@ GEONODECTL_BASIC_ENV_VAR: str = "GEONODE_API_BASIC_AUTH"
 DEFAULT_CHARSET: str = "UTF-8"
 DEFAULT_CMD_PAGE_SIZE: int = 80
 DEFAULT_CMD_PAGE: int = 1
-
-
-class AliasedSubParsersAction(argparse._SubParsersAction):
-    class _AliasedPseudoAction(argparse.Action):
-        def __init__(self, name, aliases, help):
-            dest = name
-            if aliases:
-                dest += " (%s)" % ",".join(aliases)
-            super(AliasedSubParsersAction._AliasedPseudoAction, self).__init__(
-                option_strings=[], dest=dest, help=help
-            )
-
-    def add_parser(self, name, **kwargs):
-        if "aliases" in kwargs:
-            aliases = kwargs["aliases"]
-            del kwargs["aliases"]
-        else:
-            aliases = []
-
-        parser = super(AliasedSubParsersAction, self).add_parser(name, **kwargs)
-
-        # Make the aliases work.
-        for alias in aliases:
-            self._name_parser_map[alias] = parser
-        # Make the help text reflect them, first removing old help entry.
-        if "help" in kwargs:
-            help = kwargs.pop("help")
-            self._choices_actions.pop()
-            pseudo_action = self._AliasedPseudoAction(name, aliases, help)
-            self._choices_actions.append(pseudo_action)
-
-        return parser
-
-
-class kwargs_append_action(argparse.Action):
-    """
-    argparse action to split an argument into KEY=VALUE form
-    on the first = and append to a dictionary.
-    """
-
-    def __call__(self, parser, args, values, option_string=None):
-        try:
-            d = dict(map(lambda x: x.split("="), values))
-        except ValueError as _:
-            raise argparse.ArgumentError(
-                self,
-                f'Could not parse argument "{values}" as field_name1=new_value1 field_name2=new_value2 ... format',
-            )
-        setattr(args, self.dest, d)
-
-
-def add_json_source_args(
-    target, subject: str, note: str = "", dashed_alias: bool = False
-):
-    """add the ``--json_path`` argument to a parser or argument group
-
-    The argument takes a local path or a http(s) url interchangeably, see #159.
-    It is defined once here instead of being repeated at each of the dozen call
-    sites, so the wording stays identical across every verb.
-
-    Args:
-        target: a parser or a mutually exclusive group to add the argument to
-        subject (str): what the json holds, used in the help text
-            (e.g. "the metadata", "the new blob")
-        note (str): extra remark appended to the help text
-        dashed_alias (bool): also accept the ``--json-path`` spelling, kept for
-            the verbs that already published it
-    """
-    flags = ["--json-path", "--json_path"] if dashed_alias else ["--json_path"]
-    suffix = f" ({note})" if note else ""
-    target.add_argument(
-        *flags,
-        dest="json_path",
-        type=str,
-        default=None,
-        help=f"read {subject} from a json file, given as a path or a http(s) url{suffix}",
-    )
-
-
-def add_validate_parser(subparsers, noun: str):
-    """add a `validate` subcommand to a resource's subparsers
-
-    The four resource types take an identical validate verb, so it is built once
-    here instead of being copied per resource.
-
-    Args:
-        subparsers: the resource's subparser group
-        noun (str): singular name of the resource, used in the help texts
-    """
-    validate = subparsers.add_parser(
-        "validate", help=f"validate {noun} metadata against a JSON schema"
-    )
-    validate.add_argument(
-        type=str,
-        dest="pk",
-        help=f"pk or uuid of {noun}(s) to validate (uuid, single '1', range '1-5', list '1,2,3') ...",
-    )
-    validate.add_argument(
-        "--json_schema",
-        dest="json_schema",
-        type=str,
-        required=True,
-        help="JSON Schema to validate the metadata against, given as a path or a \
-http(s) url, relative $refs inside it are resolved against it",
-    )
-    return validate
 
 
 def __exit_code__(returned) -> int:
@@ -185,73 +91,10 @@ def geonodectl() -> int:
         return EXIT_FAILED
 
 
-def __geonodectl__() -> int:
-    parser = argparse.ArgumentParser(
-        prog="geonodectl",
-        description=f"""geonodectl is a cmd client for the geonodev4 rest-apiv2.
-To use this tool you have to set the following environment variables before starting:
-
-{GEONODECTL_URL_ENV_VAR}: https://geonode.example.com/api/v2/ -- path to the v2 endpoint of your target geonode instance
-{GEONODECTL_BASIC_ENV_VAR}: YWRtaW46YWRtaW4= -- you can generate this string like: echo -n user:password | base64
-""",
-        formatter_class=RawTextHelpFormatter,
-    )
-
-    ####################
-    # GENERAL CMD ARGS #
-    ####################
-
-    # defining alias for add_parser https://gist.github.com/sampsyo/471779
-    parser.register("action", "parsers", AliasedSubParsersAction)
-    parser.add_argument(
-        "--not-verify-ssl",
-        dest="ssl_verify",
-        default=False,
-        action="store_true",
-        help="allow to request domains with unsecure ssl certificates ...",
-    )
-    parser.add_argument(
-        "--raw",
-        "--json",
-        dest="json",
-        default=False,
-        action="store_true",
-        help="return output as raw response json as it comes from the rest API",
-    )
-    parser.add_argument(
-        "--page-size",
-        dest="page_size",
-        default=DEFAULT_CMD_PAGE_SIZE,
-        type=int,
-        help="Number of results to return per page",
-    )
-    parser.add_argument(
-        "--page",
-        dest="page",
-        default=DEFAULT_CMD_PAGE,
-        type=int,
-        help=" A page number within the paginated result set",
-    )
-
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        dest="verbose",
-        action="store_true",
-        default=False,
-        help="Enable verbose output",
-    )
-
-    subparsers = parser.add_subparsers(
-        help="geonodectl commands", dest="command", required=True
-    )
-
-    #############################
-    # RESOURCE ARGUMENT PARSING #
-    #############################
-    resource = subparsers.add_parser(
-        "resources", help="resource commands", aliases=("resource",)
-    )
+#############################
+# RESOURCE ARGUMENT PARSING #
+#############################
+def _build_resources_parser(resource: argparse.ArgumentParser) -> SubParsers:
     resource_subparsers = resource.add_subparsers(
         help="geonodectl resounrces commands", dest="subcommand", required=True
     )
@@ -302,14 +145,15 @@ To use this tool you have to set the following environment variables before star
 
     # VALIDATE
     add_validate_parser(resource_subparsers, "resource")
+    return resource_subparsers
 
-    ####################################
-    # LINKED RESOURCE ARGUMENT PARSING #
-    ####################################
 
-    linked_resources = subparsers.add_parser(
-        "linked-resources", help="handle linked resources for a resource"
-    )
+####################################
+# LINKED RESOURCE ARGUMENT PARSING #
+####################################
+def _build_linked_resources_parser(
+    linked_resources: argparse.ArgumentParser,
+) -> SubParsers:
     linked_resource_subparsers = linked_resources.add_subparsers(
         help="geonodectl linked-resources commands", dest="subcommand", required=True
     )
@@ -358,17 +202,13 @@ To use this tool you have to set the following environment variables before star
     linked_resource_describe_subparser.add_argument(
         type=str, dest="pk", help="pk or uuid of the resource ..."
     )
+    return linked_resource_subparsers
 
-    ####################################
-    # ATTRIBUTE_TABLE ARGUMENT PARSING #
-    ####################################
 
-    attributes = subparsers.add_parser(
-        "attributes",
-        description="valid subcommands:",
-        help="attribute commands",
-        aliases=("attr", "attributes"),
-    )
+####################################
+# ATTRIBUTE_TABLE ARGUMENT PARSING #
+####################################
+def _build_attributes_parser(attributes: argparse.ArgumentParser) -> SubParsers:
     attributes_subparsers = attributes.add_subparsers(
         help="geonodectl attribute commands", dest="subcommand", required=True
     )
@@ -403,16 +243,13 @@ To use this tool you have to set the following environment variables before star
     add_json_source_args(
         attributes_patch_mutually_exclusive_group, "the patch parameters"
     )
+    return attributes_subparsers
 
-    ############################
-    # DATASET ARGUMENT PARSING #
-    ############################
-    datasets = subparsers.add_parser(
-        "dataset",
-        description="valid subcommands:",
-        help="dataset commands",
-        aliases=("ds",),
-    )
+
+############################
+# DATASET ARGUMENT PARSING #
+############################
+def _build_datasets_parser(datasets: argparse.ArgumentParser) -> SubParsers:
     datasets_subparsers = datasets.add_subparsers(
         help="geonodectl dataset commands", dest="subcommand", required=True
     )
@@ -538,14 +375,13 @@ To use this tool you have to set the following environment variables before star
 
     # VALIDATE
     add_validate_parser(datasets_subparsers, "dataset")
+    return datasets_subparsers
 
-    #############################
-    # DOCUMENT ARGUMENT PARSING #
-    #############################
 
-    documents = subparsers.add_parser(
-        "documents", help="document commands", aliases=("doc", "document")
-    )
+#############################
+# DOCUMENT ARGUMENT PARSING #
+#############################
+def _build_documents_parser(documents: argparse.ArgumentParser) -> SubParsers:
     documents_subparsers = documents.add_subparsers(
         help="geonodectl documents commands", dest="subcommand", required=True
     )
@@ -640,11 +476,13 @@ To use this tool you have to set the following environment variables before star
 
     # VALIDATE
     add_validate_parser(documents_subparsers, "document")
+    return documents_subparsers
 
-    ########################
-    # MAP ARGUMENT PARSING #
-    ########################
-    maps = subparsers.add_parser("maps", help="maps commands")
+
+########################
+# MAP ARGUMENT PARSING #
+########################
+def _build_maps_parser(maps: argparse.ArgumentParser) -> SubParsers:
     maps_subparsers = maps.add_subparsers(
         help="geonodectl maps commands", dest="subcommand", required=True
     )
@@ -902,14 +740,15 @@ To use this tool you have to set the following environment variables before star
 
     # VALIDATE
     add_validate_parser(maps_subparsers, "map")
+    route_subcommands(maps_maplayers_subparsers, "cmd_maplayers_")
+    route_subcommands(maps_widgets_subparsers, "cmd_widgets_")
+    return maps_subparsers
 
-    ################################
-    # GEOSERVER ARGUMENT PARSING   #
-    ################################
-    geoserver = subparsers.add_parser(
-        "geoserver",
-        help=f"GeoServer REST API commands — auth via {GEOSERVER_BASIC_AUTH_ENV_VAR} (Base64 user:pass) or {GEOSERVER_USER_ENV_VAR}+{GEOSERVER_PASSWORD_ENV_VAR}; URL defaults to {GEONODE_API_URL_ENV_VAR}",
-    )
+
+################################
+# GEOSERVER ARGUMENT PARSING   #
+################################
+def _build_geoserver_parser(geoserver: argparse.ArgumentParser) -> SubParsers:
     geoserver_subparsers = geoserver.add_subparsers(
         help="geonodectl geoserver commands", dest="subcommand", required=True
     )
@@ -1003,13 +842,14 @@ To use this tool you have to set the following environment variables before star
         default="geonode",
         help="workspace of the style (default: geonode)",
     )
+    route_subcommands(geoserver_styles_subparsers, "cmd_style_")
+    return geoserver_subparsers
 
-    ############################
-    # GEOAPPS ARGUMENT PARSING #
-    ############################
-    geoapps = subparsers.add_parser(
-        "geoapps", help="geoapps commands", aliases=("apps",)
-    )
+
+############################
+# GEOAPPS ARGUMENT PARSING #
+############################
+def _build_geoapps_parser(geoapps: argparse.ArgumentParser) -> SubParsers:
     geoapps_subparsers = geoapps.add_subparsers(
         help="geonodectl geoapps commands", dest="subcommand", required=True
     )
@@ -1083,13 +923,13 @@ To use this tool you have to set the following environment variables before star
 
     # VALIDATE
     add_validate_parser(geoapps_subparsers, "geoapp")
+    return geoapps_subparsers
 
-    ##########################
-    # USERS ARGUMENT PARSING #
-    ##########################
-    users = subparsers.add_parser(
-        "users", help="user | users commands", aliases=("user",)
-    )
+
+##########################
+# USERS ARGUMENT PARSING #
+##########################
+def _build_users_parser(users: argparse.ArgumentParser) -> SubParsers:
     users_subparsers = users.add_subparsers(
         help="geonodectl users commands", dest="subcommand", required=True
     )
@@ -1253,13 +1093,13 @@ To use this tool you have to set the following environment variables before star
         help="pks of the resources to move, like --resources 1 2 3. Moves every resource \
         of the user if left out. Needs GeoNode 5, GeoNode 4.4 can only move all of them ...",
     )
+    return users_subparsers
 
-    ###########################
-    # GROUPS ARGUMENT PARSING #
-    ###########################
-    groups = subparsers.add_parser(
-        "groups", help="group | groups commands", aliases=("group",)
-    )
+
+###########################
+# GROUPS ARGUMENT PARSING #
+###########################
+def _build_groups_parser(groups: argparse.ArgumentParser) -> SubParsers:
     groups_subparsers = groups.add_subparsers(
         help="geonodectl groups commands", dest="subcommand", required=True
     )
@@ -1352,11 +1192,13 @@ To use this tool you have to set the following environment variables before star
         dest="pk",
         help="pk of group(s) to delete (range '1-5', list '1,2,3', single '1') ...",
     )
+    return groups_subparsers
 
-    ###########################
-    # UPLOAD ARGUMENT PARSING #
-    ###########################
-    uploads = subparsers.add_parser("uploads", help="uploads commands")
+
+###########################
+# UPLOAD ARGUMENT PARSING #
+###########################
+def _build_uploads_parser(uploads: argparse.ArgumentParser) -> SubParsers:
     uploads_subparsers = uploads.add_subparsers(
         help="geonodectl uploads commands", dest="subcommand", required=True
     )
@@ -1385,13 +1227,15 @@ To use this tool you have to set the following environment variables before star
         required=False,
         help="A search term to filter the results by. --search uuid",
     )
+    return uploads_subparsers
 
-    #####################################
-    # EXECUTIONREQUEST ARGUMENT PARSING #
-    #####################################
-    executionrequest = subparsers.add_parser(
-        "executionrequest", help="executionrequest commands"
-    )
+
+#####################################
+# EXECUTIONREQUEST ARGUMENT PARSING #
+#####################################
+def _build_executionrequest_parser(
+    executionrequest: argparse.ArgumentParser,
+) -> SubParsers:
     executionrequest_subparsers = executionrequest.add_subparsers(
         help="geonodectl executionrequest commands", dest="subcommand", required=True
     )
@@ -1430,11 +1274,13 @@ To use this tool you have to set the following environment variables before star
     executionrequest_describe.add_argument(
         type=str, dest="exec_id", help="exec_id of executionrequest to describe ..."
     )
+    return executionrequest_subparsers
 
-    ############################
-    # KEYWORD ARGUMENT PARSING #
-    ############################
-    keywords = subparsers.add_parser("keywords", help="(Hierarchical) keyword commands")
+
+############################
+# KEYWORD ARGUMENT PARSING #
+############################
+def _build_keywords_parser(keywords: argparse.ArgumentParser) -> SubParsers:
     keywords_subparsers = keywords.add_subparsers(
         help="geonodectl keywords commands", dest="subcommand", required=True
     )
@@ -1472,13 +1318,15 @@ To use this tool you have to set the following environment variables before star
     keywords_describe.add_argument(
         type=str, dest="pk", help="keyword of keywords to describe ..."
     )
+    return keywords_subparsers
 
-    #####################################
-    # THESAURI KEYWORD ARGUMENT PARSING #
-    #####################################
-    thesaurikeywords = subparsers.add_parser(
-        "tkeywords", help="thesaurikeyword commands"
-    )
+
+#####################################
+# THESAURI KEYWORD ARGUMENT PARSING #
+#####################################
+def _build_thesaurikeywords_parser(
+    thesaurikeywords: argparse.ArgumentParser,
+) -> SubParsers:
     thesaurikeywords_subparsers = thesaurikeywords.add_subparsers(
         help="geonodectl thesaurikeywords commands", dest="subcommand", required=True
     )
@@ -1518,59 +1366,225 @@ To use this tool you have to set the following environment variables before star
     thesaurikeywords_describe.add_argument(
         type=str, dest="pk", help="keyword of thesaurikeywords to describe ..."
     )
+    return thesaurikeywords_subparsers
 
-    ###########################################
-    # THESAURI KEYWORD LABEL ARGUMENT PARSING #
-    ###########################################
-    thesaurikeywordlabels = subparsers.add_parser(
-        "tkeywordlabels", help="thesaurikeywordlabel commands"
-    )
-    thesaurikeywordlabels_subparsers = thesaurikeywordlabels.add_subparsers(
-        help="geonodectl thesaurikeywordlabels commands",
-        dest="subcommand",
-        required=True,
+
+###############################
+# EXTENSIONS ARGUMENT PARSING #
+###############################
+def _build_extensions_parser(extensions: argparse.ArgumentParser) -> SubParsers:
+    extensions_subparsers = extensions.add_subparsers(
+        help="geonodectl extensions commands", dest="subcommand", required=True
     )
 
     # LIST
-    thesaurikeywordlabels_list = thesaurikeywordlabels_subparsers.add_parser(
-        "list", help="list thesaurikeywordlabels"
+    extensions_subparsers.add_parser(
+        "list", help="list installed extensions and whether they loaded"
     )
-    thesaurikeywordlabels_list.add_argument(
-        "--filter",
-        nargs="*",
-        action=kwargs_append_action,
-        dest="filter",
-        type=str,
-        help="filter thesaurikeywordlabels requests by key value pairs. E.g. --filter lang=de label=Abbau",
-    )
-    thesaurikeywordlabels_list.add_argument(
-        "--ordering",
-        dest="ordering",
-        default="keyword",
-        type=str,
-        help="Which field to use when ordering the results. --ordering keyword (default: keyword)",
-    )
-    thesaurikeywordlabels_list.add_argument(
-        "--search",
-        dest="search",
-        type=str,
-        required=False,
-        help="A search term to filter the results by. --search uuid",
+    return extensions_subparsers
+
+
+def _geoserver_handler(
+    env: Optional[GeonodeApiConf] = None,
+) -> GeonodeGeoServerStyleHandler:
+    """build the GeoServer handler, it reads its own credentials from the env"""
+    try:
+        return GeonodeGeoServerStyleHandler.from_env()
+    except (KeyError, ValueError) as e:
+        raise GeonodeUsageError(
+            f"Cannot initialise GeoServer handler: {e}. "
+            f"Auth: set {GEOSERVER_BASIC_AUTH_ENV_VAR} (Base64 user:pass) "
+            f"or {GEOSERVER_USER_ENV_VAR}+{GEOSERVER_PASSWORD_ENV_VAR}. "
+            f"URL: set {GEOSERVER_URL_ENV_VAR} or {GEONODE_API_URL_ENV_VAR} "
+            f"(defaults to <geonode-base>/geoserver)."
+        )
+
+
+def builtin_commands() -> List[CommandSpec]:
+    """the commands geonodectl ships with, in the order --help lists them
+
+    Extensions are registered after these, so a built-in always keeps its name
+    (#133).
+    """
+    return [
+        CommandSpec(
+            name="resources",
+            aliases=("resource",),
+            help="resource commands",
+            build_parser=_build_resources_parser,
+            handler_factory=GeonodeResourceHandler,
+        ),
+        CommandSpec(
+            name="linked-resources",
+            help="handle linked resources for a resource",
+            build_parser=_build_linked_resources_parser,
+            handler_factory=GeonodeLinkedResourcesHandler,
+        ),
+        CommandSpec(
+            name="attributes",
+            aliases=("attr", "attributes"),
+            help="attribute commands",
+            description="valid subcommands:",
+            build_parser=_build_attributes_parser,
+            handler_factory=GeonodeAttributeHandler,
+        ),
+        CommandSpec(
+            name="dataset",
+            aliases=("ds",),
+            help="dataset commands",
+            description="valid subcommands:",
+            build_parser=_build_datasets_parser,
+            handler_factory=GeonodeDatasetsHandler,
+        ),
+        CommandSpec(
+            name="documents",
+            aliases=("doc", "document"),
+            help="document commands",
+            build_parser=_build_documents_parser,
+            handler_factory=GeonodeDocumentsHandler,
+        ),
+        CommandSpec(
+            name="maps",
+            help="maps commands",
+            build_parser=_build_maps_parser,
+            handler_factory=GeonodeMapsHandler,
+        ),
+        CommandSpec(
+            name="geoserver",
+            help=f"GeoServer REST API commands — auth via {GEOSERVER_BASIC_AUTH_ENV_VAR} (Base64 user:pass) or {GEOSERVER_USER_ENV_VAR}+{GEOSERVER_PASSWORD_ENV_VAR}; URL defaults to {GEONODE_API_URL_ENV_VAR}",
+            build_parser=_build_geoserver_parser,
+            handler_factory=_geoserver_handler,
+        ),
+        CommandSpec(
+            name="geoapps",
+            aliases=("apps",),
+            help="geoapps commands",
+            build_parser=_build_geoapps_parser,
+            handler_factory=GeonodeGeoappsHandler,
+        ),
+        CommandSpec(
+            name="users",
+            aliases=("user",),
+            help="user | users commands",
+            build_parser=_build_users_parser,
+            handler_factory=GeonodeUsersHandler,
+        ),
+        CommandSpec(
+            name="groups",
+            aliases=("group",),
+            help="group | groups commands",
+            build_parser=_build_groups_parser,
+            handler_factory=GeonodeGroupsHandler,
+        ),
+        CommandSpec(
+            name="uploads",
+            help="uploads commands",
+            build_parser=_build_uploads_parser,
+            handler_factory=GeonodeUploadsHandler,
+        ),
+        CommandSpec(
+            name="executionrequest",
+            help="executionrequest commands",
+            build_parser=_build_executionrequest_parser,
+            handler_factory=GeonodeExecutionRequestHandler,
+        ),
+        CommandSpec(
+            name="keywords",
+            help="(Hierarchical) keyword commands",
+            build_parser=_build_keywords_parser,
+            handler_factory=GeonodeKeywordsRequestHandler,
+        ),
+        CommandSpec(
+            name="tkeywords",
+            help="thesaurikeyword commands",
+            build_parser=_build_thesaurikeywords_parser,
+            handler_factory=GeonodeThesauriKeywordsRequestHandler,
+        ),
+        CommandSpec(
+            name="extensions",
+            help="list installed geonodectl extensions",
+            build_parser=_build_extensions_parser,
+            handler_factory=GeonodeExtensionsHandler,
+            requires_env=False,
+        ),
+    ]
+
+
+def build_parser(registry: CommandRegistry) -> argparse.ArgumentParser:
+    """build the argument parser for every registered command
+
+    Args:
+        registry (CommandRegistry): built-in and extension commands
+
+    Returns:
+        argparse.ArgumentParser: the complete geonodectl parser
+    """
+    parser = argparse.ArgumentParser(
+        prog="geonodectl",
+        description=f"""geonodectl is a cmd client for the geonodev4 rest-apiv2.
+To use this tool you have to set the following environment variables before starting:
+
+{GEONODECTL_URL_ENV_VAR}: https://geonode.example.com/api/v2/ -- path to the v2 endpoint of your target geonode instance
+{GEONODECTL_BASIC_ENV_VAR}: YWRtaW46YWRtaW4= -- you can generate this string like: echo -n user:password | base64
+""",
+        formatter_class=RawTextHelpFormatter,
     )
 
-    # DESCRIBE
-    hesaurikeywordlabels_describe = thesaurikeywordlabels_subparsers.add_parser(
-        "describe", help="get thesaurikeywordlabels details"
-    )
-    # not fully clean to use pk here, as it is actually keyword but for now ...
-    hesaurikeywordlabels_describe.add_argument(
-        type=str, dest="pk", help="keyword of thesaurikeywordlabels to describe ..."
-    )
-    args = parser.parse_args()
+    ####################
+    # GENERAL CMD ARGS #
+    ####################
 
-    #####################
-    # END OF ARGPARSING #
-    #####################
+    # defining alias for add_parser https://gist.github.com/sampsyo/471779
+    parser.register("action", "parsers", AliasedSubParsersAction)
+    parser.add_argument(
+        "--not-verify-ssl",
+        dest="ssl_verify",
+        default=False,
+        action="store_true",
+        help="allow to request domains with unsecure ssl certificates ...",
+    )
+    parser.add_argument(
+        "--raw",
+        "--json",
+        dest="json",
+        default=False,
+        action="store_true",
+        help="return output as raw response json as it comes from the rest API",
+    )
+    parser.add_argument(
+        "--page-size",
+        dest="page_size",
+        default=DEFAULT_CMD_PAGE_SIZE,
+        type=int,
+        help="Number of results to return per page",
+    )
+    parser.add_argument(
+        "--page",
+        dest="page",
+        default=DEFAULT_CMD_PAGE,
+        type=int,
+        help=" A page number within the paginated result set",
+    )
+
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        default=False,
+        help="Enable verbose output",
+    )
+
+    subparsers = parser.add_subparsers(
+        help="geonodectl commands", dest="command", required=True
+    )
+    registry.build_parsers(subparsers)
+    return parser
+
+
+def __geonodectl__() -> int:
+    registry = build_registry(builtin_commands())
+    args = build_parser(registry).parse_args()
 
     # configure logging
     if args.verbose:
@@ -1578,84 +1592,29 @@ To use this tool you have to set the following environment variables before star
         logging.debug("Verbose mode enabled")
     else:
         logging.basicConfig(level=logging.INFO, force=True)
-    try:
-        url = os.environ[GEONODECTL_URL_ENV_VAR]
-        basic = os.environ[GEONODECTL_BASIC_ENV_VAR]
-    except KeyError:
-        logging.error(
-            f"Could not find one of the following envvars to rung geonodectl: {GEONODECTL_URL_ENV_VAR}, {GEONODECTL_BASIC_ENV_VAR} "
-        )
-        return EXIT_USAGE
 
-    if not url.endswith("api/v2/"):
-        logging.error(
-            f"provided geonode url: {url} not ends with 'api/v2/'. Please make sure to provide full rest v2api url ..."
-        )
-        return EXIT_USAGE
-    geonode_env = GeonodeApiConf(url=url, auth_basic=basic, verify=args.ssl_verify)
-    g_obj: Union[GeonodeObjectHandler, GeonodeExecutionRequestHandler]
-    match args.command:
-        case "resources" | "resource":
-            g_obj = GeonodeResourceHandler(env=geonode_env)
-        case "linked_resources" | "linked-resources" | "linkedresources":
-            g_obj = GeonodeLinkedResourcesHandler(env=geonode_env)
-        case "attr" | "attribute" | "attributes":
-            g_obj = GeonodeAttributeHandler(env=geonode_env)
-        case "dataset" | "ds":
-            g_obj = GeonodeDatasetsHandler(env=geonode_env)
-        case "documents" | "doc" | "document":
-            g_obj = GeonodeDocumentsHandler(env=geonode_env)
-        case "maps":
-            g_obj = GeonodeMapsHandler(env=geonode_env)
-        case "users" | "user":
-            g_obj = GeonodeUsersHandler(env=geonode_env)
-        case "groups" | "group":
-            g_obj = GeonodeGroupsHandler(env=geonode_env)
-        case "geoapps" | "apps":
-            g_obj = GeonodeGeoappsHandler(env=geonode_env)
-        case "uploads":
-            g_obj = GeonodeUploadsHandler(env=geonode_env)
-        case "executionrequest" | "execrequest":
-            g_obj = GeonodeExecutionRequestHandler(env=geonode_env)
-        case "keywords" | "keywords":
-            g_obj = GeonodeKeywordsRequestHandler(env=geonode_env)
-        case "thesaurikeywords" | "tkeywords":
-            g_obj = GeonodeThesauriKeywordsRequestHandler(env=geonode_env)
-        case "thesaurikeywordlabels" | "tkeywordlabels":
-            g_obj = GeonodeThesauriKeywordLabelsRequestHandler(env=geonode_env)
-        case "geoserver":
-            try:
-                gs_handler = GeonodeGeoServerStyleHandler.from_env()
-            except (KeyError, ValueError) as e:
-                logging.error(
-                    f"Cannot initialise GeoServer handler: {e}. "
-                    f"Auth: set {GEOSERVER_BASIC_AUTH_ENV_VAR} (Base64 user:pass) "
-                    f"or {GEOSERVER_USER_ENV_VAR}+{GEOSERVER_PASSWORD_ENV_VAR}. "
-                    f"URL: set {GEOSERVER_URL_ENV_VAR} or {GEONODE_API_URL_ENV_VAR} "
-                    f"(defaults to <geonode-base>/geoserver)."
-                )
-                return EXIT_USAGE
-            if args.subcommand == "styles":
-                gs_func = getattr(
-                    gs_handler,
-                    "cmd_style_" + args.styles_subcommand.replace("-", "_"),
-                )
-                return __exit_code__(gs_func(**args.__dict__))
-            return EXIT_OK
-        case _:
-            raise NotImplementedError(f"unknown command: {args.command}")
-    if args.command == "maps" and args.subcommand == "maplayers":
-        g_obj_func = getattr(
-            g_obj, "cmd_maplayers_" + args.maplayers_subcommand.replace("-", "_")
-        )
-        return __exit_code__(g_obj_func(**args.__dict__))
-    if args.command == "maps" and args.subcommand == "widgets":
-        g_obj_func = getattr(
-            g_obj, "cmd_widgets_" + args.widgets_subcommand.replace("-", "_")
-        )
-        return __exit_code__(g_obj_func(**args.__dict__))
-    g_obj_func = getattr(g_obj, "cmd_" + args.subcommand.replace("-", "_"))
-    return __exit_code__(g_obj_func(**args.__dict__))
+    command = registry.resolve(args.command)
+    if command is None:
+        raise NotImplementedError(f"unknown command: {args.command}")
+
+    geonode_env: Optional[GeonodeApiConf] = None
+    if command.spec.requires_env:
+        try:
+            url = os.environ[GEONODECTL_URL_ENV_VAR]
+            basic = os.environ[GEONODECTL_BASIC_ENV_VAR]
+        except KeyError:
+            logging.error(
+                f"Could not find one of the following envvars to rung geonodectl: {GEONODECTL_URL_ENV_VAR}, {GEONODECTL_BASIC_ENV_VAR} "
+            )
+            return EXIT_USAGE
+
+        if not url.endswith("api/v2/"):
+            logging.error(
+                f"provided geonode url: {url} not ends with 'api/v2/'. Please make sure to provide full rest v2api url ..."
+            )
+            return EXIT_USAGE
+        geonode_env = GeonodeApiConf(url=url, auth_basic=basic, verify=args.ssl_verify)
+    return __exit_code__(command.run(geonode_env, vars(args)))
 
 
 if __name__ == "__main__":

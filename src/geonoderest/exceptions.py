@@ -46,3 +46,7 @@ class MissingArgumentError(GeonodeUsageError):
 
 class ApiConfError(GeonodeUsageError):
     """The GeoNode API configuration is incomplete - a required env var is unset."""
+
+
+class UnknownCommandError(GeonodeUsageError):
+    """No built-in command and no installed extension goes by the given name."""

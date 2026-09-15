@@ -33,12 +33,13 @@ geonodectl dataset list
 | [resources.md](resources.md) | `resources list/delete/metadata/validate` |
 | [uploads.md](uploads.md) | `uploads list/describe` |
 | [executionrequest.md](executionrequest.md) | `executionrequest list/describe` |
-| [keywords.md](keywords.md) | `keywords`, `tkeywords`, `tkeywordlabels` |
+| [keywords.md](keywords.md) | `keywords`, `tkeywords` |
 | [linked-resources.md](linked-resources.md) | `linked-resources describe/add/delete` |
 | [attributes.md](attributes.md) | `attributes describe/patch` |
 | [geoserver.md](geoserver.md) | `geoserver styles list/describe/upload/set-default` |
 | [identifiers.md](identifiers.md) | naming objects by pk or uuid |
 | [exit-codes.md](exit-codes.md) | the exit code contract shared by every command |
+| [extensions.md](extensions.md) | `extensions list`, and how to add commands with an extension package |
 
 See [example.md](example.md) for worked end-to-end examples.
 

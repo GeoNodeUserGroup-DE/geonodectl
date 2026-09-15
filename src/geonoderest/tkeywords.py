@@ -14,7 +14,6 @@ class GeonodeThesauriKeywordsRequestHandler(GeonodeObjectHandler):
     SINGULAR_RESOURCE_NAME = "tkeywords"
 
     LIST_CMDOUT_HEADER: List[GeonodeCmdOutObjectKey] = [
-        GeonodeCmdOutListKey(key="keyword"),  # this only works on ZALF GeoNode backend
         GeonodeCmdOutDictKey(key=["thesaurus", "slug"]),
         GeonodeCmdOutListKey(key="name"),
         GeonodeCmdOutListKey(key="slug"),

@@ -431,9 +431,41 @@ GeonodeRest                          # HTTP methods (get/post/patch/delete)
 │   ├── GeonodeUploadsHandler
 │   ├── GeonodeExecutionRequestHandler
 │   ├── GeonodeKeywordsRequestHandler
-│   ├── GeonodeThesauriKeywordsRequestHandler
-│   └── GeonodeThesauriKeywordLabelsRequestHandler
+│   └── GeonodeThesauriKeywordsRequestHandler
 └── GeonodeLinkedResourcesHandler    # add/delete/get linked resources
+```
+
+---
+
+## Extensions
+
+Handlers that only work against a customised GeoNode are not part of geonodectl. They ship as
+separate packages that register through the `geonodectl.extensions` entry point group, see
+[docs/extensions.md](docs/extensions.md). `GeonodeThesauriKeywordLabelsRequestHandler` moved
+to the `geonodectl-zalf` package this way.
+
+**Import**: `from geonoderest.extensions import get_handler, list_extensions`
+
+| Function | Signature | Returns | Description |
+|---|---|---|---|
+| `get_handler` | `(command: str, env: Optional[GeonodeApiConf] = None)` | handler | Handler behind a built-in or extension command, by name or alias. Honours handler overrides of extensions. Raises `UnknownCommandError` (a `GeonodeUsageError`) if nobody provides the command |
+| `list_extensions` | `()` | `List[LoadedExtension]` | Installed extensions with `name`, `distribution`, `version` and `error` (None when loaded) |
+
+```python
+from geonoderest.extensions import get_handler, list_extensions
+
+for ext in list_extensions():
+    print(ext.name, ext.version, ext.error or "loaded")
+
+# resolve a command to its handler, wherever it comes from
+labels = get_handler("tkeywordlabels", conf)  # needs geonodectl-zalf installed
+labels.list(page_size=50)
+
+# with geonodectl-zalf installed this is its subclass showing the keyword column
+tkeywords = get_handler("tkeywords", conf)
+
+# or import the handler from the extension package directly
+from geonodectl_zalf.tkeywordlabels import ZalfThesauriKeywordLabelsHandler
 ```
 
 ---

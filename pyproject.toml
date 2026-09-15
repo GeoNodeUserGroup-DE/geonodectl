@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = 'geonodectl'
-version="0.3.4"
+version="0.4.0"
 description="a commandline interface tool for Geonode Rest API v2"
 authors = [{ name = "marcel wallschlaeger", email="marcel.wallschlaeger@zalf.de" }]
 readme = "README.md"
