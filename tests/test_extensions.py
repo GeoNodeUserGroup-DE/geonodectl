@@ -440,5 +440,67 @@ class TestNestedVerbsStillDispatch(ExtensionTestCase):
             self.assertEqual(_run("geoserver", "styles", "list"), EXIT_USAGE)
 
 
+class TestMalformedSpecsAreSkipped(ExtensionTestCase):
+    """whatever an extension hands out is checked before it is registered"""
+
+    @patch.dict(os.environ, ENV, clear=True)
+    @patch.object(GeonodeDatasetsHandler, "cmd_list", return_value=EXIT_OK)
+    def test_malformed_entries_do_not_break_the_core(self, _):
+        ext = FakeExtension(
+            commands=[None, hello_command()],
+            verbs=["not a verb"],
+            overrides=[object()],
+        )
+        self.install(_entry_point("fake", ext))
+        with self.assertLogs(level="WARNING") as logs:
+            self.assertEqual(_run("dataset", "list"), EXIT_OK)
+        messages = "\n".join(logs.output)
+        for spec in ("CommandSpec", "VerbSpec", "HandlerOverride"):
+            with self.subTest(spec=spec):
+                self.assertIn(spec, messages)
+
+    def test_a_valid_command_next_to_a_malformed_one_still_registers(self):
+        ext = FakeExtension(commands=[None, hello_command()])
+        self.install(_entry_point("fake", ext))
+        with self.assertLogs(level="WARNING"):
+            self.assertIsInstance(get_handler("hello", CONF), FakeHandler)
+
+
+class TestOverrideOfAnotherExtensionsCommand(ExtensionTestCase):
+    def test_override_applies_whatever_the_load_order(self):
+        class ZalfLikeHandler(FakeHandler):
+            pass
+
+        # "a" is registered before "b", the extension adding the command
+        self.install(
+            _entry_point(
+                "a",
+                FakeExtension(overrides=[HandlerOverride("hello", ZalfLikeHandler)]),
+            ),
+            _entry_point("b", FakeExtension(commands=[hello_command()])),
+        )
+        self.assertIs(type(get_handler("hello", CONF)), ZalfLikeHandler)
+
+
+class TestCommandWithoutVerbs(ExtensionTestCase):
+    @patch.dict(os.environ, ENV, clear=True)
+    def test_nothing_to_dispatch_to_is_a_usage_error_not_a_traceback(self):
+        command = hello_command(build_parser=lambda parser: None)
+        self.install(_entry_point("fake", FakeExtension(commands=[command])))
+        with self.assertLogs(level="ERROR"):
+            self.assertEqual(_run("hello"), EXIT_USAGE)
+
+    @patch.dict(os.environ, ENV, clear=True)
+    def test_a_command_naming_its_own_method_runs(self):
+        def build_naming_the_method(parser):
+            parser.set_defaults(**{CMD_METHOD_KEY: "cmd_greet"})
+            return None
+
+        command = hello_command(build_parser=build_naming_the_method)
+        self.install(_entry_point("fake", FakeExtension(commands=[command])))
+        self.assertEqual(_run("hello"), EXIT_OK)
+        self.assertEqual(len(FakeHandler.calls), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

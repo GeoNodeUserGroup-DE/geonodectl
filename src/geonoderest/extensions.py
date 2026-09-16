@@ -17,7 +17,9 @@ which hands out
 * :class:`VerbSpec` - new verbs on existing commands, ``geonodectl dataset <verb>``
 * :class:`HandlerOverride` - a subclass taking over an existing command's handler
 
-A broken extension is reported and skipped, it never takes the core down.
+Anything an extension gets wrong - a failed import, the wrong api version, a
+malformed spec, a parser that raises - is reported and skipped. An extension
+never takes the core down.
 """
 
 import argparse
@@ -29,7 +31,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from geonoderest.apiconf import GeonodeApiConf
 from geonoderest.cliutils import CMD_METHOD_KEY, VERB_FUNC_KEY, SubParsers
 from geonoderest.cmdprint import print_json, show_list
-from geonoderest.exceptions import UnknownCommandError
+from geonoderest.exceptions import GeonodeUsageError, UnknownCommandError
 from geonoderest.exitcodes import EXIT_OK
 
 EXTENSION_API_VERSION = 1
@@ -49,7 +51,10 @@ class CommandSpec:
         name (str): name of the command on the cmdline
         build_parser: fills the parser created for the command. It adds the
             verbs with ``dest="subcommand"`` and returns that subparser group,
-            so extensions can add verbs to the command as well
+            so extensions can add verbs to the command as well. A command
+            without verbs returns None and names its own method instead, with
+            ``parser.set_defaults(**{CMD_METHOD_KEY: "cmd_..."})``; no verb can
+            be added to such a command
         handler_factory: called with the GeonodeApiConf (None if
             ``requires_env`` is False), returns the handler - usually just the
             handler class. ``geonodectl <name> <verb>`` calls ``cmd_<verb>`` on it
@@ -142,7 +147,7 @@ def load_extensions(reload: bool = False) -> List[LoadedExtension]:
 
     Args:
         reload (bool): search the entry points again instead of returning the
-            cached result
+            cached result - how a test picks up an extension it just installed
 
     Returns:
         List[LoadedExtension]: installed extensions sorted by name, those that
@@ -231,7 +236,12 @@ class RegisteredCommand:
             arguments (Dict): the parsed cmdline arguments
 
         Returns:
-            the exit code returned by the called ``cmd_*`` method or verb
+            the exit code the called ``cmd_*`` method or verb returned, None
+            counting as success
+
+        Raises:
+            GeonodeUsageError: the parsed arguments name no method to call,
+                which an extension's parser is responsible for
         """
         kwargs = dict(arguments)
         cmd_method = kwargs.pop(CMD_METHOD_KEY, None)
@@ -243,8 +253,12 @@ class RegisteredCommand:
         if cmd_method is None:
             subcommand = kwargs.get("subcommand")
             if subcommand is None:
-                raise NotImplementedError(
-                    f"command {self.spec.name} has no subcommand to dispatch to"
+                # a usage error rather than a traceback: the user typed a
+                # command an extension built without anything to dispatch to
+                raise GeonodeUsageError(
+                    f"command {self.spec.name} has no verb to run - its parser "
+                    'has to add verbs with dest="subcommand", or name the method '
+                    "to call with set_defaults()/route_subcommands()"
                 )
             cmd_method = "cmd_" + subcommand.replace("-", "_")
         return getattr(handler, cmd_method)(**kwargs)
@@ -262,6 +276,7 @@ class CommandRegistry:
         # every name and alias -> name of the command
         self._names: Dict[str, str] = {}
         self._verbs: List[Tuple[VerbSpec, str]] = []
+        self._overrides: List[Tuple[HandlerOverride, str]] = []
 
     def __iter__(self):
         return iter(list(self._commands.values()))
@@ -293,8 +308,27 @@ class CommandRegistry:
         """register a verb for an existing command, checked once parsers are built"""
         self._verbs.append((verb, origin))
 
+    def add_handler_override(self, override: HandlerOverride, origin: str) -> None:
+        """register a handler override, applied once every command is known"""
+        self._overrides.append((override, origin))
+
+    def apply_handler_overrides(self) -> None:
+        """hand every registered override its command
+
+        Deferred until all extensions have registered, so an override can also
+        target a command another extension adds: extensions are registered in
+        alphabetical order, and the one adding the command may come last.
+        """
+        for override, origin in self._overrides:
+            self.override_handler(override, origin)
+        self._overrides = []
+
     def override_handler(self, override: HandlerOverride, origin: str) -> bool:
-        """let a subclass take over a command's handler, see HandlerOverride"""
+        """let a subclass take over a command's handler, see HandlerOverride
+
+        The command has to be registered already, so extensions go through
+        ``add_handler_override`` instead of calling this directly.
+        """
         command = self.resolve(override.command)
         if command is None:
             logging.warning(
@@ -329,23 +363,44 @@ class CommandRegistry:
         if ext is None:
             return
         try:
+            # read by name rather than through GeonodectlExtension: an extension
+            # object does not have to subclass it, only to behave like it
             commands = list(getattr(ext, "commands", list)())
             verbs = list(getattr(ext, "verbs", list)())
             overrides = list(getattr(ext, "handler_overrides", list)())
         except Exception as e:  # an extension must never take the core down
-            loaded.error = f"could not tell its commands: {e!r}"
+            loaded.error = f"could not list what it adds: {e!r}"
             loaded.extension = None
             logging.warning(
                 f"geonodectl extension {loaded.name} skipped, it {loaded.error}"
             )
             return
 
-        for spec in commands:
+        for spec in self.__of_type__(commands, CommandSpec, loaded.name):
             self.add_command(spec, origin=loaded.name)
-        for verb in verbs:
+        for verb in self.__of_type__(verbs, VerbSpec, loaded.name):
             self.add_verb(verb, origin=loaded.name)
-        for override in overrides:
-            self.override_handler(override, origin=loaded.name)
+        for override in self.__of_type__(overrides, HandlerOverride, loaded.name):
+            self.add_handler_override(override, origin=loaded.name)
+
+    @staticmethod
+    def __of_type__(entries: List[Any], expected: type, origin: str) -> List[Any]:
+        """keep the entries that are of the expected spec type, warn about the rest
+
+        What an extension hands out is arbitrary python, so it is checked before
+        anything is registered: a malformed entry costs that extension its entry,
+        rather than taking every command down with an AttributeError later on.
+        """
+        kept = []
+        for entry in entries:
+            if isinstance(entry, expected):
+                kept.append(entry)
+            else:
+                logging.warning(
+                    f"{expected.__name__} of {origin} ignored, "
+                    f"{entry!r} is not a {expected.__name__}"
+                )
+        return kept
 
     def _remove(self, command: RegisteredCommand) -> None:
         del self._commands[command.spec.name]
@@ -448,6 +503,7 @@ def build_registry(builtins: Optional[List[CommandSpec]] = None) -> CommandRegis
         registry.add_command(spec)
     for loaded in load_extensions():
         registry.add_extension(loaded)
+    registry.apply_handler_overrides()
     return registry
 
 
@@ -485,7 +541,9 @@ class GeonodeExtensionsHandler:
         self.gn_credentials = env
 
     def cmd_list(self, **kwargs) -> int:
-        # the CLI has registered the extensions already, no need to do it again
+        # only loads them: the caller that got hold of this handler has
+        # registered them already, and registering reports one more kind of
+        # failure - an extension that cannot say what it adds
         extensions = load_extensions()
         if kwargs.get("json"):
             print_json(

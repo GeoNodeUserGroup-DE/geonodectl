@@ -164,8 +164,21 @@ uses this to add the `keyword` column to `tkeywords list`.
     name keeps it.
   - A verb that already exists on a command is skipped.
   - Every clash is reported as a warning.
-- **Overrides**: one override per command. A command built by a factory function rather than a
-  class, such as `geoserver`, cannot be overridden.
+- **Overrides**: one override per command. They are applied after every extension has registered,
+  so an override can also target a command another extension adds. A command built by a factory
+  function rather than a class, such as `geoserver`, cannot be overridden.
+- **Commands without verbs**: `build_parser` may return `None`, but the command then has to name
+  the method to call itself, or running it is a usage error:
+  ```python
+  from geonoderest.cliutils import CMD_METHOD_KEY
+
+  def build_parser(parser):
+      parser.add_argument("--since", dest="since")
+      parser.set_defaults(**{CMD_METHOD_KEY: "cmd_report"})  # geonodectl <command>
+  ```
+  No verb can be added by another extension to such a command.
+- **Malformed specs**: anything that is not a `CommandSpec`, `VerbSpec` or `HandlerOverride` is
+  skipped with a warning, the rest of the extension still registers.
 - **Parser helpers**: `geonoderest.cliutils` provides `add_json_source_args`,
   `add_validate_parser`, `kwargs_append_action` and `AliasedSubParsersAction`, so extension
   commands can take arguments the same way built-in commands do.
@@ -209,5 +222,5 @@ geonodectl soilprofiles --help
 ```
 
 In tests, drive `geonoderest.geonodectl.geonodectl()` with a patched `sys.argv`, the same way the
-geonodectl test suite does, and patch the handler's `http_*` methods. Clear the cache between
-tests with `geonoderest.extensions._loaded_extensions = None`, or call `load_extensions(reload=True)`.
+geonodectl test suite does, and patch the handler's `http_*` methods. Extensions are looked up
+once per process, so call `load_extensions(reload=True)` when a test installs or replaces one.
