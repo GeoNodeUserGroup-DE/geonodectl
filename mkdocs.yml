@@ -35,3 +35,4 @@ nav:
       - GeoServer Styles: geoserver.md
   - Identifiers: identifiers.md
   - Exit Codes: exit-codes.md
+  - Extensions: extensions.md

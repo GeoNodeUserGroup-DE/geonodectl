@@ -15,10 +15,12 @@ geonodectl has the following capabilities:
 | executionrequest | list, describe |
 | keywords         | list, describe |
 | tkeywords        | list, describe |
-| tkeywordlabels   | list, describe |
 | linked-resources | delete, add, describe |
 | attributes       | describe, patch |
 | geoserver styles | list, describe, upload, set-default |
+| extensions       | list |
+
+Commands for a customised GeoNode come from extension packages, see [extensions.md](extensions.md).
 
 This project is WIP, so feel free to add more capabilities.
 
