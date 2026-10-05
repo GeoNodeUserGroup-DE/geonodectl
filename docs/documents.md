@@ -30,7 +30,8 @@ Options:
 
 ```bash
 geonodectl documents upload -f /path/to/report.pdf
-geonodectl documents upload -f /path/to/report.pdf --wait
+geonodectl documents upload -f /path/to/report.pdf -t "Station overview 2026"
+geonodectl documents upload -f /path/to/report.pdf --metadata-only
 ```
 
 Options:
@@ -38,7 +39,24 @@ Options:
 | Flag | Description |
 |---|---|
 | `-f`, `--file PATH` | Path to the file to upload (required) |
-| `--wait` | Block until processing is finished |
+| `-t`, `--title TITLE` | Title of the document (default: the file name) |
+| `--metadata-only` | Do not generate a landing page; the file stays downloadable through its link |
+
+The upload is synchronous - unlike `datasets upload` it does not create an
+execution request, so there is nothing to wait for and no `--wait` flag.
+
+Which endpoint is used depends on the GeoNode version, and is picked from the
+methods the API advertises rather than configured:
+
+| GeoNode | Endpoint |
+|---|---|
+| 5.0.3 and newer | `POST /documents/upload` - GeoNode removed document creation from the REST API ([geonode#14224](https://github.com/GeoNode/geonode/pull/14224)) so that uploads pass its magic-byte file check |
+| 4.x, 5.0.0 - 5.0.2 | `POST /api/v2/documents` - **deprecated**, geonodectl logs a warning when it uses this path and will drop it once these versions go unsupported |
+
+`--metadata-only` is applied with a follow-up `PATCH` on the newer endpoint,
+whose upload form has no such field. Note that GeoNode then hides the document
+from `/api/v2/documents` entirely - `documents describe` and `documents patch`
+answer 404 for it, while `resources list` still shows it.
 
 ---
 

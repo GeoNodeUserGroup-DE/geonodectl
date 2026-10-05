@@ -590,6 +590,15 @@ To use this tool you have to set the following environment variables before star
     )
 
     documents_upload.add_argument(
+        "-t",
+        "--title",
+        dest="title",
+        type=str,
+        required=False,
+        help="title of the document (default: the file name)",
+    )
+
+    documents_upload.add_argument(
         "--metadata-only",
         action="store_true",
         dest="metadata_only",

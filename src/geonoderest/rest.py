@@ -1,5 +1,6 @@
-from typing import List, Dict, Optional, TypeAlias, Callable, Any
+from typing import List, Dict, Optional, Set, Callable, ParamSpec, TypeVar
 
+import functools
 import urllib3
 import requests
 import logging
@@ -21,26 +22,8 @@ from geonoderest.identifier import (
 
 urllib3.disable_warnings()
 
-NetworkExceptionHandlingTypes: TypeAlias = (
-    Callable[
-        [
-            "GeonodeRest",
-            str,
-            Dict,
-            Dict,
-            Optional[List[GeonodeHTTPFile]],
-            Optional[int],
-        ],
-        Optional[Dict],
-    ]  # http_post
-    | Callable[
-        ["GeonodeRest", str, Dict], Optional[Dict] | Optional[requests.Response]
-    ]  # http_get_download, http_get
-    | Callable[["GeonodeRest", str, Dict, Dict], Optional[Dict]]
-    | Callable[
-        ["GeonodeRest", str, Optional[str], Dict], requests.Response
-    ]  # http_get_anonymous
-)
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def __response_json__(r: requests.Response) -> Optional[Dict]:
@@ -208,7 +191,7 @@ class GeonodeRest(object):
         return params
 
     @staticmethod
-    def network_exception_handling(func: NetworkExceptionHandlingTypes):
+    def network_exception_handling(func: Callable[P, R]) -> Callable[P, R]:
         """
         Decorator to catch network related exceptions.
 
@@ -221,9 +204,13 @@ class GeonodeRest(object):
         - ConnectionRefusedError
 
         The error message will give a hint about the cause of the exception and the potential solution.
+
+        Typed generically over the wrapped method so the decorated method keeps
+        its own signature: do not enumerate the signatures it is applied to.
         """
 
-        def inner(*args, **kwargs):
+        @functools.wraps(func)
+        def inner(*args: P.args, **kwargs: P.kwargs) -> R:
             """
             Inner function of the network exception handling decorator.
 
@@ -298,8 +285,10 @@ class GeonodeRest(object):
             Optional[Dict]: the response json, or None when the request failed -
                 a bad http response is logged rather than raised
         """
-        if content_length:
-            self.header["content-length"] = content_length
+        # NOTE: no content-length header is set here - `header` is a property
+        # returning a fresh dict, so assigning to it never reached the wire, and
+        # requests sets Content-Length itself. `content_length` is kept in the
+        # signature because the dataset upload passes it.
         url = self.url + endpoint
         try:
             logging.debug(
@@ -321,6 +310,114 @@ class GeonodeRest(object):
             logging.error(err)
             return None
         return __response_json__(r)
+
+    @network_exception_handling
+    def http_allowed_methods(self, endpoint: str) -> Optional[Set[str]]:
+        """Methods the API advertises for ``endpoint``, as a set of upper-case verbs.
+
+        Read from the ``Allow`` header DRF puts on every response, which mirrors
+        the viewset's ``http_method_names`` - ``GET, PATCH`` on a GeoNode 5
+        ``documents`` endpoint, ``GET, PATCH, POST`` where creation is still
+        exposed. Used to pick a write endpoint that the server actually accepts
+        (#175) without hardcoding a GeoNode version - this probe goes away with
+        the version it exists for, see #176.
+
+        ``OPTIONS`` would be the obvious request to make, but an nginx ingress
+        configured for CORS answers the preflight itself, so a plain GET of the
+        list route - cheap at ``page_size=1`` - is what we probe with.
+
+        Args:
+            endpoint (str): api endpoint, e.g. ``"documents"``
+
+        Returns:
+            Optional[Set[str]]: the advertised methods, or None when the response
+                carries no ``Allow`` header (a proxy stripped it) - callers must
+                treat that as "unknown", not as "nothing is allowed".
+        """
+        url = self.url + endpoint
+        logging.debug(f"GET (probe) URL: {url}")
+        r = requests.get(
+            url, headers=self.header, params={"page_size": 1}, verify=self.verify
+        )
+        allow = r.headers.get("Allow")
+        if not allow:
+            logging.debug(f"{url} returned no Allow header")
+            return None
+        methods = {
+            method.strip().upper() for method in allow.split(",") if method.strip()
+        }
+        logging.debug(f"{url} allows: {sorted(methods)}")
+        return methods
+
+    @network_exception_handling
+    def http_post_form(
+        self,
+        path: str,
+        data: Dict = {},
+        params: Dict = {},
+        files: Optional[List[GeonodeHTTPFile]] = None,
+    ) -> Optional[Dict]:
+        """POST a form to one of GeoNode's non-API views.
+
+        ``path`` is relative to the GeoNode base url, not to ``api/v2/`` - these
+        are the plain Django views behind the web ui, so unlike the rest api they
+        are CSRF protected: Django wants a ``csrftoken`` cookie, the matching
+        ``X-CSRFToken`` header and, over https, a same-origin ``Referer``. A GET
+        of the landing page hands us the cookie.
+
+        Args:
+            path (str): path below the geonode base url, e.g. ``"documents/upload"``
+            data (Dict, optional): form fields, sent as multipart when files are given
+            params (Dict, optional): query-string parameters
+            files (List[GeonodeHTTPFile], optional): list of files to post
+
+        Returns:
+            Optional[Dict]: the response json, or None when the request failed -
+                a bad http response is logged rather than raised, as in http_post
+        """
+        base_url = self.gn_credentials.get_geonode_base_url()
+        url = f"{base_url}/{path}"
+        session = requests.Session()
+        session.verify = self.verify
+        session.headers.update(self.header)
+        try:
+            session.get(f"{base_url}/")
+            csrf_token = session.cookies.get("csrftoken")
+            if csrf_token is None:
+                logging.debug(f"{base_url}/ set no csrftoken cookie")
+            headers = {"Referer": url}
+            if csrf_token:
+                headers["X-CSRFToken"] = csrf_token
+            try:
+                logging.debug(f"POST (form) URL: {url}, params: {params}, data: {data}")
+                r = session.post(
+                    url,
+                    data=data,
+                    files=files,
+                    params=params,
+                    headers=headers,
+                    allow_redirects=False,
+                )
+                # a redirect here is never success: the view is asked not to
+                # redirect (no__redirect), so a 302 means geonode bounced us to
+                # the login page - and following it would turn the POST into a
+                # GET of that page, which looks like a confusing 200
+                if r.is_redirect:
+                    logging.error(
+                        f"POST {url} was redirected to {r.headers.get('Location')} - "
+                        "geonode did not accept the credentials for this endpoint. "
+                        "Basic auth on non-api views needs GeoNode >= 5.0.3 ..."
+                    )
+                    return None
+                r.raise_for_status()
+            except requests.exceptions.HTTPError as err:
+                if r is not None:
+                    logging.error(f"POST error response: {r.text}")
+                logging.error(err)
+                return None
+            return __response_json__(r)
+        finally:
+            session.close()
 
     @network_exception_handling
     def http_get_download(

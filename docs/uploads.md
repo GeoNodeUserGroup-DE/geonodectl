@@ -2,7 +2,7 @@
 
 Inspect upload jobs in GeoNode.
 
-> Uploads are created implicitly when you use `dataset upload` or `documents upload`. Use these commands to check the status of in-progress or past uploads.
+> Uploads are created implicitly when you use `dataset upload`. Use these commands to check the status of in-progress or past uploads. `documents upload` is synchronous and does not create an upload job.
 
 ---
 
