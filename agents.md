@@ -176,7 +176,7 @@ docs = GeonodeDocumentsHandler(env=conf)
 | `get(pk: int, **kwargs)` | | `Optional[Dict]` | Get document details |
 | `delete(pk: int, **kwargs)` | | `Optional[Dict]` | Delete a document |
 | `patch(pk: int, json_content: Dict, **kwargs)` | | `Optional[Dict]` | Update document metadata |
-| `upload(file_path: Path, charset: str = "UTF-8", metadata_only: bool = False, **kwargs)` | | `Optional[Dict]` | Upload a document |
+| `upload(file_path: Path, title: Optional[str] = None, charset: str = "UTF-8", metadata_only: bool = False, **kwargs)` | | `Optional[Dict]` | Upload a document. `title` defaults to the file name; `charset` is accepted but unused |
 
 ```python
 docs = GeonodeDocumentsHandler(env=conf)
