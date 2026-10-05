@@ -57,3 +57,29 @@ def print_json(json_str: Union[str, dict]):
         logging.warning("return from geonode api was broken, not output ...")
         return None
     print(json.dumps(json_str, indent=2, ensure_ascii=False))
+
+
+def print_validation_report(report: List[Dict], noun: str):
+    """print a human readable validation report on the cmdline
+
+    Args:
+        report (List[Dict]): one entry per object, with ``pk``, ``valid`` and
+            ``errors`` - the records of ``validate.collect_errors``
+        noun (str): what the objects are called, e.g. ``"dataset"``
+    """
+    for entry in report:
+        name = f"{noun} {entry['pk']}"
+        if entry["valid"]:
+            print(f"{name}: valid")
+            continue
+
+        errors = entry["errors"]
+        print(f"{name}: invalid, {len(errors)} violation(s)")
+        show_list(
+            headers=["path", "keyword", "message"],
+            values=[[e["path"], e["keyword"], e["message"]] for e in errors],
+        )
+        print()
+
+    invalid = sum(1 for entry in report if not entry["valid"])
+    print(f"{len(report)} checked, {len(report) - invalid} valid, {invalid} invalid")

@@ -5,7 +5,7 @@ import logging
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
-from geonoderest.cmdprint import print_json, show_list
+from geonoderest.cmdprint import print_json, print_validation_report
 from geonoderest.identifier import ANY_RESOURCE_TYPE
 from geonoderest.exceptions import GeonodeUsageError
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
@@ -157,32 +157,11 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
         if kwargs.get("json"):
             print_json(report)
         else:
-            self.__print_validation_report__(report)
+            print_validation_report(report, noun=self.SINGULAR_RESOURCE_NAME)
 
         if unreachable or any(not entry["valid"] for entry in report):
             return EXIT_FAILED
         return EXIT_OK
-
-    def __print_validation_report__(self, report: List[Dict]):
-        """print a human readable validation report on the cmdline"""
-        for entry in report:
-            noun = f"{self.SINGULAR_RESOURCE_NAME} {entry['pk']}"
-            if entry["valid"]:
-                print(f"{noun}: valid")
-                continue
-
-            errors = entry["errors"]
-            print(f"{noun}: invalid, {len(errors)} violation(s)")
-            show_list(
-                headers=["path", "keyword", "message"],
-                values=[[e["path"], e["keyword"], e["message"]] for e in errors],
-            )
-            print()
-
-        invalid = sum(1 for entry in report if not entry["valid"])
-        print(
-            f"{len(report)} checked, {len(report) - invalid} valid, {invalid} invalid"
-        )
 
     def delete_async(self, pk: int) -> Optional[Dict]:
         """Asynchronous delete via ``DELETE /api/v2/resources/{pk}/delete``.

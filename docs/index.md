@@ -31,6 +31,7 @@ geonodectl dataset list
 | [users.md](users.md) | `users list/create/describe/patch/delete/transfer_resources` |
 | [groups.md](groups.md) | `groups list/create/describe/patch/delete` |
 | [resources.md](resources.md) | `resources list/delete/metadata/validate` |
+| [metadata.md](metadata.md) | `metadata schema/get/lookup/patch/put/validate` (GeoNode 5) |
 | [uploads.md](uploads.md) | `uploads list/describe` |
 | [executionrequest.md](executionrequest.md) | `executionrequest list/describe` |
 | [keywords.md](keywords.md) | `keywords`, `tkeywords`, `tkeywordlabels` |

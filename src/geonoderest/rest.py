@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Set, Callable, ParamSpec, TypeVar
+from typing import List, Dict, Optional, Set, Tuple, Callable, ParamSpec, TypeVar
 
 import functools
 import urllib3
@@ -155,6 +155,67 @@ class GeonodeRest(object):
     ) -> List[int]:
         """Resolve a list of pks/uuids, in order. See __resolve_identifier__."""
         return [self.__resolve_identifier__(i, expected) for i in identifiers or []]
+
+    def __parse_pk_string__(self, pk) -> List[int]:
+        """
+        differentiate between a uuid, a pk range, a pk list and a single pk
+
+        Args:
+            pk (str): identifier of the object(s) - a uuid, or a pk as a single
+                value, a range (``5-10``) or a list (``1,2,3``)
+
+        Raises:
+            InvalidPkError: not a uuid and not a pk, range or list. Raised rather
+                than exiting so this stays usable as a library (#69); the
+                ``cmd_*`` caller turns it into EXIT_USAGE.
+            UuidTypeMismatchError: a uuid naming a different kind of object
+            ResourceNotFoundError: a uuid no object has
+        """
+
+        pk = str(pk)
+        # a uuid, which must be checked before the range branch below: a uuid
+        # contains dashes, so it would otherwise be read as a malformed range
+        if is_uuid(pk):
+            return [self.__resolve_identifier__(pk)]
+
+        # pk list: 1,2,3,4,5,6,7 - checked before the range branch, because a
+        # list of uuids contains both commas and dashes and "not an integer in a
+        # list" explains it far better than "not a range"
+        if "," in pk:
+            pk_list = pk.split(",")
+            if not all(x.isdigit() for x in pk_list):
+                raise InvalidPkError(
+                    f"Invalid pk {pk} found, not an integer ... "
+                    "(a uuid must be given on its own, not in a list)"
+                )
+            return [int(i) for i in pk_list]
+
+        # pk range: 5-10
+        elif "-" in pk:
+            try:
+                pk_begin, pk_end = pk.split("-")
+            except ValueError:
+                raise InvalidPkError(
+                    f"Invalid pk {pk} found, not a range ... "
+                    "(a uuid must be given on its own, not in a range)"
+                )
+            if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
+                raise InvalidPkError(f"Invalid pk {pk} found, not an integer ...")
+            if int(pk_begin) > int(pk_end):
+                # range() would yield nothing, so the command would report
+                # success having done nothing at all
+                raise InvalidPkError(
+                    f"Invalid pk range {pk}, {pk_begin} is greater than {pk_end} ..."
+                )
+            return [i for i in range(int(pk_begin), int(pk_end) + 1)]
+
+        # single pk: 1
+        else:
+            if not pk.isdigit():
+                raise InvalidPkError(
+                    f"Invalid pk {pk}, is neither an integer nor a uuid ..."
+                )
+            return [int(pk)]
 
     def __handle_http_params__(self, params: Dict, kwargs: Dict) -> Dict:
         """
@@ -505,6 +566,64 @@ class GeonodeRest(object):
             logging.error(err)
             return None
         return __response_json__(r)
+
+    @network_exception_handling
+    def http_send(
+        self,
+        method: str,
+        endpoint: str,
+        json_content: Optional[Dict] = None,
+        params: Dict = {},
+        accept: Tuple[int, ...] = (422,),
+    ) -> Optional[Tuple[int, Dict]]:
+        """
+        Execute an HTTP request whose error body matters to the caller.
+
+        The other verbs log a bad response and return None, which loses what the
+        server said. Some endpoints answer a rejected write with a structured body
+        worth showing - the metadata api returns 422 with ``extraErrors`` - so the
+        statuses in ``accept`` are handed back with their body instead.
+
+        Args:
+            method (str): http method, e.g. ``"PATCH"``
+            endpoint (str): api endpoint, relative to the api url
+            json_content (Optional[Dict]): json body
+            params (Dict, optional): query-string parameters
+            accept (Tuple[int, ...]): non-2xx statuses returned rather than logged
+
+        Returns:
+            Optional[Tuple[int, Dict]]: the status and the json body - ``{}`` for
+                an accepted status whose body is not json - or None when the
+                request failed with any other status or a 2xx body is not json
+        """
+        url = self.url + endpoint
+        logging.debug(f"{method} URL: {url}, params: {params}, json: {json_content}")
+        r = requests.request(
+            method,
+            url,
+            headers=self.header,
+            json=json_content,
+            params=params,
+            verify=self.verify,
+        )
+        if r.status_code in accept:
+            # an accepted error need not be json - a route that does not exist
+            # answers with django's html 404 page - and the status alone is
+            # what the caller asked for
+            try:
+                return r.status_code, r.json()
+            except ValueError:
+                return r.status_code, {}
+        try:
+            r.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            logging.error(f"{method} error response: {r.text}")
+            logging.error(err)
+            return None
+        body = __response_json__(r)
+        if body is None:
+            return None
+        return r.status_code, body
 
     @network_exception_handling
     def http_get_anonymous(

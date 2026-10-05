@@ -14,6 +14,7 @@
 - Read and write the MapStore blob JSON for maps (`get-blob`, `set-blob`)
 - Add and remove maplayers of an existing map (`maplayers add`, `maplayers remove`)
 - Validate resource metadata against a JSON Schema (`validate`)
+- Read and edit metadata through GeoNode 5's JSON-schema metadata API, with schema-driven `--field` edits and lookups (`metadata`)
 - Manage GeoServer styles — list, describe, upload SLD, set default style
 - Transfer resources between users
 - Supports authentication and secure API access
@@ -90,6 +91,7 @@ See [docs/example.md](docs/example.md) for worked examples.
 | Command | Aliases | Capabilities |
 |---|---|---|
 | `resources` | `resource` | list, delete, metadata, **validate** |
+| `metadata` | `md` | schema, get, lookup, patch, put, validate (GeoNode 5) |
 | `datasets` | `ds`, `dataset` | list, delete, patch, describe, upload, **validate** |
 | `documents` | `doc`, `document` | list, delete, patch, describe, upload, **validate** |
 | `maps` | — | list, delete, patch, describe, create, get-blob, set-blob, maplayers list/add/remove, **validate** |
