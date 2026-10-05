@@ -1,5 +1,6 @@
-from typing import List, Dict, Optional, Set, TypeAlias, Callable, Any
+from typing import List, Dict, Optional, Set, Callable, ParamSpec, TypeVar
 
+import functools
 import urllib3
 import requests
 import logging
@@ -21,31 +22,10 @@ from geonoderest.identifier import (
 
 urllib3.disable_warnings()
 
-NetworkExceptionHandlingTypes: TypeAlias = (
-    Callable[
-        [
-            "GeonodeRest",
-            str,
-            Dict,
-            Dict,
-            Optional[List[GeonodeHTTPFile]],
-            Optional[int],
-        ],
-        Optional[Dict],
-    ]  # http_post
-    | Callable[
-        ["GeonodeRest", str, Dict], Optional[Dict] | Optional[requests.Response]
-    ]  # http_get_download, http_get
-    | Callable[["GeonodeRest", str, Dict, Dict], Optional[Dict]]
-    | Callable[
-        ["GeonodeRest", str, Optional[str], Dict], requests.Response
-    ]  # http_get_anonymous
-    | Callable[["GeonodeRest", str], Optional[Set[str]]]  # http_allowed_methods
-    | Callable[
-        ["GeonodeRest", str, Dict, Dict, Optional[List[GeonodeHTTPFile]]],
-        Optional[Dict],
-    ]  # http_post_form
-)
+#: a decorated method keeps its own signature, so the decorator is generic
+#: over it rather than enumerating every method it is applied to
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 def __response_json__(r: requests.Response) -> Optional[Dict]:
@@ -213,7 +193,7 @@ class GeonodeRest(object):
         return params
 
     @staticmethod
-    def network_exception_handling(func: NetworkExceptionHandlingTypes):
+    def network_exception_handling(func: Callable[P, R]) -> Callable[P, R]:
         """
         Decorator to catch network related exceptions.
 
@@ -228,7 +208,8 @@ class GeonodeRest(object):
         The error message will give a hint about the cause of the exception and the potential solution.
         """
 
-        def inner(*args, **kwargs):
+        @functools.wraps(func)
+        def inner(*args: P.args, **kwargs: P.kwargs) -> R:
             """
             Inner function of the network exception handling decorator.
 
