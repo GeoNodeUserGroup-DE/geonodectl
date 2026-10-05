@@ -12,9 +12,6 @@ from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodetypes import GeonodeHTTPFile
 
-#: why POST api/v2/documents is on its way out - GeoNode 5.0.3 removed document
-#: creation from that endpoint, so every instance geonodectl still uses it
-#: against is one that upstream no longer supports
 DEPRECATION_REASON = (
     "creating documents through POST api/v2/documents is deprecated: GeoNode "
     "dropped document creation from that endpoint in 5.0.3 in favour of the "

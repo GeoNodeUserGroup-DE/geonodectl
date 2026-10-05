@@ -22,8 +22,6 @@ from geonoderest.identifier import (
 
 urllib3.disable_warnings()
 
-#: a decorated method keeps its own signature, so the decorator is generic
-#: over it rather than enumerating every method it is applied to
 P = ParamSpec("P")
 R = TypeVar("R")
 
@@ -206,6 +204,9 @@ class GeonodeRest(object):
         - ConnectionRefusedError
 
         The error message will give a hint about the cause of the exception and the potential solution.
+
+        Typed generically over the wrapped method so the decorated method keeps
+        its own signature: do not enumerate the signatures it is applied to.
         """
 
         @functools.wraps(func)
