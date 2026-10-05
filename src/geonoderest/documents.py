@@ -1,6 +1,7 @@
 import os
 import re
 import mimetypes
+import warnings
 from pathlib import Path
 from typing import IO, List, Optional, Dict
 import logging
@@ -10,6 +11,16 @@ from geonoderest.cmdprint import show_list, print_json
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.resources import GeonodeResourceHandler
 from geonoderest.geonodetypes import GeonodeHTTPFile
+
+#: why POST api/v2/documents is on its way out - GeoNode 5.0.3 removed document
+#: creation from that endpoint, so every instance geonodectl still uses it
+#: against is one that upstream no longer supports
+DEPRECATION_REASON = (
+    "creating documents through POST api/v2/documents is deprecated: GeoNode "
+    "dropped document creation from that endpoint in 5.0.3 in favour of the "
+    "documents/upload form view, and geonodectl will stop using it once GeoNode "
+    "older than 5.0.3 goes unsupported (#176). Please upgrade GeoNode."
+)
 
 
 class GeonodeDocumentsHandler(GeonodeResourceHandler):
@@ -136,6 +147,18 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
                     title=title,
                     metadata_only=metadata_only,
                 )
+            if allowed is None:
+                # nothing was advertised, so the api endpoint is a guess rather
+                # than a statement about the server - not worth a warning
+                logging.debug(
+                    "could not tell which methods this geonode allows on "
+                    f"{self.ENDPOINT_NAME}, trying the api endpoint ..."
+                )
+            else:
+                # DeprecationWarning for library callers, who can filter it, and
+                # a log line for the cmdline, where it would be hidden by default
+                warnings.warn(DEPRECATION_REASON, DeprecationWarning, stacklevel=2)
+                logging.warning(DEPRECATION_REASON)
             return self.__upload_via_api__(
                 document_path=document_path,
                 handle=handle,

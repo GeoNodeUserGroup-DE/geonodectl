@@ -1,11 +1,12 @@
 import os
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 from unittest.mock import patch
 
 from geonoderest.apiconf import GeonodeApiConf
-from geonoderest.documents import GeonodeDocumentsHandler
+from geonoderest.documents import DEPRECATION_REASON, GeonodeDocumentsHandler
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK
 
 API_ALLOWS_POST = {"GET", "PATCH", "POST"}
@@ -77,6 +78,40 @@ class TestDocumentUploadEndpointChoice(DocumentFileTestCase):
         self.assertEqual(mock_post.call_args.kwargs["endpoint"], "documents")
         self.assertEqual(result, API_UPLOAD_RESPONSE["document"])
 
+    @patch.object(GeonodeDocumentsHandler, "http_post")
+    @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
+    def test_the_api_endpoint_warns_that_it_is_deprecated(
+        self, mock_allowed, mock_post
+    ):
+        mock_allowed.return_value = API_ALLOWS_POST
+        mock_post.return_value = API_UPLOAD_RESPONSE
+
+        handler = GeonodeDocumentsHandler(env={})
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            with self.assertLogs(level="WARNING") as logs:
+                handler.upload(file_path=self.document)
+
+        # a DeprecationWarning for library callers, a log line for the cmdline
+        self.assertEqual([w.category for w in caught], [DeprecationWarning])
+        self.assertIn("deprecated", str(caught[0].message))
+        self.assertIn(DEPRECATION_REASON, "\n".join(logs.output))
+
+    @patch.object(GeonodeDocumentsHandler, "get")
+    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
+    def test_the_form_view_does_not_warn(self, mock_allowed, mock_form, mock_get):
+        mock_allowed.return_value = API_FORBIDS_POST
+        mock_form.return_value = FORM_UPLOAD_RESPONSE
+        mock_get.return_value = {"pk": 42}
+
+        handler = GeonodeDocumentsHandler(env={})
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            handler.upload(file_path=self.document)
+
+        self.assertEqual(caught, [])
+
     @patch.object(GeonodeDocumentsHandler, "http_post_form")
     @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
@@ -87,10 +122,14 @@ class TestDocumentUploadEndpointChoice(DocumentFileTestCase):
         mock_allowed.return_value = None
         mock_post.return_value = API_UPLOAD_RESPONSE
 
-        GeonodeDocumentsHandler(env={}).upload(file_path=self.document)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            GeonodeDocumentsHandler(env={}).upload(file_path=self.document)
 
         mock_form.assert_not_called()
         mock_post.assert_called_once()
+        # the endpoint is a guess here, not a statement about the server
+        self.assertEqual(caught, [])
 
     @patch.object(GeonodeDocumentsHandler, "get")
     @patch.object(GeonodeDocumentsHandler, "http_post")

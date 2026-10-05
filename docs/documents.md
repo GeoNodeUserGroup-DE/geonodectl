@@ -51,7 +51,7 @@ methods the API advertises rather than configured:
 | GeoNode | Endpoint |
 |---|---|
 | 5.0.3 and newer | `POST /documents/upload` - GeoNode removed document creation from the REST API ([geonode#14224](https://github.com/GeoNode/geonode/pull/14224)) so that uploads pass its magic-byte file check |
-| 4.x, 5.0.0 - 5.0.2 | `POST /api/v2/documents` |
+| 4.x, 5.0.0 - 5.0.2 | `POST /api/v2/documents` - **deprecated**, geonodectl logs a warning when it uses this path and will drop it once these versions go unsupported |
 
 `--metadata-only` is applied with a follow-up `PATCH` on the newer endpoint,
 whose upload form has no such field. Note that GeoNode then hides the document
