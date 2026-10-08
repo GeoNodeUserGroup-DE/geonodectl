@@ -26,6 +26,7 @@ nav:
       - Users: users.md
       - Groups: groups.md
       - Resources: resources.md
+      - Metadata: metadata.md
       - Uploads: uploads.md
       - Execution Requests: executionrequest.md
       - Keywords: keywords.md

@@ -2,8 +2,7 @@ from typing import List, Dict, Optional
 import logging
 
 from geonoderest.geonodetypes import GeonodeCmdOutObjectKey, GeonodeCmdOutListKey
-from geonoderest.exceptions import GeonodeUsageError, InvalidPkError
-from geonoderest.identifier import is_uuid
+from geonoderest.exceptions import GeonodeUsageError
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.rest import GeonodeRest
 from geonoderest.jsonsource import JsonSourceError, load_json_source
@@ -50,67 +49,6 @@ class GeonodeObjectHandler(GeonodeRest):
         if r is None:
             return None
         return r[self.JSON_OBJECT_NAME]
-
-    def __parse_pk_string__(self, pk) -> List[int]:
-        """
-        differentiate between a uuid, a pk range, a pk list and a single pk
-
-        Args:
-            pk (str): identifier of the object(s) - a uuid, or a pk as a single
-                value, a range (``5-10``) or a list (``1,2,3``)
-
-        Raises:
-            InvalidPkError: not a uuid and not a pk, range or list. Raised rather
-                than exiting so this stays usable as a library (#69); the
-                ``cmd_*`` caller turns it into EXIT_USAGE.
-            UuidTypeMismatchError: a uuid naming a different kind of object
-            ResourceNotFoundError: a uuid no object has
-        """
-
-        pk = str(pk)
-        # a uuid, which must be checked before the range branch below: a uuid
-        # contains dashes, so it would otherwise be read as a malformed range
-        if is_uuid(pk):
-            return [self.__resolve_identifier__(pk)]
-
-        # pk list: 1,2,3,4,5,6,7 - checked before the range branch, because a
-        # list of uuids contains both commas and dashes and "not an integer in a
-        # list" explains it far better than "not a range"
-        if "," in pk:
-            pk_list = pk.split(",")
-            if not all(x.isdigit() for x in pk_list):
-                raise InvalidPkError(
-                    f"Invalid pk {pk} found, not an integer ... "
-                    "(a uuid must be given on its own, not in a list)"
-                )
-            return [int(i) for i in pk_list]
-
-        # pk range: 5-10
-        elif "-" in pk:
-            try:
-                pk_begin, pk_end = pk.split("-")
-            except ValueError:
-                raise InvalidPkError(
-                    f"Invalid pk {pk} found, not a range ... "
-                    "(a uuid must be given on its own, not in a range)"
-                )
-            if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
-                raise InvalidPkError(f"Invalid pk {pk} found, not an integer ...")
-            if int(pk_begin) > int(pk_end):
-                # range() would yield nothing, so the command would report
-                # success having done nothing at all
-                raise InvalidPkError(
-                    f"Invalid pk range {pk}, {pk_begin} is greater than {pk_end} ..."
-                )
-            return [i for i in range(int(pk_begin), int(pk_end) + 1)]
-
-        # single pk: 1
-        else:
-            if not pk.isdigit():
-                raise InvalidPkError(
-                    f"Invalid pk {pk}, is neither an integer nor a uuid ..."
-                )
-            return [int(pk)]
 
     def cmd_delete(self, pk: str, **kwargs) -> int:
         try:

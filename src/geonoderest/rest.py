@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Set, Callable, ParamSpec, TypeVar
+from typing import Any, List, Dict, Optional, Set, Tuple, Callable, ParamSpec, TypeVar
 
 import functools
 import urllib3
@@ -39,6 +39,19 @@ def __response_json__(r: requests.Response) -> Optional[Dict]:
         logging.error(f"{r.url} did not return valid JSON: {e}")
         logging.debug(f"response body was: {r.text[:500]}")
         return None
+
+
+def __accepted_json__(r: requests.Response) -> Dict:
+    """The body of a status the caller accepted - ``{}`` when it is not json.
+
+    An accepted error need not be json - a route that does not exist answers
+    with django's html 404 page - and the status alone is what the caller asked
+    for.
+    """
+    try:
+        return r.json()
+    except ValueError:
+        return {}
 
 
 def _normalised(value: str) -> Optional[str]:
@@ -156,6 +169,67 @@ class GeonodeRest(object):
         """Resolve a list of pks/uuids, in order. See __resolve_identifier__."""
         return [self.__resolve_identifier__(i, expected) for i in identifiers or []]
 
+    def __parse_pk_string__(self, pk) -> List[int]:
+        """
+        differentiate between a uuid, a pk range, a pk list and a single pk
+
+        Args:
+            pk (str): identifier of the object(s) - a uuid, or a pk as a single
+                value, a range (``5-10``) or a list (``1,2,3``)
+
+        Raises:
+            InvalidPkError: not a uuid and not a pk, range or list. Raised rather
+                than exiting so this stays usable as a library (#69); the
+                ``cmd_*`` caller turns it into EXIT_USAGE.
+            UuidTypeMismatchError: a uuid naming a different kind of object
+            ResourceNotFoundError: a uuid no object has
+        """
+
+        pk = str(pk)
+        # a uuid, which must be checked before the range branch below: a uuid
+        # contains dashes, so it would otherwise be read as a malformed range
+        if is_uuid(pk):
+            return [self.__resolve_identifier__(pk)]
+
+        # pk list: 1,2,3,4,5,6,7 - checked before the range branch, because a
+        # list of uuids contains both commas and dashes and "not an integer in a
+        # list" explains it far better than "not a range"
+        if "," in pk:
+            pk_list = pk.split(",")
+            if not all(x.isdigit() for x in pk_list):
+                raise InvalidPkError(
+                    f"Invalid pk {pk} found, not an integer ... "
+                    "(a uuid must be given on its own, not in a list)"
+                )
+            return [int(i) for i in pk_list]
+
+        # pk range: 5-10
+        elif "-" in pk:
+            try:
+                pk_begin, pk_end = pk.split("-")
+            except ValueError:
+                raise InvalidPkError(
+                    f"Invalid pk {pk} found, not a range ... "
+                    "(a uuid must be given on its own, not in a range)"
+                )
+            if not all(pk.isdigit() for pk in [pk_begin, pk_end]):
+                raise InvalidPkError(f"Invalid pk {pk} found, not an integer ...")
+            if int(pk_begin) > int(pk_end):
+                # range() would yield nothing, so the command would report
+                # success having done nothing at all
+                raise InvalidPkError(
+                    f"Invalid pk range {pk}, {pk_begin} is greater than {pk_end} ..."
+                )
+            return [i for i in range(int(pk_begin), int(pk_end) + 1)]
+
+        # single pk: 1
+        else:
+            if not pk.isdigit():
+                raise InvalidPkError(
+                    f"Invalid pk {pk}, is neither an integer nor a uuid ..."
+                )
+            return [int(pk)]
+
     def __handle_http_params__(self, params: Dict, kwargs: Dict) -> Dict:
         """
         Internal method to handle pagination parameters.
@@ -270,21 +344,79 @@ class GeonodeRest(object):
         data: Dict = {},
         files: Optional[List[GeonodeHTTPFile]] = None,
         content_length: Optional[int] = None,
+        form: bool = False,
     ) -> Optional[Dict]:
         """
         Execute http post on endpoint with params
 
+        With ``form``, a form is posted to one of GeoNode's non-API views instead.
+        ``endpoint`` is then relative to the GeoNode base url, not to ``api/v2/`` -
+        these are the plain Django views behind the web ui, so unlike the rest api
+        they are CSRF protected: Django wants a ``csrftoken`` cookie, the matching
+        ``X-CSRFToken`` header and, over https, a same-origin ``Referer``. A GET
+        of the landing page hands us the cookie.
+
         Args:
-            endpoint (str): api endpoint
+            endpoint (str): api endpoint, or with ``form`` a path below the
+                geonode base url, e.g. ``"documents/upload"``
             files (List[GeonodeHTTPFile], optional): list of files to post.
             json (Dict, optional): json data to post
             params (Dict, optional): params dict provided with the post
+            data (Dict, optional): form fields, sent as multipart when files are given
             content_length (Optional[int], optional): content-length header for upload
+            form (bool, optional): post to a non-API form view, see above
 
         Returns:
             Optional[Dict]: the response json, or None when the request failed -
                 a bad http response is logged rather than raised
         """
+        if form:
+            base_url = self.gn_credentials.get_geonode_base_url()
+            url = f"{base_url}/{endpoint}"
+            session = requests.Session()
+            session.verify = self.verify
+            session.headers.update(self.header)
+            try:
+                session.get(f"{base_url}/")
+                csrf_token = session.cookies.get("csrftoken")
+                if csrf_token is None:
+                    logging.debug(f"{base_url}/ set no csrftoken cookie")
+                headers = {"Referer": url}
+                if csrf_token:
+                    headers["X-CSRFToken"] = csrf_token
+                try:
+                    logging.debug(
+                        f"POST (form) URL: {url}, params: {params}, data: {data}"
+                    )
+                    r = session.post(
+                        url,
+                        data=data,
+                        files=files,
+                        params=params,
+                        headers=headers,
+                        allow_redirects=False,
+                    )
+                    # a redirect here is never success: the view is asked not to
+                    # redirect (no__redirect), so a 302 means geonode bounced us
+                    # to the login page - and following it would turn the POST
+                    # into a GET of that page, which looks like a confusing 200
+                    if r.is_redirect:
+                        logging.error(
+                            f"POST {url} was redirected to {r.headers.get('Location')} - "
+                            "geonode did not accept the credentials for this endpoint. "
+                            "Basic auth on non-api views needs GeoNode >= 5.0.3 ..."
+                        )
+                        return None
+                    r.raise_for_status()
+                except requests.exceptions.HTTPError as err:
+                    if r is not None:
+                        logging.error(f"POST error response: {r.text}")
+                    logging.error(err)
+                    return None
+                return __response_json__(r)
+            finally:
+                session.close()
+
         # NOTE: no content-length header is set here - `header` is a property
         # returning a fresh dict, so assigning to it never reached the wire, and
         # requests sets Content-Length itself. `content_length` is kept in the
@@ -350,76 +482,6 @@ class GeonodeRest(object):
         return methods
 
     @network_exception_handling
-    def http_post_form(
-        self,
-        path: str,
-        data: Dict = {},
-        params: Dict = {},
-        files: Optional[List[GeonodeHTTPFile]] = None,
-    ) -> Optional[Dict]:
-        """POST a form to one of GeoNode's non-API views.
-
-        ``path`` is relative to the GeoNode base url, not to ``api/v2/`` - these
-        are the plain Django views behind the web ui, so unlike the rest api they
-        are CSRF protected: Django wants a ``csrftoken`` cookie, the matching
-        ``X-CSRFToken`` header and, over https, a same-origin ``Referer``. A GET
-        of the landing page hands us the cookie.
-
-        Args:
-            path (str): path below the geonode base url, e.g. ``"documents/upload"``
-            data (Dict, optional): form fields, sent as multipart when files are given
-            params (Dict, optional): query-string parameters
-            files (List[GeonodeHTTPFile], optional): list of files to post
-
-        Returns:
-            Optional[Dict]: the response json, or None when the request failed -
-                a bad http response is logged rather than raised, as in http_post
-        """
-        base_url = self.gn_credentials.get_geonode_base_url()
-        url = f"{base_url}/{path}"
-        session = requests.Session()
-        session.verify = self.verify
-        session.headers.update(self.header)
-        try:
-            session.get(f"{base_url}/")
-            csrf_token = session.cookies.get("csrftoken")
-            if csrf_token is None:
-                logging.debug(f"{base_url}/ set no csrftoken cookie")
-            headers = {"Referer": url}
-            if csrf_token:
-                headers["X-CSRFToken"] = csrf_token
-            try:
-                logging.debug(f"POST (form) URL: {url}, params: {params}, data: {data}")
-                r = session.post(
-                    url,
-                    data=data,
-                    files=files,
-                    params=params,
-                    headers=headers,
-                    allow_redirects=False,
-                )
-                # a redirect here is never success: the view is asked not to
-                # redirect (no__redirect), so a 302 means geonode bounced us to
-                # the login page - and following it would turn the POST into a
-                # GET of that page, which looks like a confusing 200
-                if r.is_redirect:
-                    logging.error(
-                        f"POST {url} was redirected to {r.headers.get('Location')} - "
-                        "geonode did not accept the credentials for this endpoint. "
-                        "Basic auth on non-api views needs GeoNode >= 5.0.3 ..."
-                    )
-                    return None
-                r.raise_for_status()
-            except requests.exceptions.HTTPError as err:
-                if r is not None:
-                    logging.error(f"POST error response: {r.text}")
-                logging.error(err)
-                return None
-            return __response_json__(r)
-        finally:
-            session.close()
-
-    @network_exception_handling
     def http_get_download(
         self, url: str, params: Dict = {}
     ) -> Optional[requests.Response]:
@@ -445,16 +507,22 @@ class GeonodeRest(object):
         return r
 
     @network_exception_handling
-    def http_get(self, endpoint: str, params: Dict = {}) -> Optional[Dict]:
+    def http_get(
+        self, endpoint: str, params: Dict = {}, accept: Tuple[int, ...] = ()
+    ) -> Any:
         """
         Execute HTTP GET request on the specified endpoint with optional parameters.
 
         Args:
             endpoint (str): The API endpoint to send the GET request to.
             params (Dict, optional): A dictionary of query parameters to include in the request.
+            accept (Tuple[int, ...], optional): error statuses handed back with
+                their body instead of logged - the metadata api answers 404 and
+                422 with a body worth showing
 
         Returns:
             Dict: The JSON response from the server, or None if an error occurred.
+                With ``accept``, a ``(status, body)`` tuple instead.
         """
 
         url = self.url + endpoint
@@ -463,13 +531,16 @@ class GeonodeRest(object):
             r = requests.get(
                 url, headers=self.header, params=params, verify=self.verify
             )
+            if r.status_code in accept:
+                return r.status_code, __accepted_json__(r)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             if r is not None:
                 logging.error(f"GET error response: {r.text}")
             logging.error(err)
             return None
-        return __response_json__(r)
+        body = __response_json__(r)
+        return (r.status_code, body) if accept and body is not None else body
 
     @network_exception_handling
     def http_put(
@@ -539,8 +610,13 @@ class GeonodeRest(object):
 
     @network_exception_handling
     def http_patch(
-        self, endpoint: str, json_content: Dict = {}, params: Dict = {}, **kwargs
-    ) -> Optional[Dict]:
+        self,
+        endpoint: str,
+        json_content: Dict = {},
+        params: Dict = {},
+        accept: Tuple[int, ...] = (),
+        **kwargs,
+    ) -> Any:
         """
         Execute HTTP PATCH request on the specified endpoint with optional parameters.
 
@@ -548,9 +624,13 @@ class GeonodeRest(object):
             endpoint (str): The API endpoint to send the PATCH request to.
             json (Dict, optional): A dictionary of JSON data to include in the request body.
             params (Dict, optional): A dictionary of query parameters to include in the request.
+            accept (Tuple[int, ...], optional): error statuses handed back with
+                their body instead of logged - the metadata api answers 404 and
+                422 with a body worth showing
 
         Returns:
             Dict: The JSON response from the server, or None if an error occurred.
+                With ``accept``, a ``(status, body)`` tuple instead.
         """
         url = self.url + endpoint
         try:
@@ -564,13 +644,16 @@ class GeonodeRest(object):
                 params=params,
                 verify=self.verify,
             )
+            if r.status_code in accept:
+                return r.status_code, __accepted_json__(r)
             r.raise_for_status()
         except requests.exceptions.HTTPError as err:
             if r is not None:
                 logging.error(f"PATCH error response: {r.text}")
             logging.error(err)
             return None
-        return __response_json__(r)
+        body = __response_json__(r)
+        return (r.status_code, body) if accept and body is not None else body
 
     @network_exception_handling
     def http_delete(

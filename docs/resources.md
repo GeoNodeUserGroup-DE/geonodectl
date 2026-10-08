@@ -39,6 +39,8 @@ geonodectl resources metadata 36 --metadata-type ISO
 
 The `--metadata-type` option accepts the formats supported by your GeoNode instance (e.g. `ISO`, `Dublin Core`).
 
+This *exports* metadata in standard formats. To read and edit metadata as JSON on GeoNode 5, use [`geonodectl metadata`](metadata.md).
+
 ---
 
 ## Validate

@@ -25,6 +25,7 @@ from geonoderest.groups import GeonodeGroupsHandler
 from geonoderest.geoapps import GeonodeGeoappsHandler
 from geonoderest.uploads import GeonodeUploadsHandler
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
+from geonoderest.metadata import GeonodeMetadataHandler
 from geonoderest.keywords import GeonodeKeywordsRequestHandler
 from geonoderest.tkeywords import GeonodeThesauriKeywordsRequestHandler
 from geonoderest.tkeywordlabels import GeonodeThesauriKeywordLabelsRequestHandler
@@ -1440,6 +1441,123 @@ To use this tool you have to set the following environment variables before star
         type=str, dest="exec_id", help="exec_id of executionrequest to describe ..."
     )
 
+    #############################
+    # METADATA ARGUMENT PARSING #
+    #############################
+    metadata = subparsers.add_parser(
+        "metadata",
+        help="read and edit metadata through the json-schema metadata api (GeoNode 5)",
+        aliases=("md",),
+    )
+    metadata_subparsers = metadata.add_subparsers(
+        help="geonodectl metadata commands", dest="subcommand", required=True
+    )
+
+    # SCHEMA
+    metadata_schema = metadata_subparsers.add_parser(
+        "schema", help="list the metadata fields, or show one field in detail"
+    )
+    metadata_schema.add_argument(
+        dest="field",
+        nargs="?",
+        default=None,
+        help="a field, as a dotted path like tkeywords.AGROVOC; omit to list every field",
+    )
+
+    # DESCRIBE
+    metadata_describe = metadata_subparsers.add_parser(
+        "describe", help="print the metadata of a resource as json"
+    )
+    metadata_describe.add_argument(
+        type=str, dest="pk", help="pk or uuid of the resource"
+    )
+    metadata_describe.add_argument(
+        "--fields",
+        dest="select",
+        type=str,
+        default=None,
+        help="only these fields, comma separated: --fields title,abstract",
+    )
+
+    # LOOKUP
+    metadata_lookup = metadata_subparsers.add_parser(
+        "lookup", help="search the ids a field accepts, e.g. licenses or keywords"
+    )
+    metadata_lookup.add_argument(
+        dest="path",
+        help="a field with a lookup, e.g. license, regions, tkeywords.AGROVOC, contacts.owner",
+    )
+    metadata_lookup.add_argument(
+        dest="query", nargs="?", default=None, help="text to search for"
+    )
+
+    # PATCH
+    metadata_patch = metadata_subparsers.add_parser(
+        "patch", help="change some metadata fields of one or more resources"
+    )
+    metadata_patch.add_argument(
+        type=str,
+        dest="pk",
+        help="pk or uuid of the resource(s) (uuid, single '1', range '1-5', list '1,2,3') ...",
+    )
+    metadata_patch.add_argument(
+        "--field",
+        dest="field_exprs",
+        action="append",
+        metavar="EXPR",
+        help="KEY=VALUE, KEY:=JSON, KEY+=VALUE or KEY-=VALUE, repeatable; "
+        "KEY may be a dotted path like tkeywords.AGROVOC",
+    )
+    metadata_patch_mutually_exclusive_group = (
+        metadata_patch.add_mutually_exclusive_group()
+    )
+    metadata_patch_mutually_exclusive_group.add_argument(
+        "--set",
+        dest="fields",
+        type=str,
+        help='the fields to change as a json string: \'{"title": "New title"}\'',
+    )
+    add_json_source_args(
+        metadata_patch_mutually_exclusive_group, "the fields to change"
+    )
+
+    metadata_patch.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        help="print what would be sent, send nothing",
+    )
+    metadata_patch.add_argument(
+        "--no-validate",
+        dest="no_validate",
+        action="store_true",
+        help="skip the check against the schema and leave it to the server",
+    )
+
+    # VALIDATE
+    metadata_validate = metadata_subparsers.add_parser(
+        "validate", help="check stored metadata against the server's schema"
+    )
+    metadata_validate.add_argument(
+        type=str,
+        dest="pk",
+        help="pk or uuid of the resource(s) (uuid, single '1', range '1-5', list '1,2,3') ...",
+    )
+
+    for metadata_verb in (
+        metadata_schema,
+        metadata_describe,
+        metadata_patch,
+        metadata_validate,
+    ):
+        metadata_verb.add_argument(
+            "--lang",
+            dest="lang",
+            type=str,
+            default=None,
+            help="language of labels and messages, e.g. en or de (default: the server's)",
+        )
+
     ############################
     # KEYWORD ARGUMENT PARSING #
     ############################
@@ -1602,7 +1720,9 @@ To use this tool you have to set the following environment variables before star
         )
         return EXIT_USAGE
     geonode_env = GeonodeApiConf(url=url, auth_basic=basic, verify=args.ssl_verify)
-    g_obj: Union[GeonodeObjectHandler, GeonodeExecutionRequestHandler]
+    g_obj: Union[
+        GeonodeObjectHandler, GeonodeExecutionRequestHandler, GeonodeMetadataHandler
+    ]
     match args.command:
         case "resources" | "resource":
             g_obj = GeonodeResourceHandler(env=geonode_env)
@@ -1626,6 +1746,8 @@ To use this tool you have to set the following environment variables before star
             g_obj = GeonodeUploadsHandler(env=geonode_env)
         case "executionrequest" | "execrequest":
             g_obj = GeonodeExecutionRequestHandler(env=geonode_env)
+        case "metadata" | "md":
+            g_obj = GeonodeMetadataHandler(env=geonode_env)
         case "keywords" | "keywords":
             g_obj = GeonodeKeywordsRequestHandler(env=geonode_env)
         case "thesaurikeywords" | "tkeywords":

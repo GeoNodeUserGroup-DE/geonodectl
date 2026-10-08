@@ -46,3 +46,9 @@ class MissingArgumentError(GeonodeUsageError):
 
 class ApiConfError(GeonodeUsageError):
     """The GeoNode API configuration is incomplete - a required env var is unset."""
+
+
+class MetadataFieldError(GeonodeUsageError):
+    """A metadata field cannot be set as asked - an unparseable ``--field``
+    expression, a field the schema does not have, a read-only field, or a value
+    that does not fit the field's type."""

@@ -199,8 +199,9 @@ class GeonodeDocumentsHandler(GeonodeResourceHandler):
         so the pk has to be read back out of that url and the document fetched
         before it can be reported like the api endpoint's response.
         """
-        r = self.http_post_form(
-            path=self.UPLOAD_FORM_PATH,
+        r = self.http_post(
+            endpoint=self.UPLOAD_FORM_PATH,
+            form=True,
             # without this the view answers 302 to the detail page, not json
             params={"no__redirect": "true"},
             data={"title": title},
