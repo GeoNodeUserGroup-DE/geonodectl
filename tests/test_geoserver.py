@@ -149,28 +149,21 @@ class TestCmdStyleSetDefault(unittest.TestCase):
     def setUp(self):
         self.h = _handler()
 
-    def test_splits_qualified_layer_for_publish_style(self):
-        self.h.geo.publish_style.return_value = 200
+    @patch("geonoderest.geoserver.requests.put")
+    def test_puts_to_geonode_proxy_with_bare_layer_name(self, mock_put):
         with patch("builtins.print"):
             self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
-        self.h.geo.publish_style.assert_called_once_with(
-            layer_name="buildings",
-            style_name=STYLE_NAME,
-            workspace="geonode",
+        self.assertEqual(
+            mock_put.call_args.args[0],
+            "https://geoserver.example.com/gs/rest/layers/buildings.json",
+        )
+        self.assertEqual(
+            mock_put.call_args.kwargs["json"],
+            {"layer": {"defaultStyle": {"name": STYLE_NAME, "workspace": WORKSPACE}}},
         )
 
-    def test_uses_workspace_arg_for_bare_layer_name(self):
-        self.h.geo.publish_style.return_value = 200
-        with patch("builtins.print"):
-            self.h.cmd_style_set_default("buildings", STYLE_NAME, workspace="custom")
-        self.h.geo.publish_style.assert_called_once_with(
-            layer_name="buildings",
-            style_name=STYLE_NAME,
-            workspace="custom",
-        )
-
-    def test_prints_success_json(self):
-        self.h.geo.publish_style.return_value = 200
+    @patch("geonoderest.geoserver.requests.put")
+    def test_prints_success_json(self, mock_put):
         with patch("builtins.print") as mock_print:
             self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
         printed = json.loads(mock_print.call_args.args[0])
@@ -178,10 +171,9 @@ class TestCmdStyleSetDefault(unittest.TestCase):
         self.assertEqual(printed["layer"], "geonode:buildings")
         self.assertEqual(printed["style"], STYLE_NAME)
 
-    def test_logs_error_on_geoserver_exception(self):
-        self.h.geo.publish_style.side_effect = GeoserverException(
-            404, b"layer not found"
-        )
+    @patch("geonoderest.geoserver.requests.put")
+    def test_logs_error_on_request_exception(self, mock_put):
+        mock_put.return_value.raise_for_status.side_effect = requests.HTTPError("404")
         with self.assertLogs(level="ERROR"):
             self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
 
