@@ -19,7 +19,7 @@ UPDATED = (200, {"message": "The resource was updated successfully", "extraError
 
 
 class FakeApi:
-    """stands in for ``http_send``: serves the schema and instances, and records
+    """stands in for ``http_get``/``http_patch``: serves the schema and instances, and records
     every write instead of performing it"""
 
     def __init__(self, instances=None, writes=None):
@@ -43,7 +43,8 @@ class FakeApi:
 
 def _handler(api):
     handler = GeonodeMetadataHandler(env=ENV)
-    handler.http_send = MagicMock(side_effect=api)
+    handler.http_get = MagicMock(side_effect=lambda e, **kw: api("GET", e, **kw))
+    handler.http_patch = MagicMock(side_effect=lambda e, **kw: api("PATCH", e, **kw))
     return handler
 
 
@@ -67,7 +68,7 @@ class TestSchemaAndGet(unittest.TestCase):
 
     def test_a_missing_api_means_geonode_older_than_5(self):
         handler = GeonodeMetadataHandler(env=ENV)
-        handler.http_send = MagicMock(return_value=(404, {}))
+        handler.http_get = MagicMock(return_value=(404, {}))
         with self.assertRaises(GeoNodeRestException) as cm:
             handler.schema()
         self.assertIn("GeoNode 5", str(cm.exception))
@@ -81,24 +82,26 @@ class TestSchemaAndGet(unittest.TestCase):
     def test_a_missing_instance_route_is_a_missing_api(self):
         """GeoNode 4 answers with django's html 404, which arrives as {}"""
         handler = GeonodeMetadataHandler(env=ENV)
-        handler.http_send = MagicMock(return_value=(404, {}))
+        handler.http_get = MagicMock(return_value=(404, {}))
         with self.assertRaises(GeoNodeRestException):
             handler.get(42)
 
     def test_get_selected_fields(self):
-        code, out = _run(_handler(FakeApi()).cmd_get, pk="42", select="title,language")
+        code, out = _run(
+            _handler(FakeApi()).cmd_describe, pk="42", select="title,language"
+        )
         self.assertEqual(code, EXIT_OK)
         self.assertEqual(json.loads(out), {"title": "a dataset", "language": "eng"})
 
     def test_get_unknown_field(self):
         with self.assertLogs(level="ERROR") as logs:
-            code, _ = _run(_handler(FakeApi()).cmd_get, pk="42", select="titel")
+            code, _ = _run(_handler(FakeApi()).cmd_describe, pk="42", select="titel")
         self.assertEqual(code, EXIT_USAGE)
         self.assertIn("did you mean title", "\n".join(logs.output))
 
     def test_get_takes_a_single_resource(self):
         with self.assertLogs(level="ERROR"):
-            code, _ = _run(_handler(FakeApi()).cmd_get, pk="1-3")
+            code, _ = _run(_handler(FakeApi()).cmd_describe, pk="1-3")
         self.assertEqual(code, EXIT_USAGE)
 
 
@@ -236,14 +239,14 @@ class TestPatch(unittest.TestCase):
     def test_a_bulk_patch_goes_on_past_a_failing_pk(self):
         api = FakeApi(instances={1: INSTANCE, 2: INSTANCE, 3: INSTANCE})
         handler = _handler(api)
-        original = handler.http_send.side_effect
+        original = handler.http_patch.side_effect
 
-        def failing_on_2(method, endpoint, **kwargs):
-            if method == "PATCH" and endpoint.endswith("/2"):
+        def failing_on_2(endpoint, **kwargs):
+            if endpoint.endswith("/2"):
                 return None
-            return original(method, endpoint, **kwargs)
+            return original(endpoint, **kwargs)
 
-        handler.http_send.side_effect = failing_on_2
+        handler.http_patch.side_effect = failing_on_2
         with self.assertLogs(level="ERROR"):
             code, _ = _run(handler.cmd_patch, pk="1-3", field_exprs=["edition=2"])
         self.assertEqual(code, EXIT_FAILED)
@@ -259,42 +262,6 @@ class TestPatch(unittest.TestCase):
         self.assertEqual(code, EXIT_OK)
         record = json.loads(out)[0]
         self.assertEqual((record["pk"], record["status"]), (42, 200))
-
-
-class TestPut(unittest.TestCase):
-    def test_a_round_trip_leaves_links_and_read_only_fields_out(self):
-        api = FakeApi()
-        with self.assertLogs(level="INFO") as logs:
-            code, _ = _run(_handler(api).cmd_put, pk="42", fields=json.dumps(INSTANCE))
-        self.assertEqual(code, EXIT_OK)
-        method, pk, payload = api.sent[0]
-        self.assertEqual((method, pk), ("PATCH", 42), "never an http PUT")
-        self.assertNotIn("linkedresources", payload)
-        self.assertNotIn("uuid", payload)
-        self.assertEqual(payload["date_type"], "Creation", "sent as given")
-        self.assertIn("linked-resources", "\n".join(logs.output))
-
-    def test_required_fields_are_checked(self):
-        api = FakeApi()
-        instance = dict(INSTANCE, category=None)
-        with self.assertLogs(level="ERROR"):
-            code, out = _run(
-                _handler(api).cmd_put, pk="42", fields=json.dumps(instance)
-            )
-        self.assertEqual(code, EXIT_USAGE)
-        self.assertEqual(api.sent, [])
-        self.assertIn("$.category", out)
-
-    def test_unknown_keys_are_refused(self):
-        api = FakeApi()
-        with self.assertLogs(level="ERROR"):
-            code, _ = _run(
-                _handler(api).cmd_put,
-                pk="42",
-                fields=json.dumps(dict(INSTANCE, titel="x")),
-            )
-        self.assertEqual(code, EXIT_USAGE)
-        self.assertEqual(api.sent, [])
 
 
 class TestValidate(unittest.TestCase):

@@ -1464,12 +1464,14 @@ To use this tool you have to set the following environment variables before star
         help="a field, as a dotted path like tkeywords.AGROVOC; omit to list every field",
     )
 
-    # GET
-    metadata_get = metadata_subparsers.add_parser(
-        "get", help="print the metadata of a resource as json"
+    # DESCRIBE
+    metadata_describe = metadata_subparsers.add_parser(
+        "describe", help="print the metadata of a resource as json"
     )
-    metadata_get.add_argument(type=str, dest="pk", help="pk or uuid of the resource")
-    metadata_get.add_argument(
+    metadata_describe.add_argument(
+        type=str, dest="pk", help="pk or uuid of the resource"
+    )
+    metadata_describe.add_argument(
         "--fields",
         dest="select",
         type=str,
@@ -1519,37 +1521,18 @@ To use this tool you have to set the following environment variables before star
         metadata_patch_mutually_exclusive_group, "the fields to change"
     )
 
-    # PUT
-    metadata_put = metadata_subparsers.add_parser(
-        "put",
-        help="replace the metadata of a resource - every field but linkedresources",
+    metadata_patch.add_argument(
+        "--dry-run",
+        dest="dry_run",
+        action="store_true",
+        help="print what would be sent, send nothing",
     )
-    metadata_put.add_argument(type=str, dest="pk", help="pk or uuid of the resource")
-    metadata_put_mutually_exclusive_group = metadata_put.add_mutually_exclusive_group(
-        required=True
+    metadata_patch.add_argument(
+        "--no-validate",
+        dest="no_validate",
+        action="store_true",
+        help="skip the check against the schema and leave it to the server",
     )
-    metadata_put_mutually_exclusive_group.add_argument(
-        "--set", dest="fields", type=str, help="the metadata as a json string"
-    )
-    add_json_source_args(
-        metadata_put_mutually_exclusive_group,
-        "the metadata",
-        note="e.g. the output of 'metadata get'",
-    )
-
-    for metadata_write in (metadata_patch, metadata_put):
-        metadata_write.add_argument(
-            "--dry-run",
-            dest="dry_run",
-            action="store_true",
-            help="print what would be sent, send nothing",
-        )
-        metadata_write.add_argument(
-            "--no-validate",
-            dest="no_validate",
-            action="store_true",
-            help="skip the check against the schema and leave it to the server",
-        )
 
     # VALIDATE
     metadata_validate = metadata_subparsers.add_parser(
@@ -1563,9 +1546,8 @@ To use this tool you have to set the following environment variables before star
 
     for metadata_verb in (
         metadata_schema,
-        metadata_get,
+        metadata_describe,
         metadata_patch,
-        metadata_put,
         metadata_validate,
     ):
         metadata_verb.add_argument(

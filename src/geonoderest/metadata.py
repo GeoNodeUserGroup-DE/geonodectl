@@ -75,8 +75,7 @@ class GeonodeMetadataHandler(GeonodeRest):
             GeoNodeRestException: the server has no metadata api, or no schema
         """
         if lang not in self._schemas:
-            r = self.http_send(
-                "GET",
+            r = self.http_get(
                 f"{self.ENDPOINT_NAME}/schema",
                 params=self.__params__(lang),
                 accept=(NOT_FOUND,),
@@ -99,8 +98,7 @@ class GeonodeMetadataHandler(GeonodeRest):
         Raises:
             GeoNodeRestException: the server has no metadata api
         """
-        r = self.http_send(
-            "GET",
+        r = self.http_get(
             f"{self.ENDPOINT_NAME}/instance/{pk}",
             params=self.__params__(lang),
             accept=(NOT_FOUND,),
@@ -130,42 +128,12 @@ class GeonodeMetadataHandler(GeonodeRest):
                 rejected fields in ``extraErrors``, or 404 - and the body
         """
         self.__guard_linked_resources__(payload)
-        return self.http_send(
-            "PATCH",
+        return self.http_patch(
             f"{self.ENDPOINT_NAME}/instance/{pk}",
             json_content=payload,
             params=self.__params__(lang),
             accept=(UNPROCESSABLE, NOT_FOUND),
         )
-
-    def put(
-        self, pk: int, instance: Dict, lang: Optional[str] = None
-    ) -> Optional[Tuple[int, Dict]]:
-        """Replace the metadata with ``instance`` - every field but the links.
-
-        Sent as a PATCH of every writable field rather than as an http PUT,
-        because a PUT also rewrites the links from the list it is given - and
-        links are left to ``linked-resources``, see ``LINKED_RESOURCES_FIELD``.
-        """
-        return self.patch(pk, self.writable(instance, self.schema(lang)), lang)
-
-    def writable(self, instance: Dict, schema: Optional[Dict]) -> Dict:
-        """``instance`` without the links and without read-only fields."""
-        read_only = {
-            key
-            for key, subschema in ((schema or {}).get("properties") or {}).items()
-            if subschema.get("readOnly")
-        }
-        if self.LINKED_RESOURCES_FIELD in instance:
-            logging.info(
-                f"{self.LINKED_RESOURCES_FIELD} left as it is - edit links "
-                "with 'geonodectl linked-resources' ..."
-            )
-        return {
-            key: value
-            for key, value in instance.items()
-            if key != self.LINKED_RESOURCES_FIELD and key not in read_only
-        }
 
     def lookup(self, path: str, query: Optional[str] = None) -> Optional[List[Dict]]:
         """Search the lookup table the schema declares for ``path``.
@@ -248,7 +216,7 @@ class GeonodeMetadataHandler(GeonodeRest):
             self.__print_schema__(schema)
         return EXIT_OK
 
-    def cmd_get(
+    def cmd_describe(
         self,
         pk: str,
         select: Optional[str] = None,
@@ -339,50 +307,6 @@ class GeonodeMetadataHandler(GeonodeRest):
             (_pk, self.patch(_pk, payload, lang)) for _pk, payload in payloads.items()
         ]
         return max(exit_code, self.__report__(results, **kwargs))
-
-    def cmd_put(
-        self,
-        pk: str,
-        fields: Optional[str] = None,
-        json_path: Optional[str] = None,
-        dry_run: bool = False,
-        no_validate: bool = False,
-        lang: Optional[str] = None,
-        **kwargs,
-    ) -> int:
-        """replace the metadata of a resource - every field but the links"""
-        try:
-            _pk = self.__resolve_identifier__(pk)
-            instance = self.__load_payload__(fields, json_path)
-            if not instance:
-                raise MetadataFieldError(
-                    "nothing to write - give --set or --json_path ..."
-                )
-            schema = self.schema(lang)
-            if schema is None:
-                return EXIT_FAILED
-            payload = self.writable(instance, schema)
-            check_payload_keys(schema, payload)
-            if not no_validate:
-                errors = collect_errors(
-                    build_validator(schema, self.schema_url),
-                    for_validation(schema, payload),
-                )
-                if errors:
-                    logging.error("the schema rejects the metadata, nothing was sent:")
-                    print_validation_report(
-                        [{"pk": _pk, "valid": False, "errors": errors}],
-                        noun="metadata for resource",
-                    )
-                    return EXIT_USAGE
-        except (GeonodeUsageError, JsonSourceError, SchemaLoadError) as e:
-            logging.error(str(e))
-            return EXIT_USAGE
-
-        if dry_run:
-            print_json({str(_pk): payload})
-            return EXIT_OK
-        return self.__report__([(_pk, self.patch(_pk, payload, lang))], **kwargs)
 
     def cmd_validate(self, pk: str, lang: Optional[str] = None, **kwargs) -> int:
         """check the stored metadata of resources against the server's schema"""

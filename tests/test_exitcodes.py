@@ -269,7 +269,7 @@ class TestReviewFindings(unittest.TestCase):
 
 
 def _metadata_api(write=(200, {"message": "ok", "extraErrors": {}})):
-    """a stand-in for the metadata api's http_send: a one-field schema, an
+    """a stand-in for the metadata api: a one-field schema, an
     instance for pk 42, and ``write`` as the answer to every write"""
     schema = {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -277,14 +277,23 @@ def _metadata_api(write=(200, {"message": "ok", "extraErrors": {}})):
         "properties": {"date": {"type": "string", "format": "date-time"}},
     }
 
-    def http_send(method, endpoint, **kwargs):
+    def serve(method, endpoint, **kwargs):
         if endpoint == "metadata/schema":
             return 200, schema
         if method == "GET":
             return 200, {"date": "2026-01-01T00:00:00Z"}
         return write
 
-    return MagicMock(side_effect=http_send)
+    return MagicMock(side_effect=serve)
+
+
+def _serving(api):
+    """route the metadata handler's http_get/http_patch to ``api(method, ...)``"""
+    return patch.multiple(
+        GeonodeMetadataHandler,
+        http_get=lambda self, endpoint, **kw: api("GET", endpoint, **kw),
+        http_patch=lambda self, endpoint, **kw: api("PATCH", endpoint, **kw),
+    )
 
 
 class TestMetadataExitCodes(unittest.TestCase):
@@ -298,7 +307,7 @@ class TestMetadataExitCodes(unittest.TestCase):
                 {"message": "errors", "extraErrors": {"date": {"__errors": ["bad"]}}},
             )
         )
-        with patch.object(GeonodeMetadataHandler, "http_send", api):
+        with _serving(api):
             code = _run(
                 "metadata", "patch", "42", "--set", '{"date": "x"}', "--no-validate"
             )
@@ -308,7 +317,7 @@ class TestMetadataExitCodes(unittest.TestCase):
     def test_client_side_rejection_is_2_and_sends_nothing(self):
         api = _metadata_api()
         with (
-            patch.object(GeonodeMetadataHandler, "http_send", api),
+            _serving(api),
             self.assertLogs(level="ERROR"),
         ):
             code = _run("md", "patch", "42", "--set", '{"date": "not-a-date"}')
@@ -319,7 +328,7 @@ class TestMetadataExitCodes(unittest.TestCase):
     def test_unknown_field_is_2(self):
         api = _metadata_api()
         with (
-            patch.object(GeonodeMetadataHandler, "http_send", api),
+            _serving(api),
             self.assertLogs(level="ERROR"),
         ):
             code = _run("metadata", "patch", "42", "--field", "dte=2026")
@@ -330,7 +339,7 @@ class TestMetadataExitCodes(unittest.TestCase):
         """GeoNode 4 has no metadata api; its 404 page is html, so the body is {}"""
         api = MagicMock(return_value=(404, {}))
         with (
-            patch.object(GeonodeMetadataHandler, "http_send", api),
+            _serving(api),
             self.assertLogs(level="ERROR") as logs,
         ):
             code = _run("metadata", "schema")

@@ -91,7 +91,7 @@ See [docs/example.md](docs/example.md) for worked examples.
 | Command | Aliases | Capabilities |
 |---|---|---|
 | `resources` | `resource` | list, delete, metadata, **validate** |
-| `metadata` | `md` | schema, get, lookup, patch, put, validate (GeoNode 5) |
+| `metadata` | `md` | schema, describe, lookup, patch, validate (GeoNode 5) |
 | `datasets` | `ds`, `dataset` | list, delete, patch, describe, upload, **validate** |
 | `documents` | `doc`, `document` | list, delete, patch, describe, upload, **validate** |
 | `maps` | — | list, delete, patch, describe, create, get-blob, set-blob, maplayers list/add/remove, **validate** |

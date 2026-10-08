@@ -206,6 +206,17 @@ class TestApplyOps(unittest.TestCase):
         with self.assertRaises(MetadataFieldError):
             _apply("title+=x")
 
+    def test_append_or_remove_without_a_value(self):
+        """an empty value on a nullable list coerces to None"""
+        schema = {
+            "properties": {
+                "tags": {"type": ["array", "null"], "items": {"type": "string"}}
+            }
+        }
+        for expr in ("tags+=", "tags-="):
+            with self.subTest(expr=expr), self.assertRaises(MetadataFieldError):
+                apply_ops(schema, [parse_field_expr(expr)], None, {"tags": ["a"]})
+
     def test_raw_json(self):
         self.assertEqual(_apply("count:=3", current=None), {"count": 3})
         with self.assertRaises(MetadataFieldError):

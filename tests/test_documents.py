@@ -61,12 +61,9 @@ class TestGeonodeDocumentsHandler(unittest.TestCase):
 class TestDocumentUploadEndpointChoice(DocumentFileTestCase):
     """which endpoint creates the document, see #175"""
 
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
     @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
-    def test_api_endpoint_when_post_is_allowed(
-        self, mock_allowed, mock_post, mock_form
-    ):
+    def test_api_endpoint_when_post_is_allowed(self, mock_allowed, mock_post):
         mock_allowed.return_value = API_ALLOWS_POST
         mock_post.return_value = API_UPLOAD_RESPONSE
 
@@ -74,7 +71,7 @@ class TestDocumentUploadEndpointChoice(DocumentFileTestCase):
         result = handler.upload(file_path=self.document)
 
         mock_allowed.assert_called_once_with("documents")
-        mock_form.assert_not_called()
+        self.assertFalse(mock_post.call_args.kwargs.get("form"))
         self.assertEqual(mock_post.call_args.kwargs["endpoint"], "documents")
         self.assertEqual(result, API_UPLOAD_RESPONSE["document"])
 
@@ -98,7 +95,7 @@ class TestDocumentUploadEndpointChoice(DocumentFileTestCase):
         self.assertIn(DEPRECATION_REASON, "\n".join(logs.output))
 
     @patch.object(GeonodeDocumentsHandler, "get")
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_the_form_view_does_not_warn(self, mock_allowed, mock_form, mock_get):
         mock_allowed.return_value = API_FORBIDS_POST
@@ -112,12 +109,9 @@ class TestDocumentUploadEndpointChoice(DocumentFileTestCase):
 
         self.assertEqual(caught, [])
 
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
     @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
-    def test_api_endpoint_when_probe_is_inconclusive(
-        self, mock_allowed, mock_post, mock_form
-    ):
+    def test_api_endpoint_when_probe_is_inconclusive(self, mock_allowed, mock_post):
         """no Allow header means unknown, not 'nothing is allowed'"""
         mock_allowed.return_value = None
         mock_post.return_value = API_UPLOAD_RESPONSE
@@ -126,17 +120,16 @@ class TestDocumentUploadEndpointChoice(DocumentFileTestCase):
             warnings.simplefilter("always")
             GeonodeDocumentsHandler(env={}).upload(file_path=self.document)
 
-        mock_form.assert_not_called()
         mock_post.assert_called_once()
+        self.assertFalse(mock_post.call_args.kwargs.get("form"))
         # the endpoint is a guess here, not a statement about the server
         self.assertEqual(caught, [])
 
     @patch.object(GeonodeDocumentsHandler, "get")
     @patch.object(GeonodeDocumentsHandler, "http_post")
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_form_view_when_post_is_not_allowed(
-        self, mock_allowed, mock_form, mock_post, mock_get
+        self, mock_allowed, mock_form, mock_get
     ):
         mock_allowed.return_value = API_FORBIDS_POST
         mock_form.return_value = FORM_UPLOAD_RESPONSE
@@ -145,9 +138,10 @@ class TestDocumentUploadEndpointChoice(DocumentFileTestCase):
         handler = GeonodeDocumentsHandler(env={})
         result = handler.upload(file_path=self.document)
 
-        mock_post.assert_not_called()
+        mock_form.assert_called_once()
         kwargs = mock_form.call_args.kwargs
-        self.assertEqual(kwargs["path"], "documents/upload")
+        self.assertTrue(kwargs["form"])
+        self.assertEqual(kwargs["endpoint"], "documents/upload")
         self.assertEqual(kwargs["params"], {"no__redirect": "true"})
         # the detail url is all the view returns, so the document is fetched back
         mock_get.assert_called_once_with(pk=42)
@@ -186,7 +180,7 @@ class TestDocumentUploadPayload(DocumentFileTestCase):
         self.assertEqual(mock_post.call_args.kwargs["data"]["title"], "report.pdf")
 
     @patch.object(GeonodeDocumentsHandler, "get")
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_given_title_wins_on_the_form_view(self, mock_allowed, mock_form, mock_get):
         mock_allowed.return_value = API_FORBIDS_POST
@@ -203,7 +197,7 @@ class TestDocumentUploadPayload(DocumentFileTestCase):
 
     @patch.object(GeonodeDocumentsHandler, "get")
     @patch.object(GeonodeDocumentsHandler, "patch")
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_metadata_only_is_patched_after_the_form_upload(
         self, mock_allowed, mock_form, mock_patch, mock_get
@@ -222,7 +216,7 @@ class TestDocumentUploadPayload(DocumentFileTestCase):
 
     @patch.object(GeonodeDocumentsHandler, "get")
     @patch.object(GeonodeDocumentsHandler, "patch")
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_metadata_only_reports_what_the_patch_returned(
         self, mock_allowed, mock_form, mock_patch, mock_get
@@ -242,7 +236,7 @@ class TestDocumentUploadPayload(DocumentFileTestCase):
 
     @patch.object(GeonodeDocumentsHandler, "get")
     @patch.object(GeonodeDocumentsHandler, "patch")
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_a_failed_metadata_only_patch_fails_the_upload(
         self, mock_allowed, mock_form, mock_patch, mock_get
@@ -260,7 +254,7 @@ class TestDocumentUploadPayload(DocumentFileTestCase):
 
     @patch.object(GeonodeDocumentsHandler, "get")
     @patch.object(GeonodeDocumentsHandler, "patch")
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_no_patch_without_metadata_only(
         self, mock_allowed, mock_form, mock_patch, mock_get
@@ -276,7 +270,7 @@ class TestDocumentUploadPayload(DocumentFileTestCase):
 
 class TestDocumentUploadFailures(DocumentFileTestCase):
     @patch.object(GeonodeDocumentsHandler, "get")
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_unparsable_detail_url_fails(self, mock_allowed, mock_form, mock_get):
         mock_allowed.return_value = API_FORBIDS_POST
@@ -298,7 +292,7 @@ class TestDocumentUploadFailures(DocumentFileTestCase):
 
         mock_allowed.assert_not_called()
 
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_rejected_upload_fails(self, mock_allowed, mock_form):
         mock_allowed.return_value = API_FORBIDS_POST
@@ -314,7 +308,7 @@ class TestDocumentUploadFailures(DocumentFileTestCase):
         self.assertIsNone(result)
         self.assertIn("This file type is not allowed", "\n".join(logs.output))
 
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_cmd_upload_reports_a_failed_upload(self, mock_allowed, mock_form):
         mock_allowed.return_value = API_FORBIDS_POST
@@ -327,7 +321,7 @@ class TestDocumentUploadFailures(DocumentFileTestCase):
         self.assertEqual(code, EXIT_FAILED)
 
     @patch.object(GeonodeDocumentsHandler, "get")
-    @patch.object(GeonodeDocumentsHandler, "http_post_form")
+    @patch.object(GeonodeDocumentsHandler, "http_post")
     @patch.object(GeonodeDocumentsHandler, "http_allowed_methods")
     def test_cmd_upload_passes_the_title_through(
         self, mock_allowed, mock_form, mock_get
@@ -366,8 +360,9 @@ class TestHttpPostForm(unittest.TestCase):
             response.is_redirect = False
             response.json.return_value = {"success": True}
 
-            result = handler.http_post_form(
-                path="documents/upload",
+            result = handler.http_post(
+                endpoint="documents/upload",
+                form=True,
                 data={"title": "report.pdf"},
                 params={"no__redirect": "true"},
             )
@@ -397,7 +392,7 @@ class TestHttpPostForm(unittest.TestCase):
             response.headers = {"Location": "https://example.org/account/login/"}
 
             with self.assertLogs(level="ERROR") as logs:
-                result = handler.http_post_form(path="documents/upload")
+                result = handler.http_post(endpoint="documents/upload", form=True)
 
         self.assertIsNone(result)
         self.assertIn("account/login", "\n".join(logs.output))

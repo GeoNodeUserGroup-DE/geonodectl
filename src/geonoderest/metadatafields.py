@@ -249,6 +249,8 @@ def __apply__(schema: Dict, op: FieldOp, payload: Dict, current: Optional[Dict])
 
     if "array" not in types_of(subschema):
         raise MetadataFieldError(f"{op.name} is not a list, += and -= need one ...")
+    if value is None:
+        raise MetadataFieldError(f"{op.name}: += and -= need a value ...")
     existing = list(container.get(leaf) or [])
     if op.op == APPEND:
         for item in value:

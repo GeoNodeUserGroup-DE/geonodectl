@@ -8,7 +8,7 @@ Read and edit resource metadata through GeoNode 5's JSON-schema metadata API (`/
 
 Everything below is driven by the schema the server hands out. That schema differs between GeoNode instances — custom fields, thesauri — so `geonodectl metadata schema` is the place to start.
 
-> This is not `resources metadata`, which *exports* metadata as ISO 19139, Dublin Core and the other standard formats. `metadata get` returns GeoNode's own JSON, ready to be edited and written back.
+> This is not `resources metadata`, which *exports* metadata as ISO 19139, Dublin Core and the other standard formats. `metadata describe` returns GeoNode's own JSON.
 
 ---
 
@@ -25,12 +25,12 @@ The `lookup` column marks fields whose valid values can be searched with `metada
 
 ---
 
-## Get
+## Describe
 
 ```bash
-geonodectl metadata get 42
-geonodectl metadata get <uuid> --fields title,abstract,license
-geonodectl metadata get 42 > md.json
+geonodectl metadata describe 42
+geonodectl metadata describe <uuid> --fields title,abstract,license
+geonodectl metadata describe 42 > md.json
 ```
 
 | Option | Description |
@@ -38,7 +38,7 @@ geonodectl metadata get 42 > md.json
 | `--fields a,b` | only these fields |
 | `--lang xx` | language of labels, e.g. `en` or `de` (default: the server's) |
 
-`get` takes a single pk or uuid: its output is a document meant to be saved and edited.
+`describe` takes a single pk or uuid.
 
 ---
 
@@ -120,25 +120,6 @@ All payloads are checked first. If one is rejected, nothing is sent for any pk.
 ### Links are not edited here
 
 `linkedresources` cannot be changed through `metadata`. Use `linked-resources add/delete`, which adds or removes single links atomically and also works on GeoNode 4. The metadata API replaces the whole list of links instead, so editing one link that way would be a read-modify-write that races other edits.
-
----
-
-## Put
-
-Replace the metadata of a resource with a complete document, typically one that `get` produced:
-
-```bash
-geonodectl metadata get 42 > md.json
-$EDITOR md.json
-geonodectl metadata put 42 --json_path md.json
-```
-
-| Option | Description |
-|---|---|
-| `--set JSON` / `--json_path PATH` | the metadata (one of them is required) |
-| `--dry-run`, `--no-validate`, `--lang xx` | as for `patch` |
-
-`put` writes every field except `linkedresources` and the read-only `uuid`. Your links are never touched, even if the file contains them. It is checked against the full schema, required fields included.
 
 ---
 
