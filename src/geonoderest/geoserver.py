@@ -200,26 +200,24 @@ class GeonodeGeoServerStyleHandler:
         Args:
             layer (str): fully qualified layer name, e.g. geonode:my_layer
             style_name (str): name of the style to set as default
-            workspace (str): workspace of the layer (default: geonode)
+            workspace (str): workspace of the style (default: geonode)
 
         Example:
           geonodectl geoserver styles set-default --layer geonode:my_layer --style my_style
         """
         # layer may arrive as "workspace:name" or bare "name"
-        parts = layer.rsplit(":", 1)
-        layer_workspace = parts[0] if len(parts) > 1 else workspace
-        layer_name = parts[-1]
+        layer_name = layer.rsplit(":", 1)[-1]
 
+        # go through GeoNode's /gs proxy so GeoNode syncs the new default style
+        url = f"{self.base_url.removesuffix('/geoserver')}/gs/rest/layers/{layer_name}.json"
+        body = {"layer": {"defaultStyle": {"name": style_name, "workspace": workspace}}}
         try:
-            self.geo.publish_style(
-                layer_name=layer_name,
-                style_name=style_name,
-                workspace=layer_workspace,
+            r = requests.put(
+                url, json=body, auth=self._auth, verify=self._verify, timeout=30
             )
-        except GeoserverException as e:
-            logging.error(
-                f"Failed to set default style for layer '{layer}': {_exc_msg(e)}"
-            )
+            r.raise_for_status()
+        except requests.RequestException as e:
+            logging.error(f"Failed to set default style for layer '{layer}': {e}")
             return EXIT_FAILED
 
         print(json.dumps({"success": True, "layer": layer, "style": style_name}))
