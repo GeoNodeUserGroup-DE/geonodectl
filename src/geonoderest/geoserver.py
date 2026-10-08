@@ -23,6 +23,14 @@ GEOSERVER_PASSWORD_ENV_VAR = "GEOSERVER_PASSWORD"
 GEONODE_API_URL_ENV_VAR = "GEONODE_API_URL"
 
 
+def _geonode_base_url(geonode_api_url: str) -> str:
+    """Strip the ``/api/v2`` suffix from a GeoNode API URL."""
+    url = geonode_api_url.rstrip("/")
+    if url.endswith("/api/v2"):
+        url = url[: -len("/api/v2")]
+    return url.rstrip("/")
+
+
 def _exc_msg(e: GeoserverException) -> str:
     msg = e.message
     if isinstance(msg, bytes):
@@ -42,14 +50,27 @@ class GeonodeGeoServerStyleHandler:
       GEOSERVER_URL — GeoServer base URL (default: GEONODE_API_URL with
                       ``/api/v2/`` replaced by ``/geoserver``).
 
+    GeoNode proxy:
+      GEONODE_API_URL — when set, ``set-default`` is sent through GeoNode's
+                        ``/gs/rest/layers`` proxy so GeoNode syncs the new
+                        default style into its own database.
+
     SSL verification follows GEONODE_API_VERIFY (True/False, default True).
 
     CLI subcommand routing:
       geoserver styles  <list|describe|upload|set-default>  → cmd_style_*
     """
 
-    def __init__(self, url: str, username: str, password: str, verify: bool = True):
+    def __init__(
+        self,
+        url: str,
+        username: str,
+        password: str,
+        verify: bool = True,
+        geonode_url: Optional[str] = None,
+    ):
         self.base_url = url.rstrip("/")
+        self.geonode_url = geonode_url.rstrip("/") if geonode_url else None
         self._auth = (username, password)
         self._verify = verify
         self.geo = Geoserver(
@@ -62,20 +83,15 @@ class GeonodeGeoServerStyleHandler:
     @staticmethod
     def from_env() -> "GeonodeGeoServerStyleHandler":
         # --- URL: explicit or derived from GeoNode API URL ---
+        geonode_api_url = os.getenv(GEONODE_API_URL_ENV_VAR, "")
+        geonode_url = _geonode_base_url(geonode_api_url) if geonode_api_url else None
         url = os.getenv(GEOSERVER_URL_ENV_VAR)
         if not url:
-            geonode_url = os.getenv(GEONODE_API_URL_ENV_VAR, "").rstrip("/")
             if not geonode_url:
                 raise KeyError(
                     f"Set {GEOSERVER_URL_ENV_VAR} or {GEONODE_API_URL_ENV_VAR}"
                 )
-            # strip /api/v2 suffix and append /geoserver
-            base = (
-                geonode_url[: -len("/api/v2")]
-                if geonode_url.endswith("/api/v2")
-                else geonode_url
-            )
-            url = base.rstrip("/") + "/geoserver"
+            url = geonode_url + "/geoserver"
 
         # --- Auth: GEOSERVER_API_BASIC_AUTH takes precedence ---
         basic_auth = os.getenv(GEOSERVER_BASIC_AUTH_ENV_VAR)
@@ -93,7 +109,11 @@ class GeonodeGeoServerStyleHandler:
 
         verify = os.getenv("GEONODE_API_VERIFY", "True") == "True"
         return GeonodeGeoServerStyleHandler(
-            url=url, username=user, password=password, verify=verify
+            url=url,
+            username=user,
+            password=password,
+            verify=verify,
+            geonode_url=geonode_url,
         )
 
     # ------------------------------------------------------------------
@@ -197,10 +217,14 @@ class GeonodeGeoServerStyleHandler:
     ) -> int:
         """Set the default style for a GeoServer layer.
 
+        When the GeoNode URL is known, the request is sent through GeoNode's
+        ``/gs/rest/layers`` proxy. GeoNode then syncs the new default style
+        into its own database; a direct GeoServer call only updates GeoServer.
+
         Args:
             layer (str): fully qualified layer name, e.g. geonode:my_layer
             style_name (str): name of the style to set as default
-            workspace (str): workspace of the layer (default: geonode)
+            workspace (str): workspace of the style (default: geonode)
 
         Example:
           geonodectl geoserver styles set-default --layer geonode:my_layer --style my_style
@@ -210,17 +234,40 @@ class GeonodeGeoServerStyleHandler:
         layer_workspace = parts[0] if len(parts) > 1 else workspace
         layer_name = parts[-1]
 
-        try:
-            self.geo.publish_style(
-                layer_name=layer_name,
-                style_name=style_name,
-                workspace=layer_workspace,
+        if self.geonode_url:
+            # GeoNode resolves the dataset by the bare layer name in the URL
+            url = f"{self.geonode_url}/gs/rest/layers/{layer_name}.json"
+            body = {
+                "layer": {"defaultStyle": {"name": style_name, "workspace": workspace}}
+            }
+            try:
+                r = requests.put(
+                    url,
+                    json=body,
+                    auth=self._auth,
+                    verify=self._verify,
+                    timeout=30,
+                )
+                r.raise_for_status()
+            except requests.RequestException as e:
+                logging.error(f"Failed to set default style for layer '{layer}': {e}")
+                return EXIT_FAILED
+        else:
+            logging.warning(
+                f"{GEONODE_API_URL_ENV_VAR} not set — setting the style directly in "
+                "GeoServer; GeoNode will not reflect the change until it is synced"
             )
-        except GeoserverException as e:
-            logging.error(
-                f"Failed to set default style for layer '{layer}': {_exc_msg(e)}"
-            )
-            return EXIT_FAILED
+            try:
+                self.geo.publish_style(
+                    layer_name=layer_name,
+                    style_name=style_name,
+                    workspace=layer_workspace,
+                )
+            except GeoserverException as e:
+                logging.error(
+                    f"Failed to set default style for layer '{layer}': {_exc_msg(e)}"
+                )
+                return EXIT_FAILED
 
         print(json.dumps({"success": True, "layer": layer, "style": style_name}))
         return EXIT_OK

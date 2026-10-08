@@ -133,6 +133,8 @@ geonodectl geoserver styles set-default \
   --layer geonode:buildings --style foss4g_buildings
 ```
 
+`set-default` is sent through GeoNode's `/gs/rest/layers` proxy (derived from `GEONODE_API_URL`), so GeoNode picks up the new default style as well. The GeoServer credentials are passed through the proxy. Without `GEONODE_API_URL` it falls back to calling GeoServer directly, and GeoNode will only show the change after a sync (`python manage.py sync_geonode_datasets --filter <name> --updatemetadata`).
+
 ### Map blob commands
 
 The MapStore blob is the JSON configuration that controls how a map is rendered in the GeoNode MapStore viewer (layers, zoom, center, widgets, etc.).

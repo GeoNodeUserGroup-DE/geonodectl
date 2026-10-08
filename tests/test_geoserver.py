@@ -186,6 +186,37 @@ class TestCmdStyleSetDefault(unittest.TestCase):
             self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
 
 
+class TestCmdStyleSetDefaultViaGeonodeProxy(unittest.TestCase):
+    """With a GeoNode URL, set-default goes through GeoNode's /gs proxy."""
+
+    def setUp(self):
+        self.h = _handler()
+        self.h.geonode_url = "https://geonode.example.com"
+
+    @patch("geonoderest.geoserver.requests.put")
+    def test_puts_to_geonode_proxy_with_bare_layer_name(self, mock_put):
+        with patch("builtins.print"):
+            rc = self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
+        self.assertEqual(rc, 0)
+        url = mock_put.call_args.args[0]
+        self.assertEqual(
+            url, "https://geonode.example.com/gs/rest/layers/buildings.json"
+        )
+        self.assertEqual(
+            mock_put.call_args.kwargs["json"],
+            {"layer": {"defaultStyle": {"name": STYLE_NAME, "workspace": WORKSPACE}}},
+        )
+        self.assertEqual(mock_put.call_args.kwargs["auth"], ("admin", "secret"))
+        self.h.geo.publish_style.assert_not_called()
+
+    @patch("geonoderest.geoserver.requests.put")
+    def test_logs_error_on_proxy_failure(self, mock_put):
+        mock_put.return_value.raise_for_status.side_effect = requests.HTTPError("401")
+        with self.assertLogs(level="ERROR"):
+            rc = self.h.cmd_style_set_default("geonode:buildings", STYLE_NAME)
+        self.assertNotEqual(rc, 0)
+
+
 class TestFromEnv(unittest.TestCase):
     """from_env: auth priority and URL defaulting."""
 
@@ -244,6 +275,27 @@ class TestFromEnv(unittest.TestCase):
         )
         _, kwargs = mock_gs.call_args
         self.assertEqual(kwargs["service_url"], "https://geonode.example.com/geoserver")
+
+    def test_geonode_url_derived_from_geonode_api_url(self):
+        token = base64.b64encode(b"admin:pw").decode()
+        h, _ = self._make(
+            {
+                "GEOSERVER_API_BASIC_AUTH": token,
+                "GEOSERVER_URL": "https://custom.gs.example.com",
+                "GEONODE_API_URL": "https://geonode.example.com/api/v2/",
+            }
+        )
+        self.assertEqual(h.geonode_url, "https://geonode.example.com")
+
+    def test_geonode_url_none_without_geonode_api_url(self):
+        token = base64.b64encode(b"admin:pw").decode()
+        h, _ = self._make(
+            {
+                "GEOSERVER_API_BASIC_AUTH": token,
+                "GEOSERVER_URL": "https://gs.example.com",
+            }
+        )
+        self.assertIsNone(h.geonode_url)
 
     def test_explicit_geoserver_url_overrides_default(self):
         token = base64.b64encode(b"admin:pw").decode()
