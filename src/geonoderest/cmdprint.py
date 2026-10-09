@@ -5,6 +5,22 @@ import logging
 
 from .geonodetypes import GeonodeCmdOutObjectKey
 
+# set by --quiet: nothing is printed, logging still reports warnings and errors
+QUIET: bool = False
+
+
+def set_quiet(quiet: bool):
+    """switch the cmd output off (--quiet) or on"""
+    global QUIET
+    QUIET = quiet
+
+
+def print_text(text: str = ""):
+    """print a plain line of output on the cmdline"""
+    if QUIET:
+        return
+    print(text)
+
 
 def show_list(headers: List[str], values: List[List[str]], tablefmt="github"):
     """_summary_: prints pretty table to commandline
@@ -14,6 +30,8 @@ def show_list(headers: List[str], values: List[List[str]], tablefmt="github"):
         values (List[List[str]]): list of lists of str of the value of the table. Each list a row in the table
         tablefmt (str, optional): used tabulate table format, see https://pypi.org/project/tabulate/
     """
+    if QUIET:
+        return
     print(tabulate(values, headers=headers, tablefmt=tablefmt))
 
 
@@ -56,6 +74,8 @@ def print_json(json_str: Union[str, dict]):
     if json_str is None:
         logging.warning("return from geonode api was broken, not output ...")
         return None
+    if QUIET:
+        return None
     print(json.dumps(json_str, indent=2, ensure_ascii=False))
 
 
@@ -67,6 +87,8 @@ def print_validation_report(report: List[Dict], noun: str):
             ``errors`` - the records of ``validate.collect_errors``
         noun (str): what the objects are called, e.g. ``"dataset"``
     """
+    if QUIET:
+        return
     for entry in report:
         name = f"{noun} {entry['pk']}"
         if entry["valid"]:

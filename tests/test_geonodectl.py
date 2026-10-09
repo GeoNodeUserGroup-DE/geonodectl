@@ -1,18 +1,22 @@
-"""The exit code contract from issue #151.
+"""End to end tests of the geonodectl command line.
 
-The point of the issue is that `$?` has to be readable from a shell script, so
-these tests drive `geonodectl()` the way the console script does rather than
-calling handlers directly.
+These tests drive `geonodectl()` the way the console script does rather than
+calling handlers directly: the exit code contract (#151), general args given
+anywhere on the command line (#162) and quiet mode (#179).
 """
 
+import io
+import logging
 import os
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import requests
 
+from geonoderest.cmdprint import print_json, print_text, set_quiet, show_list
 from geonoderest.datasets import GeonodeDatasetsHandler
 from geonoderest.documents import GeonodeDocumentsHandler
 from geonoderest.exceptions import (
@@ -457,6 +461,64 @@ class TestGeneralArgsPosition(unittest.TestCase):
         kwargs = handler.cmd_style_list.call_args.kwargs
         self.assertTrue(kwargs["json"])
         self.assertTrue(kwargs["verbose"])
+
+
+class TestQuiet(unittest.TestCase):
+    """-q/--quiet: no output, warnings and errors still reach stderr (#179)"""
+
+    def tearDown(self):
+        # --quiet is module state in cmdprint, don't leak it into other tests
+        set_quiet(False)
+
+    def _run(self, *argv, returns=None):
+        def cmd_list(**kwargs):
+            print_json({"some": "output"})
+            logging.info("some info")
+            logging.error("some error")
+            return returns
+
+        with (
+            patch.dict(os.environ, ENV, clear=True),
+            patch("sys.argv", ["geonodectl", *argv]),
+            patch.object(GeonodeDatasetsHandler, "cmd_list", side_effect=cmd_list),
+            redirect_stdout(io.StringIO()) as out,
+            redirect_stderr(io.StringIO()) as err,
+        ):
+            code = geonodectl()
+        return code, out.getvalue(), err.getvalue()
+
+    def test_quiet_prints_nothing_on_stdout(self):
+        for argv in (
+            ("-q", "ds", "list"),
+            ("ds", "list", "--quiet"),
+            ("ds", "list", "-s"),
+            ("--silent", "ds", "list"),
+        ):
+            with self.subTest(argv=argv):
+                code, out, _ = self._run(*argv)
+                self.assertEqual(code, EXIT_OK)
+                self.assertEqual(out, "")
+
+    def test_only_warnings_and_errors_reach_stderr(self):
+        code, out, err = self._run("ds", "list", "-q", returns=EXIT_FAILED)
+        self.assertEqual(code, EXIT_FAILED)
+        self.assertEqual(out, "")
+        self.assertIn("some error", err)
+        self.assertNotIn("some info", err)
+
+    def test_output_is_back_after_a_quiet_run(self):
+        self._run("-q", "ds", "list")
+        _, out, err = self._run("ds", "list")
+        self.assertIn('"some": "output"', out)
+        self.assertIn("some info", err)
+
+    def test_cmdprint_prints_nothing_when_quiet(self):
+        set_quiet(True)
+        with redirect_stdout(io.StringIO()) as out:
+            print_text("text")
+            print_json({"a": 1})
+            show_list(headers=["h"], values=[["v"]])
+        self.assertEqual(out.getvalue(), "")
 
 
 if __name__ == "__main__":

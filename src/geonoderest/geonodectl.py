@@ -9,6 +9,7 @@ from argparse import RawTextHelpFormatter
 from pathlib import Path
 
 from geonoderest.apiconf import GeonodeApiConf
+from geonoderest.cmdprint import set_quiet
 from geonoderest.exceptions import GeoNodeRestException, GeonodeUsageError
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.geonodeobject import GeonodeObjectHandler
@@ -92,6 +93,16 @@ def add_general_args(parser: argparse.ArgumentParser, suppress_defaults: bool = 
         action="store_true",
         default=argparse.SUPPRESS if suppress_defaults else False,
         help="Enable verbose output",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        "-s",
+        "--silent",
+        dest="quiet",
+        action="store_true",
+        default=argparse.SUPPRESS if suppress_defaults else False,
+        help="no output, only warnings and errors (on stderr)",
     )
 
 
@@ -1712,10 +1723,14 @@ To use this tool you have to set the following environment variables before star
     # END OF ARGPARSING #
     #####################
 
+    set_quiet(args.quiet)
+
     # configure logging
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG, force=True)
         logging.debug("Verbose mode enabled")
+    elif args.quiet:
+        logging.basicConfig(level=logging.WARNING, force=True)
     else:
         logging.basicConfig(level=logging.INFO, force=True)
     try:
