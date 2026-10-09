@@ -23,6 +23,7 @@ from geonoderest.exceptions import (
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 from geonoderest.geonodectl import __exit_code__, geonodectl
+from geonoderest.geoserver import GeonodeGeoServerStyleHandler
 from geonoderest.linkedresources import GeonodeLinkedResourcesHandler
 from geonoderest.maps import GeonodeMapsHandler
 from geonoderest.metadata import GeonodeMetadataHandler
@@ -386,6 +387,76 @@ class TestLibraryMethodsNeverExit(unittest.TestCase):
                 if exits(node):
                     offenders.append(f"{path.name}:{node.lineno}")
         self.assertEqual(offenders, [])
+
+
+def _general_args_kwargs(*argv) -> dict:
+    """run ``geonodectl ds list`` style commands, return what cmd_list got"""
+    with (
+        patch.dict(os.environ, ENV, clear=True),
+        patch("sys.argv", ["geonodectl", *argv]),
+        patch("logging.basicConfig"),
+        patch.object(GeonodeDatasetsHandler, "cmd_list", return_value=None) as cmd,
+    ):
+        geonodectl()
+    return cmd.call_args.kwargs
+
+
+class TestGeneralArgsPosition(unittest.TestCase):
+    """--raw, --page-size, --page, ... can be given anywhere (#162)"""
+
+    def test_defaults(self):
+        kwargs = _general_args_kwargs("ds", "list")
+        self.assertFalse(kwargs["json"])
+        self.assertEqual(kwargs["page_size"], 80)
+        self.assertEqual(kwargs["page"], 1)
+
+    def test_before_the_command(self):
+        kwargs = _general_args_kwargs(
+            "--raw", "--page-size", "5", "--page", "2", "ds", "list"
+        )
+        self.assertTrue(kwargs["json"])
+        self.assertEqual((kwargs["page_size"], kwargs["page"]), (5, 2))
+
+    def test_in_between(self):
+        kwargs = _general_args_kwargs("ds", "--raw", "--page-size", "5", "list")
+        self.assertTrue(kwargs["json"])
+        self.assertEqual(kwargs["page_size"], 5)
+
+    def test_at_the_end(self):
+        kwargs = _general_args_kwargs(
+            "ds", "list", "--raw", "--page-size", "5", "--page", "2"
+        )
+        self.assertTrue(kwargs["json"])
+        self.assertEqual((kwargs["page_size"], kwargs["page"]), (5, 2))
+
+    def test_a_later_position_does_not_reset_an_earlier_one(self):
+        kwargs = _general_args_kwargs("--page-size", "5", "ds", "list", "--raw")
+        self.assertEqual(kwargs["page_size"], 5)
+        self.assertTrue(kwargs["json"])
+
+    def test_not_verify_ssl_at_the_end(self):
+        with patch("geonoderest.geonodectl.GeonodeApiConf") as conf:
+            _general_args_kwargs("ds", "list", "--not-verify-ssl")
+        self.assertTrue(conf.call_args.kwargs["verify"])
+
+    def test_nested_subcommand(self):
+        handler = MagicMock()
+        handler.cmd_style_list.return_value = None
+        with (
+            patch.dict(os.environ, ENV, clear=True),
+            patch(
+                "sys.argv",
+                ["geonodectl", "geoserver", "styles", "list", "--raw", "-v"],
+            ),
+            patch("logging.basicConfig"),
+            patch.object(
+                GeonodeGeoServerStyleHandler, "from_env", return_value=handler
+            ),
+        ):
+            geonodectl()
+        kwargs = handler.cmd_style_list.call_args.kwargs
+        self.assertTrue(kwargs["json"])
+        self.assertTrue(kwargs["verbose"])
 
 
 if __name__ == "__main__":
