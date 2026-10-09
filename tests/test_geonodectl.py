@@ -1,8 +1,8 @@
-"""The exit code contract from issue #151.
+"""End to end tests of the geonodectl command line.
 
-The point of the issue is that `$?` has to be readable from a shell script, so
-these tests drive `geonodectl()` the way the console script does rather than
-calling handlers directly.
+These tests drive `geonodectl()` the way the console script does rather than
+calling handlers directly: the exit code contract (#151), general args given
+anywhere on the command line (#162) and quiet mode (#179).
 """
 
 import io
