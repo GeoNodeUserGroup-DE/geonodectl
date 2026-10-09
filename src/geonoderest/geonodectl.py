@@ -48,6 +48,53 @@ DEFAULT_CMD_PAGE_SIZE: int = 80
 DEFAULT_CMD_PAGE: int = 1
 
 
+def add_general_args(parser: argparse.ArgumentParser, suppress_defaults: bool = False):
+    """add the general args (--raw, --page-size, ...) to a parser
+
+    They are added to every subcommand too, so they can be given anywhere on
+    the command line. Subcommands suppress the defaults, so they do not
+    overwrite a value given earlier on the command line.
+    """
+    parser.add_argument(
+        "--not-verify-ssl",
+        dest="ssl_verify",
+        default=argparse.SUPPRESS if suppress_defaults else False,
+        action="store_true",
+        help="allow to request domains with unsecure ssl certificates ...",
+    )
+    parser.add_argument(
+        "--raw",
+        "--json",
+        dest="json",
+        default=argparse.SUPPRESS if suppress_defaults else False,
+        action="store_true",
+        help="return output as raw response json as it comes from the rest API",
+    )
+    parser.add_argument(
+        "--page-size",
+        dest="page_size",
+        default=argparse.SUPPRESS if suppress_defaults else DEFAULT_CMD_PAGE_SIZE,
+        type=int,
+        help="Number of results to return per page",
+    )
+    parser.add_argument(
+        "--page",
+        dest="page",
+        default=argparse.SUPPRESS if suppress_defaults else DEFAULT_CMD_PAGE,
+        type=int,
+        help=" A page number within the paginated result set",
+    )
+
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        action="store_true",
+        default=argparse.SUPPRESS if suppress_defaults else False,
+        help="Enable verbose output",
+    )
+
+
 class AliasedSubParsersAction(argparse._SubParsersAction):
     class _AliasedPseudoAction(argparse.Action):
         def __init__(self, name, aliases, help):
@@ -66,6 +113,9 @@ class AliasedSubParsersAction(argparse._SubParsersAction):
             aliases = []
 
         parser = super(AliasedSubParsersAction, self).add_parser(name, **kwargs)
+        # nested subcommands use this action too, so they get the general args
+        parser.register("action", "parsers", AliasedSubParsersAction)
+        add_general_args(parser, suppress_defaults=True)
 
         # Make the aliases work.
         for alias in aliases:
@@ -204,44 +254,7 @@ To use this tool you have to set the following environment variables before star
 
     # defining alias for add_parser https://gist.github.com/sampsyo/471779
     parser.register("action", "parsers", AliasedSubParsersAction)
-    parser.add_argument(
-        "--not-verify-ssl",
-        dest="ssl_verify",
-        default=False,
-        action="store_true",
-        help="allow to request domains with unsecure ssl certificates ...",
-    )
-    parser.add_argument(
-        "--raw",
-        "--json",
-        dest="json",
-        default=False,
-        action="store_true",
-        help="return output as raw response json as it comes from the rest API",
-    )
-    parser.add_argument(
-        "--page-size",
-        dest="page_size",
-        default=DEFAULT_CMD_PAGE_SIZE,
-        type=int,
-        help="Number of results to return per page",
-    )
-    parser.add_argument(
-        "--page",
-        dest="page",
-        default=DEFAULT_CMD_PAGE,
-        type=int,
-        help=" A page number within the paginated result set",
-    )
-
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        dest="verbose",
-        action="store_true",
-        default=False,
-        help="Enable verbose output",
-    )
+    add_general_args(parser)
 
     subparsers = parser.add_subparsers(
         help="geonodectl commands", dest="command", required=True
