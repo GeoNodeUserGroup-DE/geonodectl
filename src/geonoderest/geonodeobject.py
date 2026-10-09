@@ -9,6 +9,7 @@ from geonoderest.jsonsource import JsonSourceError, load_json_source
 from geonoderest.cmdprint import (
     print_list_on_cmd,
     print_json,
+    print_text,
 )
 
 
@@ -64,7 +65,7 @@ class GeonodeObjectHandler(GeonodeRest):
                 logging.error(f"deleting {_pk} failed ... ")
                 exit_code = EXIT_FAILED
             else:
-                print(f"{self.JSON_OBJECT_NAME}: {_pk} deleted ...")
+                print_text(f"{self.JSON_OBJECT_NAME}: {_pk} deleted ...")
         return exit_code
 
     def delete(self, pk: int, **kwargs):

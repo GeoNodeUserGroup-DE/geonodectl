@@ -1,5 +1,4 @@
 import base64
-import json
 import logging
 import os
 from pathlib import Path
@@ -9,6 +8,7 @@ import requests
 import urllib3
 from geo.Geoserver import Geoserver, GeoserverException
 
+from geonoderest.cmdprint import print_json, print_text
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
 
 urllib3.disable_warnings()
@@ -111,7 +111,7 @@ class GeonodeGeoServerStyleHandler:
         if isinstance(styles, dict):
             styles = [styles]
         for s in styles:
-            print(s.get("name", ""))
+            print_text(s.get("name", ""))
         return EXIT_OK
 
     def cmd_style_describe(
@@ -129,7 +129,7 @@ class GeonodeGeoServerStyleHandler:
         try:
             r = requests.get(url, auth=self._auth, verify=self._verify, timeout=15)
             r.raise_for_status()
-            print(r.text)
+            print_text(r.text)
         except requests.RequestException as e:
             logging.error(f"Failed to fetch SLD for '{name}': {e}")
             return EXIT_FAILED
@@ -185,7 +185,7 @@ class GeonodeGeoServerStyleHandler:
                 )
                 return EXIT_FAILED
 
-        print(json.dumps({"success": True, "style": name, "workspace": workspace}))
+        print_json({"success": True, "style": name, "workspace": workspace})
         return EXIT_OK
 
     def cmd_style_set_default(
@@ -220,5 +220,5 @@ class GeonodeGeoServerStyleHandler:
             logging.error(f"Failed to set default style for layer '{layer}': {e}")
             return EXIT_FAILED
 
-        print(json.dumps({"success": True, "layer": layer, "style": style_name}))
+        print_json({"success": True, "layer": layer, "style": style_name})
         return EXIT_OK

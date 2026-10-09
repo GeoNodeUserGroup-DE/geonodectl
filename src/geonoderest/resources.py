@@ -5,7 +5,7 @@ import logging
 from geonoderest.geonodeobject import GeonodeObjectHandler
 from geonoderest.geonodetypes import GeonodeCmdOutListKey, GeonodeCmdOutDictKey
 from geonoderest.executionrequest import GeonodeExecutionRequestHandler
-from geonoderest.cmdprint import print_json, print_validation_report
+from geonoderest.cmdprint import print_json, print_text, print_validation_report
 from geonoderest.identifier import ANY_RESOURCE_TYPE
 from geonoderest.exceptions import GeonodeUsageError
 from geonoderest.exitcodes import EXIT_FAILED, EXIT_OK, EXIT_USAGE
@@ -61,7 +61,7 @@ class GeonodeResourceHandler(GeonodeObjectHandler):
         if r is None:
             logging.error("metadata download failed ... ")
             return EXIT_FAILED
-        print(r.text)
+        print_text(r.text)
         return EXIT_OK
 
     def metadata(

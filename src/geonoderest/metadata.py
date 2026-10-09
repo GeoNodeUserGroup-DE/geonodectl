@@ -4,7 +4,12 @@ from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 from geonoderest.apiconf import GeonodeApiConf
-from geonoderest.cmdprint import print_json, print_validation_report, show_list
+from geonoderest.cmdprint import (
+    print_json,
+    print_text,
+    print_validation_report,
+    show_list,
+)
 from geonoderest.exceptions import (
     GeoNodeRestException,
     GeonodeUsageError,
@@ -413,7 +418,7 @@ class GeonodeMetadataHandler(GeonodeRest):
             if record["status"] is None:
                 continue
             message = record.get("message", f"status {record['status']}")
-            print(f"resource {record['pk']}: {message}")
+            print_text(f"resource {record['pk']}: {message}")
             errors = flatten_errors(record.get("extraErrors") or {})
             if errors:
                 show_list(headers=["path", "error"], values=[list(e) for e in errors])
@@ -454,7 +459,7 @@ class GeonodeMetadataHandler(GeonodeRest):
         )
         choices = choices_of(subschema)
         if choices:
-            print()
+            print_text()
             show_list(headers=["value", "title"], values=[list(c) for c in choices])
 
     @staticmethod
